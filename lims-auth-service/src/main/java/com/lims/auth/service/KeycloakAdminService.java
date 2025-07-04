@@ -6,6 +6,7 @@ import com.lims.auth.config.LimsAuthProperties;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.keycloak.OAuth2Constants;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.KeycloakBuilder;
 import org.keycloak.admin.client.resource.RealmResource;
@@ -60,6 +61,7 @@ public class KeycloakAdminService {
                     .clientSecret(clientSecret)
                     .username(email)
                     .password(password)
+                    .grantType(OAuth2Constants.CLIENT_CREDENTIALS)
                     .build();
 
             // Tenter de récupérer le token pour valider les credentials

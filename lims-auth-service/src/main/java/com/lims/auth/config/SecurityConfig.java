@@ -46,6 +46,9 @@ public class SecurityConfig {
                         // Endpoints de setup MFA (utilisation de tokens temporaires)
                         .requestMatchers(
                                 "/api/v1/auth/admin/mfa/setup",
+                                "/api/v1/auth/admin/setup/verify",
+                                "/api/v1/auth/admin/mfa/setup/verify/**",
+                                "/api/v1/auth/admin/mfa/setup/**",
                                 "/api/v1/auth/admin/mfa/reset/*/",
                                 "/api/v1/auth/admin/mfa/reset/*/complete"
                         ).permitAll()

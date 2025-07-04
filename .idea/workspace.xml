@@ -4,10 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="7aacdcd1-1ad1-4553-9a77-bce1e509ee8f" name="Changes" comment="">
+    <list default="true" id="7aacdcd1-1ad1-4553-9a77-bce1e509ee8f" name="Changes" comment="running service-auth 2">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/codebase.md" beforeDir="false" afterPath="$PROJECT_DIR$/codebase.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/entity/AdminUser.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/entity/AdminUser.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/config/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/config/SecurityConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/service/KeycloakAdminService.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/service/KeycloakAdminService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lims-auth-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/lims-auth-service/src/main/resources/application.yml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -84,6 +84,104 @@
       <option name="presentableId" value="Default" />
       <updated>1751616626909</updated>
     </task>
+    <task id="LOCAL-00001" summary="running service-auth 2">
+      <option name="closed" value="true" />
+      <created>1751655866918</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1751655866918</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="running service-auth 2" />
+    <option name="LAST_COMMIT_MESSAGE" value="running service-auth 2" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/service/AdminMfaService.java</url>
+          <line>119</line>
+          <option name="timeStamp" value="24" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/service/AdminMfaService.java</url>
+          <line>125</line>
+          <option name="timeStamp" value="25" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/service/AdminMfaService.java</url>
+          <line>120</line>
+          <option name="timeStamp" value="26" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/service/AdminMfaService.java</url>
+          <line>127</line>
+          <option name="timeStamp" value="27" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/service/AdminMfaService.java</url>
+          <line>132</line>
+          <option name="timeStamp" value="28" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/service/AdminMfaService.java</url>
+          <line>136</line>
+          <option name="timeStamp" value="29" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/service/AdminMfaService.java</url>
+          <line>143</line>
+          <option name="timeStamp" value="30" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/service/AdminMfaService.java</url>
+          <line>137</line>
+          <option name="timeStamp" value="31" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/service/AdminMfaService.java</url>
+          <line>149</line>
+          <option name="timeStamp" value="32" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/service/AdminMfaService.java</url>
+          <line>155</line>
+          <option name="timeStamp" value="33" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/service/AdminMfaService.java</url>
+          <line>159</line>
+          <option name="timeStamp" value="34" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/service/AdminMfaService.java</url>
+          <line>164</line>
+          <option name="timeStamp" value="35" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/service/AdminMfaService.java</url>
+          <line>293</line>
+          <option name="timeStamp" value="37" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-method">
+          <url>file://$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/service/AdminTokenService.java</url>
+          <line>28</line>
+          <properties class="com.lims.auth.service.AdminTokenService">
+            <option name="EMULATED" value="true" />
+            <option name="WATCH_EXIT" value="false" />
+          </properties>
+          <option name="timeStamp" value="38" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
+    <pin-to-top-manager>
+      <pinned-members>
+        <PinnedItemInfo parentTag="org.keycloak.admin.client.Keycloak" memberName="config" />
+      </pinned-members>
+    </pin-to-top-manager>
   </component>
 </project>

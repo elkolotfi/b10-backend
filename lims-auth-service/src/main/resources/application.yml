@@ -25,7 +25,7 @@ spring:
   # JPA Configuration
   jpa:
     hibernate:
-      ddl-auto: create
+      ddl-auto: none
       default_schema: lims_auth
     show-sql: true
     open-in-view: false  # Désactiver pour éviter le warning
@@ -57,7 +57,7 @@ spring:
 # Keycloak Configuration
 keycloak:
   enabled: false  # Désactivé temporairement pour les tests de base
-  auth-server-url: http://localhost:8080
+  auth-server-url: http://auth.lims.local
   realm: lims-admin
   resource: auth-service
   credentials:
@@ -68,12 +68,14 @@ security:
   oauth2:
     resourceserver:
       jwt:
-        issuer-uri: http://localhost:8080/realms/lims-admin
-        jwk-set-uri: http://localhost:8080/realms/lims-admin/protocol/openid-connect/certs
+        issuer-uri: http://auth.lims.local/realms/lims-admin
+        jwk-set-uri: http://auth.lims.local/realms/lims-admin/protocol/openid-connect/certs
 
 # LIMS Configuration
 lims:
   auth:
+    jwt:
+      secret: "G9/BrPDMezKO3cxercRPm7OtvRjWGOeONQCk7AjB6s+pttEuco8xcUEE6dT2IHNHix9aNk4i+c1N8CaTTp84WxCfZMCC/UVJABajwU4ToymMJ/9gT3uxMK5PqrJcCHNi2cUo3P9k+ZaBCqvqwcDZv6kY7mdaz6G5VmcWAU8+4OgZVZEssNvY2kTInV2Sz4JZzp4/N8aWGf6ml3C+q4I8l0Yk9qImvqnAeMX83Rxp3R+yLk2LvCuaYx1lEkSbkM2NbsN1W8ebtZwxMC0CpeLY57V7DocrjvK7v/pjHHUu27qad1JgLBhmoNy4LZX1rqLSKdYvjGQqQd8SU4vP311d9fY8rv47DLKjSPKkee4XTtrfTfH1fh3mnPjYl2NoZjCzr7KAHB3lKpk56rUlmXYbqqExOlDGmnXOrnCL5JRj3LWgwvw6sR73/CGsigxkZvks00QF48cSfJPgFT+TdZ4FyAxc9vC+MG5FDdSjG+wCgmJ/UYQ9MOdLhNGs2itMpf3mN/z81/JYbbDxrNWPah56Ybr8Y4DUykgfJLMgiK/nwME5/qwjzkfRpjEMBRaZbIJPy7N+NfdgIolVjdNj6eBNUHLlrerV2G5FcEkHTsYrTIFrhxxAI3gE3KI92pBPBXxKohXrvVt4nupaj9onnzfP/y5s5kQkNUomVQYMIbyUKGU="
     mfa:
       issuer: "LIMS-Admin-System"
       backup-codes:
@@ -83,11 +85,9 @@ lims:
         expiry: 600 # 10 minutes
       reset-token:
         expiry: 86400 # 24 heures
-
     rate-limiting:
       max-attempts: 3
       window-minutes: 15
-
     session:
       timeout: 7200 # 2 heures
       extend-on-activity: true
