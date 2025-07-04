@@ -1,0 +1,6 @@
+.idea
+.git
+lims-auth-service/target
+lims-laboratory-service/target
+**/target
+.gitignore
