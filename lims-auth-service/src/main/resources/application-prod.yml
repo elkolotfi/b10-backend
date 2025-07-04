@@ -1,0 +1,136 @@
+server:
+  port: 8090
+  compression:
+    enabled: true
+  http2:
+    enabled: true
+
+spring:
+  application:
+    name: lims-auth-service
+  profiles:
+    active: prod
+
+  # Database configuration (Production)
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/lims_db}
+    username: ${DATABASE_USERNAME:lims_user}
+    password: ${DATABASE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: LIMS-Auth-Pool-Prod
+      minimum-idle: 10
+      maximum-pool-size: 50
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      leak-detection-threshold: 60000
+
+  # JPA Configuration (Production)
+  jpa:
+    hibernate:
+      ddl-auto: validate  # Pas de modification automatique en production
+      default_schema: lims_auth
+    show-sql: false  # Pas de logs SQL en production
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+        default_schema: lims_auth
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+        batch_versioned_data: true
+
+  # Redis Configuration (Production)
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
+      timeout: 2000ms
+      jedis:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+
+# Keycloak Configuration (Production)
+keycloak:
+  enabled: true
+  auth-server-url: ${KEYCLOAK_SERVER_URL:http://localhost:8080}
+  realm: ${KEYCLOAK_REALM:lims-admin}
+  resource: ${KEYCLOAK_CLIENT_ID:auth-service}
+  credentials:
+    secret: ${KEYCLOAK_CLIENT_SECRET}
+
+# Security configuration (Production)
+security:
+  oauth2:
+    resourceserver:
+      jwt:
+        issuer-uri: ${KEYCLOAK_SERVER_URL:http://localhost:8080}/realms/${KEYCLOAK_REALM:lims-admin}
+        jwk-set-uri: ${KEYCLOAK_SERVER_URL:http://localhost:8080}/realms/${KEYCLOAK_REALM:lims-admin}/protocol/openid-connect/certs
+
+# LIMS Configuration
+lims:
+  auth:
+    mfa:
+      issuer: "LIMS-Production-System"
+      backup-codes:
+        count: 10
+        length: 8
+      setup-token:
+        expiry: 600
+      reset-token:
+        expiry: 86400
+
+    rate-limiting:
+      max-attempts: 3
+      window-minutes: 15
+
+    session:
+      timeout: 7200
+      extend-on-activity: true
+
+# Management endpoints (Production)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Logging (Production)
+logging:
+  level:
+    com.lims.auth: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+    org.keycloak: WARN
+    org.springframework.web: WARN
+    org.hibernate: WARN
+    com.zaxxer.hikari: WARN
+    org.apache.http: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: /var/log/lims/auth-service.log
+    max-size: 100MB
+    max-history: 30
+
+# SpringDoc OpenAPI (Production)
+springdoc:
+  api-docs:
+    enabled: false  # Désactiver en production
+  swagger-ui:
+    enabled: false  # Désactiver en production

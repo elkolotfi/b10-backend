@@ -9,22 +9,61 @@ spring:
 
   # Database configuration
   datasource:
-    url: jdbc:postgresql://localhost:5432/lims_auth
+    url: jdbc:postgresql://localhost:5432/lims_db
     username: lims_user
-    password: lims_password
+    password: dev_password_123
     driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: LIMS-Auth-Pool
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      connection-timeout: 20000
+      leak-detection-threshold: 60000
 
   # JPA Configuration
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
+      default_schema: lims_auth
     show-sql: true
+    open-in-view: false  # Désactiver pour éviter le warning
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+        # Supprimer dialect (auto-détecté par Hibernate)
         format_sql: true
+        default_schema: lims_auth
+        # Optimisations de performance
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+        batch_versioned_data: true
 
-# Security configuration (to be configured with Keycloak)
+  # Redis Configuration
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: redis_dev_123
+      timeout: 2000ms
+      jedis:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+# Keycloak Configuration
+keycloak:
+  enabled: false  # Désactivé temporairement pour les tests de base
+  auth-server-url: http://localhost:8080
+  realm: lims-admin
+  resource: auth-service
+  credentials:
+    secret: dev-auth-admin-secret-123
+
+# Security configuration
 security:
   oauth2:
     resourceserver:
@@ -32,9 +71,59 @@ security:
         issuer-uri: http://localhost:8080/realms/lims-admin
         jwk-set-uri: http://localhost:8080/realms/lims-admin/protocol/openid-connect/certs
 
+# LIMS Configuration
+lims:
+  auth:
+    mfa:
+      issuer: "LIMS-Admin-System"
+      backup-codes:
+        count: 10
+        length: 8
+      setup-token:
+        expiry: 600 # 10 minutes
+      reset-token:
+        expiry: 86400 # 24 heures
+
+    rate-limiting:
+      max-attempts: 3
+      window-minutes: 15
+
+    session:
+      timeout: 7200 # 2 heures
+      extend-on-activity: true
+
+# Management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
 # Logging
 logging:
   level:
     com.lims.auth: DEBUG
-    org.springframework.security: DEBUG
+    org.springframework.security: INFO
     org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.keycloak: INFO
+    # Réduire les warnings Hibernate
+    org.hibernate.engine.jdbc.env.internal.LobCreatorBuilderImpl: WARN
+    org.hibernate.dialect.Dialect: WARN
+    org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean: INFO
+    com.zaxxer.hikari.HikariConfig: INFO
+    com.zaxxer.hikari.HikariDataSource: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# SpringDoc OpenAPI
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
