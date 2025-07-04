@@ -21,7 +21,8 @@ import java.util.List;
 public class AdminUser {
 
     @Id
-    @Column(name = "id", length = 36)
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id", columnDefinition = "uuid")
     private String id;
 
     @Column(name = "email", nullable = false, unique = true)

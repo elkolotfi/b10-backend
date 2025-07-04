@@ -71,24 +71,38 @@
             <artifactId>spring-security-oauth2-jose</artifactId>
         </dependency>
 
-        <!-- Keycloak Admin Client avec toutes ses dépendances -->
+        <!-- ✅ Keycloak Admin Client avec version compatible -->
         <dependency>
             <groupId>org.keycloak</groupId>
             <artifactId>keycloak-admin-client</artifactId>
-            <version>24.0.1</version>
+            <version>26.0.5</version>
         </dependency>
 
-        <!-- Dépendances nécessaires pour Keycloak Admin Client -->
+        <!-- ✅ JAX-RS API pour compatibilité Keycloak -->
+        <dependency>
+            <groupId>javax.ws.rs</groupId>
+            <artifactId>javax.ws.rs-api</artifactId>
+            <version>2.1.1</version>
+        </dependency>
+
+        <!-- ✅ RESTEasy Client pour Keycloak -->
         <dependency>
             <groupId>org.jboss.resteasy</groupId>
             <artifactId>resteasy-client</artifactId>
-            <version>6.2.4.Final</version>
+            <version>6.2.8.Final</version>
         </dependency>
 
         <dependency>
             <groupId>org.jboss.resteasy</groupId>
             <artifactId>resteasy-jackson2-provider</artifactId>
-            <version>6.2.4.Final</version>
+            <version>6.2.8.Final</version>
+        </dependency>
+
+        <!-- ✅ RESTEasy Core pour runtime -->
+        <dependency>
+            <groupId>org.jboss.resteasy</groupId>
+            <artifactId>resteasy-core</artifactId>
+            <version>6.2.8.Final</version>
         </dependency>
 
         <!-- TOTP / Google Authenticator -->
@@ -121,6 +135,25 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <!-- ✅ JWT Token Processing -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>0.12.6</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>0.12.6</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>0.12.6</version>
+            <scope>runtime</scope>
         </dependency>
 
         <!-- Lombok -->
@@ -293,6 +326,30 @@ public class AdminJwtAuthenticationConverter extends JwtAuthenticationConverter 
     }
 }
 
+```
+
+# lims-auth-service/src/main/java/com/lims/auth/config/AdminSecurityConfig.java
+
+```java
+package com.lims.auth.config;
+
+import com.lims.auth.security.AdminSecurityContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+
+@Configuration
+@EnableMethodSecurity(prePostEnabled = true)
+public class AdminSecurityConfig {
+
+    /**
+     * Bean pour AdminSecurityContext afin de l'utiliser dans les annotations PreAuthorize
+     */
+    @Bean
+    public AdminSecurityContext adminSecurityContext() {
+        return new AdminSecurityContext();
+    }
+}
 ```
 
 # lims-auth-service/src/main/java/com/lims/auth/config/KeycloakConfig.java
@@ -475,6 +532,8 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
@@ -562,8 +621,33 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 }
 
+
+```
+
+# lims-auth-service/src/main/java/com/lims/auth/config/TotpConfig.java
+
+```java
+package com.lims.auth.config;
+
+import dev.samstevens.totp.secret.DefaultSecretGenerator;
+import dev.samstevens.totp.secret.SecretGenerator;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class TotpConfig {
+    @Bean
+    public SecretGenerator secretGenerator() {
+        return new DefaultSecretGenerator();
+    }
+}
 
 ```
 
@@ -587,7 +671,6 @@ import com.lims.auth.service.AdminTokenService;
 import com.lims.auth.exception.AuthenticationException;
 import com.lims.auth.exception.MfaException;
 import com.lims.auth.exception.RateLimitException;
-import com.lims.auth.security.AdminSecurityContext;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -623,27 +706,15 @@ public class AdminAuthController {
     private final AdminMfaService adminMfaService;
     private final AdminTokenService adminTokenService;
 
-    @Operation(
-            summary = "Connexion administrateur",
-            description = "Authentifie un administrateur avec email/mot de passe et MFA obligatoire. " +
-                    "Premier login nécessite setup MFA avec Google Authenticator."
-    )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Connexion réussie"),
-            @ApiResponse(responseCode = "401", description = "Identifiants invalides"),
-            @ApiResponse(responseCode = "429", description = "Trop de tentatives - Rate limiting actif"),
-            @ApiResponse(responseCode = "423", description = "Compte temporairement verrouillé")
-    })
+    @Operation(summary = "Connexion administrateur", description = "Authentifie un administrateur avec email/mot de passe et MFA obligatoire. " + "Premier login nécessite setup MFA avec Google Authenticator.")
+    @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Connexion réussie"), @ApiResponse(responseCode = "401", description = "Identifiants invalides"), @ApiResponse(responseCode = "429", description = "Trop de tentatives - Rate limiting actif"), @ApiResponse(responseCode = "423", description = "Compte temporairement verrouillé")})
     @PostMapping("/login")
-    public ResponseEntity<AdminLoginResponse> login(
-            @Valid @RequestBody AdminLoginRequest request,
-            HttpServletRequest httpRequest) {
+    public ResponseEntity<AdminLoginResponse> login(@Valid @RequestBody AdminLoginRequest request, HttpServletRequest httpRequest) {
 
         String clientIp = getClientIp(httpRequest);
         String userAgent = httpRequest.getHeader("User-Agent");
 
-        log.info("Tentative de connexion admin - Email: {}, IP: {}",
-                request.getEmail(), clientIp);
+        log.info("Tentative de connexion admin - Email: {}, IP: {}", request.getEmail(), clientIp);
 
         try {
             AdminLoginResponse response = adminAuthService.authenticate(request, clientIp, userAgent);
@@ -654,47 +725,31 @@ public class AdminAuthController {
             }
 
             if (response.isSuccess()) {
-                log.info("Connexion admin réussie - Email: {}, SessionId: {}",
-                        request.getEmail(), response.getSessionId());
+                log.info("Connexion admin réussie - Email: {}, SessionId: {}", request.getEmail(), response.getSessionId());
                 return ResponseEntity.ok(response);
             }
 
-            log.warn("Échec connexion admin - Email: {}, Raison: {}",
-                    request.getEmail(), response.getErrorMessage());
+            log.warn("Échec connexion admin - Email: {}, Raison: {}", request.getEmail(), response.getErrorMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
 
         } catch (RateLimitException e) {
             log.warn("Rate limiting actif pour admin - Email: {}, IP: {}", request.getEmail(), clientIp);
-            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                    .body(AdminLoginResponse.rateLimitExceeded(e.getMessage()));
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(AdminLoginResponse.rateLimitExceeded(e.getMessage()));
 
         } catch (AuthenticationException e) {
-            log.error("Erreur authentification admin - Email: {}, Erreur: {}",
-                    request.getEmail(), e.getMessage());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(AdminLoginResponse.failed(e.getMessage()));
+            log.error("Erreur authentification admin - Email: {}, Erreur: {}", request.getEmail(), e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(AdminLoginResponse.failed(e.getMessage()));
 
         } catch (Exception e) {
             log.error("Erreur inattendue lors connexion admin - Email: {}", request.getEmail(), e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(AdminLoginResponse.failed("Erreur technique temporaire"));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(AdminLoginResponse.failed("Erreur technique temporaire"));
         }
     }
 
-    @Operation(
-            summary = "Setup MFA - Génération QR Code",
-            description = "Génère un QR Code Google Authenticator pour le setup initial MFA. " +
-                    "Utilise un token temporaire de setup."
-    )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "QR Code généré avec succès"),
-            @ApiResponse(responseCode = "400", description = "Token setup invalide ou expiré"),
-            @ApiResponse(responseCode = "401", description = "Non autorisé")
-    })
+    @Operation(summary = "Setup MFA - Génération QR Code", description = "Génère un QR Code Google Authenticator pour le setup initial MFA. " + "Utilise un token temporaire de setup.")
+    @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "QR Code généré avec succès"), @ApiResponse(responseCode = "400", description = "Token setup invalide ou expiré"), @ApiResponse(responseCode = "401", description = "Non autorisé")})
     @GetMapping("/mfa/setup")
-    public ResponseEntity<AdminMfaSetupResponse> setupMfa(
-            @Parameter(description = "Token de setup MFA temporaire", required = true)
-            @RequestParam("setupToken") String setupToken) {
+    public ResponseEntity<AdminMfaSetupResponse> setupMfa(@Parameter(description = "Token de setup MFA temporaire", required = true) @RequestParam("setupToken") String setupToken) {
 
         log.info("Demande setup MFA - Token: {}", setupToken.substring(0, 8) + "...");
 
@@ -705,37 +760,23 @@ public class AdminAuthController {
             return ResponseEntity.ok(response);
 
         } catch (MfaException e) {
-            log.error("Erreur génération QR Code MFA - Token: {}, Erreur: {}",
-                    setupToken.substring(0, 8) + "...", e.getMessage());
-            return ResponseEntity.badRequest()
-                    .body(AdminMfaSetupResponse.failed(e.getMessage()));
+            log.error("Erreur génération QR Code MFA - Token: {}, Erreur: {}", setupToken.substring(0, 8) + "...", e.getMessage());
+            return ResponseEntity.badRequest().body(AdminMfaSetupResponse.failed(e.getMessage()));
         }
     }
 
-    @Operation(
-            summary = "Vérification Setup MFA",
-            description = "Valide le premier code OTP généré par Google Authenticator et finalise le setup MFA. " +
-                    "Génère les codes de récupération et connecte automatiquement l'utilisateur."
-    )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Setup MFA complété avec succès"),
-            @ApiResponse(responseCode = "400", description = "Code OTP invalide"),
-            @ApiResponse(responseCode = "401", description = "Token setup invalide")
-    })
+    @Operation(summary = "Vérification Setup MFA", description = "Valide le premier code OTP généré par Google Authenticator et finalise le setup MFA. " + "Génère les codes de récupération et connecte automatiquement l'utilisateur.")
+    @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Setup MFA complété avec succès"), @ApiResponse(responseCode = "400", description = "Code OTP invalide"), @ApiResponse(responseCode = "401", description = "Token setup invalide")})
     @PostMapping("/mfa/setup/verify")
-    public ResponseEntity<AdminLoginResponse> verifyMfaSetup(
-            @Valid @RequestBody AdminMfaVerifyRequest request,
-            HttpServletRequest httpRequest) {
+    public ResponseEntity<AdminLoginResponse> verifyMfaSetup(@Valid @RequestBody AdminMfaVerifyRequest request, HttpServletRequest httpRequest) {
 
         String clientIp = getClientIp(httpRequest);
         String userAgent = httpRequest.getHeader("User-Agent");
 
-        log.info("Vérification setup MFA - Token: {}",
-                request.getSetupToken().substring(0, 8) + "...");
+        log.info("Vérification setup MFA - Token: {}", request.getSetupToken().substring(0, 8) + "...");
 
         try {
-            AdminLoginResponse response = adminMfaService.verifyMfaSetup(
-                    request, clientIp, userAgent);
+            AdminLoginResponse response = adminMfaService.verifyMfaSetup(request, clientIp, userAgent);
 
             if (response.isSuccess()) {
                 log.info("Setup MFA complété avec succès - SessionId: {}", response.getSessionId());
@@ -747,23 +788,14 @@ public class AdminAuthController {
 
         } catch (MfaException e) {
             log.error("Erreur vérification setup MFA - Erreur: {}", e.getMessage());
-            return ResponseEntity.badRequest()
-                    .body(AdminLoginResponse.failed(e.getMessage()));
+            return ResponseEntity.badRequest().body(AdminLoginResponse.failed(e.getMessage()));
         }
     }
 
-    @Operation(
-            summary = "Rafraîchissement token",
-            description = "Génère un nouveau token d'accès à partir du refresh token valide."
-    )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Token rafraîchi avec succès"),
-            @ApiResponse(responseCode = "401", description = "Refresh token invalide ou expiré")
-    })
+    @Operation(summary = "Rafraîchissement token", description = "Génère un nouveau token d'accès à partir du refresh token valide.")
+    @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Token rafraîchi avec succès"), @ApiResponse(responseCode = "401", description = "Refresh token invalide ou expiré")})
     @PostMapping("/refresh")
-    public ResponseEntity<AdminTokenResponse> refreshToken(
-            @Valid @RequestBody AdminRefreshTokenRequest request,
-            HttpServletRequest httpRequest) {
+    public ResponseEntity<AdminTokenResponse> refreshToken(@Valid @RequestBody AdminRefreshTokenRequest request, HttpServletRequest httpRequest) {
 
         String clientIp = getClientIp(httpRequest);
 
@@ -777,25 +809,15 @@ public class AdminAuthController {
 
         } catch (AuthenticationException e) {
             log.warn("Échec rafraîchissement token - Erreur: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(AdminTokenResponse.failed(e.getMessage()));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(AdminTokenResponse.failed(e.getMessage()));
         }
     }
 
-    @Operation(
-            summary = "Déconnexion administrateur",
-            description = "Déconnecte l'administrateur, invalide la session et révoque les tokens."
-    )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Déconnexion réussie"),
-            @ApiResponse(responseCode = "401", description = "Non autorisé")
-    })
+    @Operation(summary = "Déconnexion administrateur", description = "Déconnecte l'administrateur, invalide la session et révoque les tokens.")
+    @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Déconnexion réussie"), @ApiResponse(responseCode = "401", description = "Non autorisé")})
     @PostMapping("/logout")
     @SecurityRequirement(name = "bearer-jwt")
-    public ResponseEntity<Map<String, Object>> logout(
-            @Valid @RequestBody AdminLogoutRequest request,
-            @AuthenticationPrincipal Jwt jwt,
-            HttpServletRequest httpRequest) {
+    public ResponseEntity<Map<String, Object>> logout(@Valid @RequestBody AdminLogoutRequest request, @AuthenticationPrincipal Jwt jwt, HttpServletRequest httpRequest) {
 
         String adminId = jwt.getSubject();
         String clientIp = getClientIp(httpRequest);
@@ -806,32 +828,19 @@ public class AdminAuthController {
             adminAuthService.logout(adminId, request.getSessionId(), clientIp);
 
             log.info("Déconnexion admin réussie - AdminId: {}", adminId);
-            return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "message", "Déconnexion réussie"
-            ));
+            return ResponseEntity.ok(Map.of("success", true, "message", "Déconnexion réussie"));
 
         } catch (Exception e) {
             log.error("Erreur déconnexion admin - AdminId: {}", adminId, e);
-            return ResponseEntity.ok(Map.of(
-                    "success", false,
-                    "message", "Erreur lors de la déconnexion"
-            ));
+            return ResponseEntity.ok(Map.of("success", false, "message", "Erreur lors de la déconnexion"));
         }
     }
 
-    @Operation(
-            summary = "Informations administrateur connecté",
-            description = "Retourne les informations de l'administrateur actuellement connecté."
-    )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Informations récupérées"),
-            @ApiResponse(responseCode = "401", description = "Non autorisé")
-    })
+    @Operation(summary = "Informations administrateur connecté", description = "Retourne les informations de l'administrateur actuellement connecté.")
+    @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Informations récupérées"), @ApiResponse(responseCode = "401", description = "Non autorisé")})
     @GetMapping("/me")
     @SecurityRequirement(name = "bearer-jwt")
-    public ResponseEntity<AdminUserResponse> getCurrentAdmin(
-            @AuthenticationPrincipal Jwt jwt) {
+    public ResponseEntity<AdminUserResponse> getCurrentAdmin(@AuthenticationPrincipal Jwt jwt) {
 
         String adminId = jwt.getSubject();
 
@@ -847,18 +856,11 @@ public class AdminAuthController {
         }
     }
 
-    @Operation(
-            summary = "Permissions administrateur",
-            description = "Retourne les permissions de l'administrateur connecté."
-    )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Permissions récupérées"),
-            @ApiResponse(responseCode = "401", description = "Non autorisé")
-    })
+    @Operation(summary = "Permissions administrateur", description = "Retourne les permissions de l'administrateur connecté.")
+    @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Permissions récupérées"), @ApiResponse(responseCode = "401", description = "Non autorisé")})
     @GetMapping("/permissions")
     @SecurityRequirement(name = "bearer-jwt")
-    public ResponseEntity<Map<String, Object>> getAdminPermissions(
-            @AuthenticationPrincipal Jwt jwt) {
+    public ResponseEntity<Map<String, Object>> getAdminPermissions(@AuthenticationPrincipal Jwt jwt) {
 
         String adminId = jwt.getSubject();
 
@@ -874,18 +876,11 @@ public class AdminAuthController {
         }
     }
 
-    @Operation(
-            summary = "Statut de session",
-            description = "Retourne le statut de la session courante de l'administrateur."
-    )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Statut de session récupéré"),
-            @ApiResponse(responseCode = "401", description = "Non autorisé")
-    })
+    @Operation(summary = "Statut de session", description = "Retourne le statut de la session courante de l'administrateur.")
+    @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Statut de session récupéré"), @ApiResponse(responseCode = "401", description = "Non autorisé")})
     @GetMapping("/session/status")
     @SecurityRequirement(name = "bearer-jwt")
-    public ResponseEntity<Map<String, Object>> getSessionStatus(
-            @AuthenticationPrincipal Jwt jwt) {
+    public ResponseEntity<Map<String, Object>> getSessionStatus(@AuthenticationPrincipal Jwt jwt) {
 
         String adminId = jwt.getSubject();
 
@@ -2892,32 +2887,355 @@ public interface MfaSecretRepository extends JpaRepository<MfaSecret, Long> {
 
 ```
 
+# lims-auth-service/src/main/java/com/lims/auth/security/AdminSecurityAnnotations.java
+
+```java
+package com.lims.auth.security;
+
+import org.springframework.security.access.prepost.PreAuthorize;
+
+import java.lang.annotation.*;
+
+/**
+ * Annotations de sécurité personnalisées pour les administrateurs LIMS
+ */
+public class AdminSecurityAnnotations {
+
+    /**
+     * Nécessite les permissions de super administrateur
+     */
+    @Target({ElementType.METHOD, ElementType.TYPE})
+    @Retention(RetentionPolicy.RUNTIME)
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public @interface RequireSuperAdmin {
+    }
+
+    /**
+     * Nécessite les permissions d'administrateur système
+     */
+    @Target({ElementType.METHOD, ElementType.TYPE})
+    @Retention(RetentionPolicy.RUNTIME)
+    @PreAuthorize("hasRole('SYSTEM_ADMIN') or hasRole('SUPER_ADMIN')")
+    public @interface RequireSystemAdmin {
+    }
+
+    /**
+     * Nécessite les permissions de gestion des utilisateurs
+     */
+    @Target({ElementType.METHOD, ElementType.TYPE})
+    @Retention(RetentionPolicy.RUNTIME)
+    @PreAuthorize("hasAuthority('USER_MANAGEMENT') or hasRole('SUPER_ADMIN')")
+    public @interface RequireUserManagement {
+    }
+
+    /**
+     * Nécessite les permissions de lecture des audits
+     */
+    @Target({ElementType.METHOD, ElementType.TYPE})
+    @Retention(RetentionPolicy.RUNTIME)
+    @PreAuthorize("hasAuthority('AUDIT_READ') or hasRole('SUPER_ADMIN')")
+    public @interface RequireAuditRead {
+    }
+
+    /**
+     * Nécessite les permissions de modification de la configuration
+     */
+    @Target({ElementType.METHOD, ElementType.TYPE})
+    @Retention(RetentionPolicy.RUNTIME)
+    @PreAuthorize("hasAuthority('CONFIGURATION_WRITE') or hasRole('SUPER_ADMIN')")
+    public @interface RequireConfigurationWrite {
+    }
+
+    /**
+     * Nécessite que le MFA soit vérifié
+     */
+    @Target({ElementType.METHOD, ElementType.TYPE})
+    @Retention(RetentionPolicy.RUNTIME)
+    @PreAuthorize("@adminSecurityContext.getCurrentContext() != null and @adminSecurityContext.getCurrentContext().isMfaVerified()")
+    public @interface RequireMfaVerified {
+    }
+
+    /**
+     * Nécessite une permission spécifique
+     */
+    @Target({ElementType.METHOD, ElementType.TYPE})
+    @Retention(RetentionPolicy.RUNTIME)
+    @PreAuthorize("hasAuthority(#permission) or hasRole('SUPER_ADMIN')")
+    public @interface RequirePermission {
+        String value();
+    }
+
+    /**
+     * Nécessite un rôle spécifique
+     */
+    @Target({ElementType.METHOD, ElementType.TYPE})
+    @Retention(RetentionPolicy.RUNTIME)
+    @PreAuthorize("hasRole(#role)")
+    public @interface RequireRole {
+        String value();
+    }
+
+    /**
+     * Nécessite que l'utilisateur soit authentifié et du bon realm
+     */
+    @Target({ElementType.METHOD, ElementType.TYPE})
+    @Retention(RetentionPolicy.RUNTIME)
+    @PreAuthorize("isAuthenticated() and @adminSecurityContext.getCurrentContext() != null and @adminSecurityContext.getCurrentContext().isValidRealm()")
+    public @interface RequireAdminRealm {
+    }
+}
+```
+
+# lims-auth-service/src/main/java/com/lims/auth/security/AdminSecurityContext.java
+
+```java
+package com.lims.auth.security;
+
+import lombok.Data;
+import lombok.Builder;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Contexte de sécurité pour les administrateurs LIMS
+ * Fournit des méthodes utilitaires pour accéder aux informations de l'administrateur connecté
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class AdminSecurityContext {
+
+    private String adminId;
+    private String email;
+    private String firstName;
+    private String lastName;
+    private String role;
+    private String realm;
+    private String userType;
+    private List<String> permissions;
+    private String sessionId;
+    private boolean mfaVerified;
+    private LocalDateTime tokenIssuedAt;
+    private LocalDateTime tokenExpiresAt;
+
+    /**
+     * Récupère le contexte de sécurité de l'administrateur actuellement connecté
+     */
+    public static AdminSecurityContext getCurrentContext() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return null;
+        }
+
+        if (authentication.getPrincipal() instanceof Jwt jwt) {
+            return fromJwt(jwt);
+        }
+
+        return null;
+    }
+
+    /**
+     * Crée un contexte de sécurité à partir d'un JWT
+     */
+    public static AdminSecurityContext fromJwt(Jwt jwt) {
+        return AdminSecurityContext.builder()
+                .adminId(jwt.getSubject())
+                .email(jwt.getClaimAsString("email"))
+                .firstName(jwt.getClaimAsString("first_name"))
+                .lastName(jwt.getClaimAsString("last_name"))
+                .role(jwt.getClaimAsString("role"))
+                .realm(jwt.getClaimAsString("realm"))
+                .userType(jwt.getClaimAsString("user_type"))
+                .permissions(jwt.getClaimAsStringList("permissions"))
+                .sessionId(jwt.getClaimAsString("session_id"))
+                .mfaVerified(jwt.getClaimAsBoolean("mfa_verified"))
+                .tokenIssuedAt(jwt.getIssuedAt() != null ?
+                        LocalDateTime.ofInstant(jwt.getIssuedAt(), java.time.ZoneId.systemDefault()) : null)
+                .tokenExpiresAt(jwt.getExpiresAt() != null ?
+                        LocalDateTime.ofInstant(jwt.getExpiresAt(), java.time.ZoneId.systemDefault()) : null)
+                .build();
+    }
+
+    /**
+     * Vérifie si l'administrateur a une permission spécifique
+     */
+    public boolean hasPermission(String permission) {
+        return permissions != null && permissions.contains(permission);
+    }
+
+    /**
+     * Vérifie si l'administrateur a l'un des rôles spécifiés
+     */
+    public boolean hasRole(String... roles) {
+        if (role == null) return false;
+
+        for (String r : roles) {
+            if (role.equalsIgnoreCase(r)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Vérifie si l'administrateur est un super administrateur
+     */
+    public boolean isSuperAdmin() {
+        return hasRole("SUPER_ADMIN");
+    }
+
+    /**
+     * Vérifie si l'administrateur est un administrateur système
+     */
+    public boolean isSystemAdmin() {
+        return hasRole("SYSTEM_ADMIN", "SUPER_ADMIN");
+    }
+
+    /**
+     * Vérifie si l'administrateur peut gérer les utilisateurs
+     */
+    public boolean canManageUsers() {
+        return hasPermission("USER_MANAGEMENT") || isSuperAdmin();
+    }
+
+    /**
+     * Vérifie si l'administrateur peut lire les audits
+     */
+    public boolean canReadAudits() {
+        return hasPermission("AUDIT_READ") || isSuperAdmin();
+    }
+
+    /**
+     * Vérifie si l'administrateur peut modifier la configuration
+     */
+    public boolean canWriteConfiguration() {
+        return hasPermission("CONFIGURATION_WRITE") || isSuperAdmin();
+    }
+
+    /**
+     * Récupère le nom complet de l'administrateur
+     */
+    public String getFullName() {
+        if (firstName != null && lastName != null) {
+            return firstName + " " + lastName;
+        } else if (firstName != null) {
+            return firstName;
+        } else if (lastName != null) {
+            return lastName;
+        } else {
+            return email;
+        }
+    }
+
+    /**
+     * Vérifie si le token est encore valide
+     */
+    public boolean isTokenValid() {
+        return tokenExpiresAt != null && tokenExpiresAt.isAfter(LocalDateTime.now());
+    }
+
+    /**
+     * Vérifie si le MFA est vérifié
+     */
+    public boolean isMfaVerified() {
+        return mfaVerified;
+    }
+
+    /**
+     * Vérifie si l'administrateur appartient au bon realm
+     */
+    public boolean isValidRealm() {
+        return "lims-admin".equals(realm);
+    }
+
+    /**
+     * Vérifie si l'administrateur est du bon type
+     */
+    public boolean isValidUserType() {
+        return "ADMIN".equals(userType);
+    }
+
+    /**
+     * Validation complète du contexte de sécurité
+     */
+    public boolean isValid() {
+        return adminId != null &&
+                email != null &&
+                isValidRealm() &&
+                isValidUserType() &&
+                isMfaVerified() &&
+                isTokenValid();
+    }
+
+    /**
+     * Méthodes utilitaires statiques
+     */
+    public static String getCurrentAdminId() {
+        AdminSecurityContext context = getCurrentContext();
+        return context != null ? context.getAdminId() : null;
+    }
+
+    public static String getCurrentAdminEmail() {
+        AdminSecurityContext context = getCurrentContext();
+        return context != null ? context.getEmail() : null;
+    }
+
+    public static String getCurrentSessionId() {
+        AdminSecurityContext context = getCurrentContext();
+        return context != null ? context.getSessionId() : null;
+    }
+
+    public static List<String> getCurrentPermissions() {
+        AdminSecurityContext context = getCurrentContext();
+        return context != null ? context.getPermissions() : List.of();
+    }
+
+    public static boolean currentUserHasPermission(String permission) {
+        AdminSecurityContext context = getCurrentContext();
+        return context != null && context.hasPermission(permission);
+    }
+
+    public static boolean currentUserHasRole(String... roles) {
+        AdminSecurityContext context = getCurrentContext();
+        return context != null && context.hasRole(roles);
+    }
+}
+```
+
 # lims-auth-service/src/main/java/com/lims/auth/service/AdminAuthenticationService.java
 
 ```java
 package com.lims.auth.service;
 
+import com.lims.auth.config.LimsAuthProperties;
 import com.lims.auth.dto.request.AdminLoginRequest;
 import com.lims.auth.dto.response.AdminLoginResponse;
 import com.lims.auth.dto.response.AdminUserResponse;
-import com.lims.auth.entity.AdminUser;
 import com.lims.auth.entity.AdminSession;
+import com.lims.auth.entity.AdminUser;
 import com.lims.auth.entity.MfaSecret;
-import com.lims.auth.repository.AdminUserRepository;
-import com.lims.auth.repository.AdminSessionRepository;
-import com.lims.auth.repository.MfaSecretRepository;
+import com.lims.auth.exception.AccountLockedException;
 import com.lims.auth.exception.AuthenticationException;
 import com.lims.auth.exception.RateLimitException;
-import com.lims.auth.exception.AccountLockedException;
 import com.lims.auth.mapper.AdminUserMapper;
-import com.lims.auth.config.LimsAuthProperties;
-
+import com.lims.auth.repository.AdminSessionRepository;
+import com.lims.auth.repository.AdminUserRepository;
+import com.lims.auth.repository.MfaSecretRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.data.redis.core.RedisTemplate;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -2933,7 +3251,6 @@ public class AdminAuthenticationService {
     private final AdminUserRepository adminUserRepository;
     private final AdminSessionRepository adminSessionRepository;
     private final MfaSecretRepository mfaSecretRepository;
-    private final KeycloakAdminService keycloakAdminService;
     private final AdminMfaService adminMfaService;
     private final AdminTokenService adminTokenService;
     private final RateLimitService rateLimitService;
@@ -2941,6 +3258,7 @@ public class AdminAuthenticationService {
     private final PasswordEncoder passwordEncoder;
     private final RedisTemplate<String, Object> redisTemplate;
     private final LimsAuthProperties authProperties;
+    private final KeycloakAdminService keycloakAdminService;
 
     private static final String RATE_LIMIT_PREFIX = "auth:rate_limit:";
     private static final String FAILED_ATTEMPTS_PREFIX = "auth:failed_attempts:";
@@ -3009,6 +3327,22 @@ public class AdminAuthenticationService {
             }
 
             throw new AuthenticationException("Erreur lors de l'authentification");
+        }
+    }
+
+    private void validateLocalPassword(AdminUser adminUser, String password) {
+        // En mode de développement ou si pas de mot de passe hashé, utiliser un mot de passe par défaut
+        String storedPassword = adminUser.getKeycloakId(); // Utiliser keycloakId comme stockage temporaire
+        if (storedPassword == null || storedPassword.isEmpty()) {
+            // Mot de passe par défaut pour le développement
+            if (!"dev_password_123".equals(password)) {
+                throw new AuthenticationException("Identifiants invalides");
+            }
+        } else {
+            // Vérifier le mot de passe hashé
+            if (!passwordEncoder.matches(password, storedPassword)) {
+                throw new AuthenticationException("Identifiants invalides");
+            }
         }
     }
 
@@ -3110,7 +3444,7 @@ public class AdminAuthenticationService {
                 .status(adminUser.getStatus().name())
                 .build();
 
-        log.info("Connexion admin réussie - Email: {}, SessionId: {}",
+        log.info("Connexion admin réussie - Email: {}, SessionId: {}, Mode: Keycloak",
                 adminUser.getEmail(), session.getId());
 
         return AdminLoginResponse.success(accessToken, refreshToken, session.getId(), userInfo);
@@ -3145,7 +3479,8 @@ public class AdminAuthenticationService {
         return Map.of(
                 "permissions", adminUser.getPermissions(),
                 "role", adminUser.getRole().name(),
-                "realm", "lims-admin"
+                "realm", "lims-admin",
+                "keycloakEnabled", keycloakAdminService != null
         );
     }
 
@@ -3163,6 +3498,36 @@ public class AdminAuthenticationService {
         adminTokenService.invalidateTokens(adminId, sessionId);
 
         log.info("Déconnexion admin - AdminId: {}, SessionId: {}, IP: {}", adminId, sessionId, clientIp);
+    }
+
+    /**
+     * Méthode pour créer un utilisateur admin de développement
+     */
+    @Transactional
+    public AdminUser createDevelopmentAdmin(String email, String firstName, String lastName) {
+        if (adminUserRepository.existsByEmailIgnoreCase(email)) {
+            return adminUserRepository.findByEmailIgnoreCase(email).orElseThrow();
+        }
+
+        AdminUser adminUser = AdminUser.builder()
+                .id(UUID.randomUUID().toString())
+                .email(email)
+                .firstName(firstName)
+                .lastName(lastName)
+                .role(AdminUser.AdminRole.SUPER_ADMIN)
+                .permissions(java.util.List.of("SYSTEM_ADMIN", "USER_MANAGEMENT", "AUDIT_READ"))
+                .enabled(true)
+                .status(AdminUser.AdminStatus.ACTIVE)
+                .mfaEnabled(false)
+                .failedAttempts(0)
+                .createdBy("system")
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        adminUser = adminUserRepository.save(adminUser);
+
+        log.info("Utilisateur admin de développement créé: {}", email);
+        return adminUser;
     }
 
     private void logFailedAttempt(AdminUser adminUser, String clientIp, String userAgent, String reason) {
@@ -3584,14 +3949,16 @@ public class AdminMfaService {
 ```java
 package com.lims.auth.service;
 
-import com.lims.auth.dto.response.AdminTokenResponse;
-import com.lims.auth.entity.AdminUser;
-import com.lims.auth.entity.AdminSession;
-import com.lims.auth.repository.AdminSessionRepository;
-import com.lims.auth.exception.AuthenticationException;
 import com.lims.auth.config.LimsAuthProperties;
-
-import io.jsonwebtoken.*;
+import com.lims.auth.dto.response.AdminTokenResponse;
+import com.lims.auth.entity.AdminSession;
+import com.lims.auth.entity.AdminUser;
+import com.lims.auth.exception.AuthenticationException;
+import com.lims.auth.repository.AdminSessionRepository;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -3602,8 +3969,10 @@ import org.springframework.stereotype.Service;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.*;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -3646,12 +4015,12 @@ public class AdminTokenService {
         claims.put("exp", expiryDate.getTime() / 1000);
 
         String token = Jwts.builder()
-                .setClaims(claims)
-                .setIssuer("lims-auth-service")
-                .setSubject(adminUser.getId())
-                .setIssuedAt(now)
-                .setExpiration(expiryDate)
-                .signWith(getSigningKey(), SignatureAlgorithm.HS512)
+                .claims(claims)
+                .issuer("lims-auth-service")
+                .subject(adminUser.getId())
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(getSigningKey(), Jwts.SIG.HS512)
                 .compact();
 
         // Stocker le token dans Redis pour validation
@@ -3680,12 +4049,12 @@ public class AdminTokenService {
         claims.put("exp", expiryDate.getTime() / 1000);
 
         String refreshToken = Jwts.builder()
-                .setClaims(claims)
-                .setIssuer("lims-auth-service")
-                .setSubject(adminUser.getId())
-                .setIssuedAt(now)
-                .setExpiration(expiryDate)
-                .signWith(getSigningKey(), SignatureAlgorithm.HS512)
+                .claims(claims)
+                .issuer("lims-auth-service")
+                .subject(adminUser.getId())
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(getSigningKey(), Jwts.SIG.HS512)
                 .compact();
 
         // Stocker le refresh token dans Redis
@@ -3762,11 +4131,11 @@ public class AdminTokenService {
     }
 
     public Claims validateAndParseToken(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
+        return Jwts.parser()
+                .verifyWith(getSigningKey())
                 .build()
-                .parseClaimsJws(token)
-                .getBody();
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     public Map<String, Object> getSessionStatus(String adminId) {
@@ -3851,7 +4220,7 @@ public class AdminTokenService {
 
     private boolean isTokenBlacklisted(String token) {
         String blacklistKey = BLACKLIST_PREFIX + getTokenId(token);
-        return redisTemplate.hasKey(blacklistKey);
+        return Boolean.TRUE.equals(redisTemplate.hasKey(blacklistKey));
     }
 
     private String getTokenId(String token) {
@@ -3929,12 +4298,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
-import javax.ws.rs.NotAuthorizedException;
-import javax.ws.rs.core.Response;
+// ✅ Imports JAX-RS corrigés pour Jakarta EE
+import jakarta.ws.rs.NotAuthorizedException;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.ProcessingException;
+
 import java.util.*;
 
 @Service
-@ConditionalOnProperty(name = "keycloak.enabled", havingValue = "true")
 @RequiredArgsConstructor
 @Slf4j
 public class KeycloakAdminService {
@@ -3980,6 +4352,9 @@ public class KeycloakAdminService {
         } catch (NotAuthorizedException e) {
             log.warn("Échec authentification Keycloak pour: {}", email);
             throw new AuthenticationException("Identifiants invalides");
+        } catch (ProcessingException e) {
+            log.error("Erreur de connexion Keycloak pour: {}", email, e);
+            throw new KeycloakException("Erreur de connexion au serveur d'authentification");
         } catch (Exception e) {
             log.error("Erreur authentification Keycloak pour: {}", email, e);
             throw new KeycloakException("Erreur lors de l'authentification");
@@ -4027,6 +4402,10 @@ public class KeycloakAdminService {
             log.info("Utilisateur admin créé dans Keycloak: {} - ID: {}", email, userId);
             return userId;
 
+        } catch (WebApplicationException e) {
+            log.error("Erreur HTTP lors de la création utilisateur Keycloak: {} - Status: {}",
+                    email, e.getResponse().getStatus(), e);
+            throw new KeycloakException("Erreur lors de la création de l'utilisateur");
         } catch (Exception e) {
             log.error("Erreur création utilisateur admin Keycloak: {}", email, e);
             throw new KeycloakException("Erreur lors de la création de l'utilisateur");
@@ -4047,6 +4426,10 @@ public class KeycloakAdminService {
 
             log.info("Utilisateur admin mis à jour dans Keycloak: {}", userId);
 
+        } catch (WebApplicationException e) {
+            log.error("Erreur HTTP lors de la mise à jour utilisateur Keycloak: {} - Status: {}",
+                    userId, e.getResponse().getStatus(), e);
+            throw new KeycloakException("Erreur lors de la mise à jour de l'utilisateur");
         } catch (Exception e) {
             log.error("Erreur mise à jour utilisateur admin Keycloak: {}", userId, e);
             throw new KeycloakException("Erreur lors de la mise à jour de l'utilisateur");
@@ -4069,6 +4452,10 @@ public class KeycloakAdminService {
 
             log.info("MFA activé pour utilisateur Keycloak: {}", userId);
 
+        } catch (WebApplicationException e) {
+            log.error("Erreur HTTP lors de l'activation MFA Keycloak: {} - Status: {}",
+                    userId, e.getResponse().getStatus(), e);
+            throw new KeycloakException("Erreur lors de l'activation MFA");
         } catch (Exception e) {
             log.error("Erreur activation MFA pour utilisateur Keycloak: {}", userId, e);
             throw new KeycloakException("Erreur lors de l'activation MFA");
@@ -4088,6 +4475,10 @@ public class KeycloakAdminService {
 
             log.info("MFA désactivé pour utilisateur Keycloak: {}", userId);
 
+        } catch (WebApplicationException e) {
+            log.error("Erreur HTTP lors de la désactivation MFA Keycloak: {} - Status: {}",
+                    userId, e.getResponse().getStatus(), e);
+            throw new KeycloakException("Erreur lors de la désactivation MFA");
         } catch (Exception e) {
             log.error("Erreur désactivation MFA pour utilisateur Keycloak: {}", userId, e);
             throw new KeycloakException("Erreur lors de la désactivation MFA");
@@ -4106,6 +4497,10 @@ public class KeycloakAdminService {
 
             log.info("Utilisateur désactivé dans Keycloak: {}", userId);
 
+        } catch (WebApplicationException e) {
+            log.error("Erreur HTTP lors de la désactivation utilisateur Keycloak: {} - Status: {}",
+                    userId, e.getResponse().getStatus(), e);
+            throw new KeycloakException("Erreur lors de la désactivation de l'utilisateur");
         } catch (Exception e) {
             log.error("Erreur désactivation utilisateur Keycloak: {}", userId, e);
             throw new KeycloakException("Erreur lors de la désactivation de l'utilisateur");
@@ -4124,6 +4519,10 @@ public class KeycloakAdminService {
 
             log.info("Utilisateur activé dans Keycloak: {}", userId);
 
+        } catch (WebApplicationException e) {
+            log.error("Erreur HTTP lors de l'activation utilisateur Keycloak: {} - Status: {}",
+                    userId, e.getResponse().getStatus(), e);
+            throw new KeycloakException("Erreur lors de l'activation de l'utilisateur");
         } catch (Exception e) {
             log.error("Erreur activation utilisateur Keycloak: {}", userId, e);
             throw new KeycloakException("Erreur lors de l'activation de l'utilisateur");
@@ -4140,6 +4539,10 @@ public class KeycloakAdminService {
 
             log.info("Mot de passe réinitialisé pour utilisateur Keycloak: {}", userId);
 
+        } catch (WebApplicationException e) {
+            log.error("Erreur HTTP lors de la réinitialisation mot de passe Keycloak: {} - Status: {}",
+                    userId, e.getResponse().getStatus(), e);
+            throw new KeycloakException("Erreur lors de la réinitialisation du mot de passe");
         } catch (Exception e) {
             log.error("Erreur réinitialisation mot de passe utilisateur Keycloak: {}", userId, e);
             throw new KeycloakException("Erreur lors de la réinitialisation du mot de passe");
@@ -4165,6 +4568,10 @@ public class KeycloakAdminService {
                     })
                     .toList();
 
+        } catch (WebApplicationException e) {
+            log.error("Erreur HTTP lors de la récupération utilisateurs Keycloak - Status: {}",
+                    e.getResponse().getStatus(), e);
+            throw new KeycloakException("Erreur lors de la récupération des utilisateurs");
         } catch (Exception e) {
             log.error("Erreur récupération utilisateurs admin Keycloak", e);
             throw new KeycloakException("Erreur lors de la récupération des utilisateurs");
@@ -4179,6 +4586,10 @@ public class KeycloakAdminService {
 
             return userResource.toRepresentation();
 
+        } catch (WebApplicationException e) {
+            log.error("Erreur HTTP lors de la récupération utilisateur Keycloak: {} - Status: {}",
+                    userId, e.getResponse().getStatus(), e);
+            throw new KeycloakException("Erreur lors de la récupération de l'utilisateur");
         } catch (Exception e) {
             log.error("Erreur récupération utilisateur admin Keycloak: {}", userId, e);
             throw new KeycloakException("Erreur lors de la récupération de l'utilisateur");
@@ -4202,6 +4613,10 @@ public class KeycloakAdminService {
                     })
                     .findFirst();
 
+        } catch (WebApplicationException e) {
+            log.error("Erreur HTTP lors de la recherche utilisateur Keycloak: {} - Status: {}",
+                    email, e.getResponse().getStatus(), e);
+            throw new KeycloakException("Erreur lors de la recherche de l'utilisateur");
         } catch (Exception e) {
             log.error("Erreur recherche utilisateur admin Keycloak: {}", email, e);
             throw new KeycloakException("Erreur lors de la recherche de l'utilisateur");

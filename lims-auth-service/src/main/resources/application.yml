@@ -25,7 +25,7 @@ spring:
   # JPA Configuration
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: create
       default_schema: lims_auth
     show-sql: true
     open-in-view: false  # Désactiver pour éviter le warning
