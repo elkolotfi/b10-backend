@@ -572,6 +572,9 @@ public class SecurityConfig {
                         // Endpoints de setup MFA (utilisation de tokens temporaires)
                         .requestMatchers(
                                 "/api/v1/auth/admin/mfa/setup",
+                                "/api/v1/auth/admin/setup/verify",
+                                "/api/v1/auth/admin/mfa/setup/verify/**",
+                                "/api/v1/auth/admin/mfa/setup/**",
                                 "/api/v1/auth/admin/mfa/reset/*/",
                                 "/api/v1/auth/admin/mfa/reset/*/complete"
                         ).permitAll()
@@ -1668,7 +1671,8 @@ import java.util.List;
 public class AdminUser {
 
     @Id
-    @Column(name = "id", length = 36)
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id", columnDefinition = "uuid")
     private String id;
 
     @Column(name = "email", nullable = false, unique = true)
@@ -4287,6 +4291,7 @@ import com.lims.auth.config.LimsAuthProperties;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.keycloak.OAuth2Constants;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.KeycloakBuilder;
 import org.keycloak.admin.client.resource.RealmResource;
@@ -4341,6 +4346,7 @@ public class KeycloakAdminService {
                     .clientSecret(clientSecret)
                     .username(email)
                     .password(password)
+                    .grantType(OAuth2Constants.CLIENT_CREDENTIALS)
                     .build();
 
             // Tenter de récupérer le token pour valider les credentials
@@ -5101,7 +5107,7 @@ spring:
   # JPA Configuration
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: none
       default_schema: lims_auth
     show-sql: true
     open-in-view: false  # Désactiver pour éviter le warning
@@ -5133,7 +5139,7 @@ spring:
 # Keycloak Configuration
 keycloak:
   enabled: false  # Désactivé temporairement pour les tests de base
-  auth-server-url: http://localhost:8080
+  auth-server-url: http://auth.lims.local
   realm: lims-admin
   resource: auth-service
   credentials:
@@ -5144,12 +5150,14 @@ security:
   oauth2:
     resourceserver:
       jwt:
-        issuer-uri: http://localhost:8080/realms/lims-admin
-        jwk-set-uri: http://localhost:8080/realms/lims-admin/protocol/openid-connect/certs
+        issuer-uri: http://auth.lims.local/realms/lims-admin
+        jwk-set-uri: http://auth.lims.local/realms/lims-admin/protocol/openid-connect/certs
 
 # LIMS Configuration
 lims:
   auth:
+    jwt:
+      secret: "G9/BrPDMezKO3cxercRPm7OtvRjWGOeONQCk7AjB6s+pttEuco8xcUEE6dT2IHNHix9aNk4i+c1N8CaTTp84WxCfZMCC/UVJABajwU4ToymMJ/9gT3uxMK5PqrJcCHNi2cUo3P9k+ZaBCqvqwcDZv6kY7mdaz6G5VmcWAU8+4OgZVZEssNvY2kTInV2Sz4JZzp4/N8aWGf6ml3C+q4I8l0Yk9qImvqnAeMX83Rxp3R+yLk2LvCuaYx1lEkSbkM2NbsN1W8ebtZwxMC0CpeLY57V7DocrjvK7v/pjHHUu27qad1JgLBhmoNy4LZX1rqLSKdYvjGQqQd8SU4vP311d9fY8rv47DLKjSPKkee4XTtrfTfH1fh3mnPjYl2NoZjCzr7KAHB3lKpk56rUlmXYbqqExOlDGmnXOrnCL5JRj3LWgwvw6sR73/CGsigxkZvks00QF48cSfJPgFT+TdZ4FyAxc9vC+MG5FDdSjG+wCgmJ/UYQ9MOdLhNGs2itMpf3mN/z81/JYbbDxrNWPah56Ybr8Y4DUykgfJLMgiK/nwME5/qwjzkfRpjEMBRaZbIJPy7N+NfdgIolVjdNj6eBNUHLlrerV2G5FcEkHTsYrTIFrhxxAI3gE3KI92pBPBXxKohXrvVt4nupaj9onnzfP/y5s5kQkNUomVQYMIbyUKGU="
     mfa:
       issuer: "LIMS-Admin-System"
       backup-codes:
@@ -5159,11 +5167,9 @@ lims:
         expiry: 600 # 10 minutes
       reset-token:
         expiry: 86400 # 24 heures
-
     rate-limiting:
       max-attempts: 3
       window-minutes: 15
-
     session:
       timeout: 7200 # 2 heures
       extend-on-activity: true
