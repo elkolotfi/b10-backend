@@ -6,8 +6,13 @@
   <component name="ChangeListManager">
     <list default="true" id="7aacdcd1-1ad1-4553-9a77-bce1e509ee8f" name="Changes" comment="init patient service">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/codebase.md" beforeDir="false" afterPath="$PROJECT_DIR$/codebase.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/controller/AdminAuthController.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/controller/AdminAuthController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-laboratory-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/lims-laboratory-service/src/main/resources/application.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/PatientServiceApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/PatientServiceApplication.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/config/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/config/SecurityConfig.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/controller/PatientController.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/controller/InfoController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/resources/application.yml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -17,6 +22,7 @@
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
       <list>
+        <option value="Enum" />
         <option value="Interface" />
         <option value="Class" />
       </list>
@@ -32,6 +38,9 @@
       </MavenGeneralSettings>
     </option>
   </component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="QODANA_PROBLEMS_VIEW_TAB" />
+  </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 0
 }</component>
@@ -46,12 +55,13 @@
   "keyToString": {
     "Application.AuthServiceApplication.executor": "Debug",
     "Application.PatientServiceApplication.executor": "Debug",
+    "Maven.lims-patient-service [clean].executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "git-widget-placeholder": "main",
     "kotlin-language-version-configured": "true",
     "last_opened_file_path": "/Users/elkolotfi/Desktop/NEW_START/PROJECTS/b10/backend/lims-system",
-    "settings.editor.selected.configurable": "project.scopes"
+    "settings.editor.selected.configurable": "preferences.keymap"
   }
 }]]></component>
   <component name="RunManager" selected="Application.PatientServiceApplication">

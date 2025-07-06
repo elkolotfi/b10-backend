@@ -7,7 +7,7 @@ spring:
   profiles:
     active: development
 
-  # Database configuration - Schema patients
+  # Configuration Base de données PostgreSQL
   datasource:
     url: jdbc:postgresql://localhost:5432/lims_db
     username: lims_user
@@ -22,12 +22,12 @@ spring:
       connection-timeout: 20000
       leak-detection-threshold: 60000
 
-  # JPA Configuration
+  # Configuration JPA/Hibernate
   jpa:
     hibernate:
-      ddl-auto: validate  # En production, utilisez 'validate'
+      ddl-auto: validate  # En production: validate
       default_schema: lims_patient
-    show-sql: true
+    show-sql: false  # true en développement
     open-in-view: false
     properties:
       hibernate:
@@ -39,8 +39,9 @@ spring:
         order_inserts: true
         order_updates: true
         batch_versioned_data: true
+        generate_statistics: false
 
-  # Redis Configuration pour cache sessions patients
+  # Configuration Redis pour cache sessions patients
   data:
     redis:
       host: localhost
@@ -54,7 +55,16 @@ spring:
           max-idle: 8
           min-idle: 0
 
-# Keycloak Configuration - Realm Patient
+  # Configuration Jackson pour JSON
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+      indent-output: true
+    deserialization:
+      fail-on-unknown-properties: false
+
+# Configuration Keycloak - Realm Patient
 keycloak:
   enabled: true
   auth-server-url: http://localhost:8080
@@ -62,139 +72,273 @@ keycloak:
   resource: patient-service
   credentials:
     secret: dev-patient-secret-123
+  ssl-required: external
+  public-client: false
+  bearer-only: true
 
-# OAuth2 Resource Server Configuration
+# Configuration OAuth2 Resource Server
 security:
   oauth2:
     resourceserver:
       jwt:
-        # Spring récupère les clés publiques UNE FOIS au démarrage
+        issuer-uri: http://auth.lims.local/realms/lims-patient
         jwk-set-uri: http://auth.lims.local/realms/lims-patient/protocol/openid-connect/certs
 
 # Configuration spécifique LIMS Patient
 lims:
   patient:
-    registration:
-      email-verification-required: true
-      auto-activation: false  # Validation manuelle par le staff
-      max-pending-registrations: 1000
-
-    otp:
-      provider: email  # Options: email, sms, both
-      validity-minutes: 10
-      max-attempts: 3
-
-    data-access:
-      allowed-staff-realms:
-        - lims-staff
-      audit-all-access: true
-
+    # Règles métier
     business-rules:
-      max-appointments-per-day: 5
-      appointment-window-days: 30
+      max-contacts-par-type: 3
+      max-adresses-par-type: 2
+      max-assurances-par-patient: 5
+      validation-email-obligatoire: true
+      validation-telephone-obligatoire: false
+      duree-conservation-audit-jours: 2555  # 7 ans
+      soft-delete-uniquement: true
 
-# Monitoring et Actuator
+    # Configuration de validation
+    validation:
+      nir-validation-enabled: true
+      age-minimum: 0
+      age-maximum: 120
+      duplicate-check-enabled: true
+
+    # Configuration de recherche
+    search:
+      max-results-per-page: 100
+      default-page-size: 20
+      fuzzy-search-enabled: true
+      phonetic-search-enabled: false  # À implémenter plus tard
+
+    # Configuration d'audit
+    audit:
+      enabled: true
+      log-all-access: true
+      retention-days: 2555
+      include-ip-address: true
+      include-user-agent: true
+
+    # Configuration de communication
+    communication:
+      email-enabled: true
+      sms-enabled: false  # À configurer avec provider SMS
+      notification-batch-size: 50
+
+# Configuration Actuator pour monitoring
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus
+        include: health,info,metrics,prometheus,loggers
+      base-path: /actuator
   endpoint:
     health:
       show-details: always
+      show-components: always
+    info:
+      enabled: true
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
   metrics:
     export:
       prometheus:
         enabled: true
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      percentiles:
+        http.server.requests: 0.5,0.95,0.99
+    tags:
+      application: ${spring.application.name}
+      environment: ${spring.profiles.active}
 
-# OpenAPI Documentation
-springdoc:
-  api-docs:
-    path: /api-docs
-  swagger-ui:
-    path: /swagger-ui.html
-
-# Logging Configuration
-logging:
-  level:
-    com.lims.patient: DEBUG
-    org.springframework.security: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.springframework.web: WARN
-    org.springframework.transaction: WARN
-    org.springframework.orm: WARN
-    org.springframework.aop: WARN
-    org.springframework.cache: WARN
-    org.springframework.data: WARN
-    org.springframework.context: WARN
-    org.springframework.beans: WARN
-    org.springframework.boot: INFO
-    org.springframework.security.oauth2: DEBUG
-    org.springframework.security.web: DEBUG
-    org.keycloak: INFO
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
-  file:
-    name: /var/log/lims/patient-service.log
-    max-size: 100MB
-    max-history: 30
-
----
-# Profil développement
-spring:
-  config:
-    activate:
-      on-profile: development
-
-  # En développement, on peut être plus permissif
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-
-keycloak:
-  enabled: false  # Désactivé pour les tests locaux sans Keycloak
-
-# Logging plus verbeux en dev
-logging:
-  level:
-    com.lims.patient: TRACE
-    org.springframework.security: TRACE
-
----
-# Profil production
-spring:
-  config:
-    activate:
-      on-profile: production
-
-  # Configuration stricte en production
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    show-sql: false
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-
-keycloak:
-  enabled: true
-  auth-server-url: https://auth.lims.local
-
-# Logs optimisés pour la production
+# Configuration des logs
 logging:
   level:
     com.lims.patient: INFO
     org.springframework.security: WARN
     org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.springframework.web: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/lims-patient-service.log
+    max-size: 10MB
+    max-history: 30
 
-# SpringDoc désactivé en production
+# Configuration OpenAPI/Swagger - CONFIGURATION PRINCIPALE
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    try-it-out-enabled: true
+    filter: true
+    tags-sorter: alpha
+    operations-sorter: method
+    disable-swagger-default-url: true
+    display-request-duration: true
+    show-extensions: true
+    show-common-extensions: true
+  show-actuator: true
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+  override-with-generic-response: false
+
+  # Groupes d'API pour une meilleure organisation
+  group-configs:
+    - group: patient-management
+      display-name: "👤 Gestion des Patients"
+      paths-to-match:
+        - "/api/v1/patients/**"
+        - "/api/v1/patients/*/contacts/**"
+        - "/api/v1/patients/*/addresses/**"
+        - "/api/v1/patients/*/emails/**"
+    - group: patient-search
+      display-name: "🔍 Recherche de Patients"
+      paths-to-match:
+        - "/api/v1/patients/search/**"
+        - "/api/v1/patients/by-*/**"
+    - group: patient-insurance
+      display-name: "🏥 Assurances & Ordonnances"
+      paths-to-match:
+        - "/api/v1/patients/*/insurances/**"
+        - "/api/v1/patients/*/prescriptions/**"
+        - "/api/v1/prescriptions/**"
+    - group: patient-admin
+      display-name: "⚙️ Administration"
+      paths-to-match:
+        - "/api/v1/patients/statistics"
+        - "/api/v1/patients/export"
+        - "/api/v1/patients/batch"
+        - "/api/v1/patients/rgpd-compliance"
+    - group: system-info
+      display-name: "🔧 Système & Monitoring"
+      paths-to-match:
+        - "/api/v1/patients/info/**"
+        - "/actuator/**"
+
+  # Configuration des schémas et modèles
+  model-and-view-allowed: true
+  pre-loading-enabled: true
+  writer-with-order-by-keys: true
+
+---
+# Profil DÉVELOPPEMENT
+spring:
+  config:
+    activate:
+      on-profile: development
+
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+logging:
+  level:
+    com.lims.patient: WARN
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+
+# Configuration Swagger enrichie en développement
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    try-it-out-enabled: true
+    deep-linking: true
+    display-operation-id: true
+    default-models-expand-depth: 1
+    default-model-expand-depth: 1
+    default-model-rendering: example
+    display-request-duration: true
+    doc-expansion: none
+    filter: false
+    max-displayed-tags: 20
+    show-extensions: true
+    show-common-extensions: true
+    use-root-path: true
+  show-actuator: true
+  writer-with-default-pretty-printer: true
+
+lims:
+  patient:
+    validation:
+      duplicate-check-enabled: false  # Désactivé en dev pour les tests
+
+---
+# Profil TEST
+spring:
+  config:
+    activate:
+      on-profile: test
+
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+
+  h2:
+    console:
+      enabled: true
+
+# Swagger désactivé en test pour les performances
 springdoc:
   api-docs:
     enabled: false
   swagger-ui:
     enabled: false
+
+lims:
+  patient:
+    audit:
+      enabled: false  # Désactivé en test
+
+---
+# Profil PRODUCTION
+spring:
+  config:
+    activate:
+      on-profile: production
+
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+logging:
+  level:
+    com.lims.patient: WARN
+    org.springframework.security: WARN
+    org.hibernate: WARN
+
+# Swagger DÉSACTIVÉ en production pour la sécurité
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+lims:
+  patient:
+    validation:
+      duplicate-check-enabled: true
+    audit:
+      enabled: true
