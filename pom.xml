@@ -32,6 +32,7 @@
     <modules>
         <module>lims-auth-service</module>
         <module>lims-laboratory-service</module>
+        <module>lims-patient-service</module>
     </modules>
 
     <dependencyManagement>

@@ -5,6 +5,8 @@
     <file url="file://$PROJECT_DIR$/lims-auth-service/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/lims-laboratory-service/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/lims-laboratory-service/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/lims-patient-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/lims-patient-service/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/resources" charset="UTF-8" />
   </component>

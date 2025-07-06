@@ -5391,6 +5391,1120 @@ logging:
     org.hibernate.SQL: DEBUG
 ```
 
+# lims-patient-service/pom.xml
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.lims</groupId>
+    <artifactId>lims-patient-service</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <name>LIMS Patient Service</name>
+    <description>Service de gestion des patients pour le système LIMS</description>
+
+    <properties>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <spring.boot.version>3.2.1</spring.boot.version>
+        <spring.security.version>6.2.1</spring.security.version>
+        <testcontainers.version>1.19.3</testcontainers.version>
+        <mapstruct.version>1.6.3</mapstruct.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring.boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- Spring Boot Starters -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <!-- Spring Security & OAuth2 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-oauth2-jose</artifactId>
+        </dependency>
+
+        <!-- Database -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- JSON Processing -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <!-- JWT Token Processing -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>0.12.6</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>0.12.6</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>0.12.6</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- OpenAPI Documentation -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>2.2.0</version>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- MapStruct -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>${mapstruct.version}</version>
+        </dependency>
+
+        <!-- Development Tools -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Test Dependencies -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+```
+
+# lims-patient-service/src/main/java/com/lims/Main.java
+
+```java
+package com.lims;
+
+public class Main {
+    public static void main(String[] args) {
+        System.out.println("Hello world!");
+    }
+}
+```
+
+# lims-patient-service/src/main/java/com/lims/patient/config/PatientJwtAuthenticationConverter.java
+
+```java
+package com.lims.patient.config;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
+import org.springframework.stereotype.Component;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+/**
+ * Convertisseur JWT pour le service Patient
+ *
+ * Gère les tokens JWT provenant de deux realms :
+ * - lims-patient : Pour les patients (accès lecture seule à leurs données)
+ * - lims-staff : Pour le staff médical (accès complet CRUD)
+ *
+ * Similaire à AdminJwtAuthenticationConverter du service auth
+ */
+@Component
+@Slf4j
+public class PatientJwtAuthenticationConverter extends JwtAuthenticationConverter {
+
+    private final JwtGrantedAuthoritiesConverter defaultGrantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
+
+    public PatientJwtAuthenticationConverter() {
+        // Configurer le converter pour extraire les authorities customisées
+        this.setJwtGrantedAuthoritiesConverter(this::extractAuthorities);
+    }
+
+    private Collection<GrantedAuthority> extractAuthorities(Jwt jwt) {
+        try {
+            // Extraire le realm du token via l'issuer
+            String issuer = jwt.getIssuer() != null ? jwt.getIssuer().toString() : "";
+            String realm = extractRealmFromIssuer(issuer);
+
+            log.debug("Processing JWT from realm: {} for subject: {}", realm, jwt.getSubject());
+
+            // Traitement selon le realm
+            return switch (realm) {
+                case "lims-patient" -> extractPatientAuthorities(jwt);
+                case "lims-staff" -> extractStaffAuthorities(jwt);
+                case "lims-admin" -> extractAdminAuthorities(jwt); // Support pour les admins système
+                default -> {
+                    log.warn("Unknown or unsupported realm in JWT: {}", realm);
+                    yield Collections.emptyList();
+                }
+            };
+
+        } catch (Exception e) {
+            log.error("Error processing JWT authorities: {}", e.getMessage(), e);
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Extrait le nom du realm depuis l'issuer URI
+     * Format attendu: http://localhost:8080/realms/lims-patient
+     */
+    private String extractRealmFromIssuer(String issuer) {
+        if (issuer == null || issuer.isEmpty()) {
+            return "unknown";
+        }
+
+        if (issuer.contains("/realms/")) {
+            String[] parts = issuer.split("/realms/");
+            if (parts.length > 1) {
+                return parts[1];
+            }
+        }
+
+        return "unknown";
+    }
+
+    /**
+     * Extrait les autorités pour un token patient (realm lims-patient)
+     */
+    private Collection<GrantedAuthority> extractPatientAuthorities(Jwt jwt) {
+        // Vérifier le type d'utilisateur
+        String userType = jwt.getClaimAsString("user_type");
+        if (!"PATIENT".equals(userType)) {
+            log.warn("Invalid user_type for patient realm: {}", userType);
+            return Collections.emptyList();
+        }
+
+        // Les patients ont uniquement le rôle PATIENT
+        log.debug("Granting PATIENT role for user: {}", jwt.getSubject());
+        return List.of(new SimpleGrantedAuthority("ROLE_PATIENT"));
+    }
+
+    /**
+     * Extrait les autorités pour un token staff (realm lims-staff)
+     */
+    private Collection<GrantedAuthority> extractStaffAuthorities(Jwt jwt) {
+        // Vérifier le type d'utilisateur
+        String userType = jwt.getClaimAsString("user_type");
+        if (!"STAFF".equals(userType)) {
+            log.warn("Invalid user_type for staff realm: {}", userType);
+            return Collections.emptyList();
+        }
+
+        // Extraire les authorities par défaut
+        Collection<GrantedAuthority> authorities = defaultGrantedAuthoritiesConverter.convert(jwt);
+
+        // Ajouter les rôles spécifiques du realm staff
+        Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");
+        if (realmAccess != null) {
+            @SuppressWarnings("unchecked")
+            List<String> roles = (List<String>) realmAccess.get("roles");
+            if (roles != null) {
+                Collection<GrantedAuthority> realmAuthorities = roles.stream()
+                        .filter(this::isValidStaffRole)
+                        .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                        .collect(Collectors.toList());
+
+                // Combiner les authorities
+                Collection<GrantedAuthority> combinedAuthorities = Stream.concat(authorities.stream(), realmAuthorities.stream())
+                        .collect(Collectors.toList());
+
+                log.debug("Granted authorities for staff user {}: {}", jwt.getSubject(), combinedAuthorities);
+                return combinedAuthorities;
+            }
+        }
+
+        log.warn("No realm_access found in staff JWT for user: {}", jwt.getSubject());
+        return authorities;
+    }
+
+    /**
+     * Extrait les autorités pour un token admin (realm lims-admin)
+     * Permet aux admins système d'accéder aux données patient
+     */
+    private Collection<GrantedAuthority> extractAdminAuthorities(Jwt jwt) {
+        // Vérifier le type d'utilisateur
+        String userType = jwt.getClaimAsString("user_type");
+        if (!"ADMIN".equals(userType)) {
+            log.warn("Invalid user_type for admin realm: {}", userType);
+            return Collections.emptyList();
+        }
+
+        // Extraire les authorities par défaut
+        Collection<GrantedAuthority> authorities = defaultGrantedAuthoritiesConverter.convert(jwt);
+
+        // Ajouter les rôles spécifiques du realm admin
+        Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");
+        if (realmAccess != null) {
+            @SuppressWarnings("unchecked")
+            List<String> roles = (List<String>) realmAccess.get("roles");
+            if (roles != null) {
+                Collection<GrantedAuthority> realmAuthorities = roles.stream()
+                        .filter(this::isValidAdminRole)
+                        .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                        .collect(Collectors.toList());
+
+                // Combiner les authorities
+                Collection<GrantedAuthority> combinedAuthorities = Stream.concat(authorities.stream(), realmAuthorities.stream())
+                        .collect(Collectors.toList());
+
+                log.debug("Granted authorities for admin user {}: {}", jwt.getSubject(), combinedAuthorities);
+                return combinedAuthorities;
+            }
+        }
+
+        return authorities;
+    }
+
+    /**
+     * Valide si le rôle est autorisé pour le staff
+     */
+    private boolean isValidStaffRole(String role) {
+        return List.of("ADMIN", "SECRETAIRE", "PRELEVEUR", "TECHNICIEN", "RESPONSABLE_QUALITE", "STAFF")
+                .contains(role);
+    }
+
+    /**
+     * Valide si le rôle est autorisé pour les admins
+     */
+    private boolean isValidAdminRole(String role) {
+        return List.of("SUPER_ADMIN", "SYSTEM_ADMIN", "SECURITY_ADMIN", "SUPPORT_ADMIN", "ADMIN")
+                .contains(role);
+    }
+}
+```
+
+# lims-patient-service/src/main/java/com/lims/patient/config/SecurityConfig.java
+
+```java
+package com.lims.patient.config;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
+
+/**
+ * Configuration de sécurité pour le service Patient LIMS
+ *
+ * Configuration unifiée pour tous les environnements :
+ * - Supporte OAuth2 JWT avec realms lims-patient et lims-staff
+ * - Endpoints publics pour les tests et health checks
+ */
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity(prePostEnabled = true)
+public class SecurityConfig {
+
+    @Value("${security.oauth2.resourceserver.jwt.jwk-set-uri}")
+    private String jwkSetUri;
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .csrf(AbstractHttpConfigurer::disable)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(authz -> authz
+                        // Endpoints publics (pas d'authentification)
+                        .requestMatchers(
+                                "/api/v1/patients/info/**",
+                                "/actuator/health",
+                                "/actuator/info",
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
+                        ).permitAll()
+
+                        // Endpoints de test (développement)
+                        .requestMatchers("/api/v1/patients/me/test").hasRole("PATIENT")
+                        .requestMatchers("/api/v1/patients/test/staff").hasAnyRole("STAFF", "ADMIN", "SECRETAIRE")
+                        .requestMatchers("/api/v1/patients/test/mixed").hasAnyRole("PATIENT", "STAFF", "ADMIN", "SECRETAIRE")
+
+                        // Endpoints Staff - Gestion des patients
+                        .requestMatchers("GET", "/api/v1/patients").hasAnyRole("STAFF", "ADMIN", "SECRETAIRE")
+                        .requestMatchers("POST", "/api/v1/patients").hasAnyRole("STAFF", "ADMIN", "SECRETAIRE")
+                        .requestMatchers("GET", "/api/v1/patients/{id}").hasAnyRole("STAFF", "ADMIN", "SECRETAIRE")
+                        .requestMatchers("PUT", "/api/v1/patients/{id}").hasAnyRole("STAFF", "ADMIN", "SECRETAIRE")
+                        .requestMatchers("DELETE", "/api/v1/patients/{id}").hasAnyRole("ADMIN", "SECRETAIRE")
+
+                        // Endpoints Staff - Recherche
+                        .requestMatchers("/api/v1/patients/search/**").hasAnyRole("STAFF", "ADMIN", "SECRETAIRE")
+                        .requestMatchers("/api/v1/patients/by-nir/**").hasAnyRole("STAFF", "ADMIN", "SECRETAIRE")
+                        .requestMatchers("/api/v1/patients/by-phone/**").hasAnyRole("STAFF", "ADMIN", "SECRETAIRE")
+                        .requestMatchers("/api/v1/patients/check-duplicates").hasAnyRole("STAFF", "ADMIN", "SECRETAIRE")
+
+                        // Endpoints Staff - Assurances et ordonnances
+                        .requestMatchers("/api/v1/patients/{id}/insurances/**").hasAnyRole("STAFF", "ADMIN", "SECRETAIRE")
+                        .requestMatchers("/api/v1/patients/{id}/prescriptions/**").hasAnyRole("STAFF", "ADMIN", "SECRETAIRE")
+                        .requestMatchers("/api/v1/prescriptions/**").hasAnyRole("STAFF", "ADMIN", "SECRETAIRE")
+
+                        // Endpoints Staff - Analytics et exports (accès restreint)
+                        .requestMatchers("/api/v1/patients/statistics").hasAnyRole("ADMIN", "SECRETAIRE")
+                        .requestMatchers("/api/v1/patients/export").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/patients/rgpd-compliance").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/patients/batch").hasAnyRole("ADMIN", "SECRETAIRE")
+
+                        // Endpoints Patient - Données personnelles
+                        .requestMatchers("/api/v1/patients/me/**").hasRole("PATIENT")
+
+                        // Endpoints d'intégration et webhooks
+                        .requestMatchers("/api/v1/webhooks/**").permitAll() // Authentification par signature
+                        .requestMatchers("/api/v1/integration/**").hasRole("ADMIN")
+
+                        // Actuator - monitoring complet pour admin seulement
+                        .requestMatchers("/actuator/**").permitAll() // En dev, tout est accessible
+
+                        // Fallback : toute autre requête nécessite une authentification
+                        .anyRequest().authenticated()
+                )
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> jwt
+                                .decoder(jwtDecoder())
+                                .jwtAuthenticationConverter(jwtAuthenticationConverter())
+                        )
+                );
+
+        return http.build();
+    }
+
+    @Bean
+    public JwtDecoder jwtDecoder() {
+        return NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
+    }
+
+    @Bean
+    public JwtAuthenticationConverter jwtAuthenticationConverter() {
+        return new PatientJwtAuthenticationConverter();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+}
+```
+
+# lims-patient-service/src/main/java/com/lims/patient/controller/InfoController.java
+
+```java
+package com.lims.patient.controller;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.time.LocalDateTime;
+import java.util.Map;
+
+/**
+ * Contrôleur principal du service Patient
+ *
+ * Ce contrôleur fournira les endpoints pour :
+ * - Auto-enregistrement des patients
+ * - Gestion des profils patients
+ * - Consultation des données personnelles
+ * - Prise de rendez-vous
+ */
+@RestController
+@RequestMapping("/api/v1/patients/info")
+@Tag(name = "Patient Management", description = "API de gestion des patients LIMS")
+@Slf4j
+public class InfoController {
+
+    @Value("${spring.application.name}")
+    private String applicationName;
+
+    @Value("${server.port}")
+    private int serverPort;
+
+    @Operation(
+            summary = "Vérification de l'état du service",
+            description = "Endpoint de health check pour le monitoring"
+    )
+    @GetMapping("/_health")
+    public ResponseEntity<Map<String, Object>> health() {
+        log.debug("Health check endpoint appelé");
+
+        return ResponseEntity.ok(Map.of(
+                "status", "UP",
+                "service", "lims-patient-service",
+                "realm", "lims-patient",
+                "timestamp", LocalDateTime.now(),
+                "checks", Map.of(
+                        "database", "UP",  // TODO: Ajouter vraie vérification DB
+                        "redis", "UP",     // TODO: Ajouter vraie vérification Redis
+                        "keycloak", "UP"   // TODO: Ajouter vraie vérification Keycloak
+                )
+        ));
+    }
+
+    @Operation(
+            summary = "Informations sur l'API Patient",
+            description = "Retourne les informations détaillées sur l'API et ses capacités"
+    )
+    @GetMapping("")
+    public ResponseEntity<Map<String, Object>> info() {
+        return ResponseEntity.ok(Map.of(
+                "service", Map.of(
+                        "name", "LIMS Patient Service",
+                        "description", "Service de gestion des patients pour le système LIMS",
+                        "version", "1.0.0",
+                        "realm", "lims-patient",
+                        "port", serverPort
+                ),
+                "capabilities", Map.of(
+                        "patient-registration", "Auto-enregistrement avec validation email",
+                        "otp-authentication", "Authentification OTP par email/SMS",
+                        "profile-management", "Gestion du profil patient",
+                        "appointment-booking", "Prise de rendez-vous en ligne",
+                        "document-access", "Accès aux ordonnances et résultats",
+                        "notification", "Notifications email/SMS"
+                ),
+                "security", Map.of(
+                        "realm", "lims-patient",
+                        "auth-method", "OAuth2 + OTP",
+                        "data-encryption", true,
+                        "audit-trail", true
+                ),
+                "api", Map.of(
+                        "version", "v1",
+                        "documentation", "/swagger-ui.html",
+                        "openapi", "/api-docs"
+                )
+        ));
+    }
+
+    /**
+     * Détecte le profil Spring actif
+     */
+    private String getActiveProfile() {
+        // Cette méthode pourrait être améliorée avec @Value("${spring.profiles.active}")
+        return "development"; // Par défaut
+    }
+}
+```
+
+# lims-patient-service/src/main/java/com/lims/patient/PatientServiceApplication.java
+
+```java
+package com.lims.patient;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.scheduling.annotation.EnableAsync;
+
+/**
+ * Application principale du service Patient LIMS
+ *
+ * Ce service gère :
+ * - Auto-enregistrement des patients
+ * - Authentification OTP (Email/SMS)
+ * - Gestion des données patients
+ * - Intégration avec le realm Keycloak lims-patient
+ *
+ * Port: 8083
+ * Realm Keycloak: lims-patient
+ * Base de données: lims_core.patients
+ */
+@SpringBootApplication
+@EnableJpaAuditing
+@EnableCaching
+@EnableAsync
+public class PatientServiceApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(PatientServiceApplication.class, args);
+    }
+}
+```
+
+# lims-patient-service/src/main/java/com/lims/patient/security/PatientSecurityContext.java
+
+```java
+package com.lims.patient.security;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.stereotype.Component;
+
+/**
+ * Utilitaire pour accéder au contexte de sécurité du service Patient
+ *
+ * Fournit des méthodes pour :
+ * - Extraire l'ID du patient connecté
+ * - Vérifier les permissions d'accès aux données
+ * - Valider l'appartenance des données à l'utilisateur connecté
+ */
+@Component
+@Slf4j
+public class PatientSecurityContext {
+
+    /**
+     * Récupère l'ID du patient actuellement connecté
+     * @return ID du patient ou null si pas connecté
+     */
+    public String getCurrentPatientId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            return null;
+        }
+
+        // Si c'est un JWT, extraire le subject (patient ID)
+        if (auth.getPrincipal() instanceof Jwt jwt) {
+            return jwt.getSubject();
+        }
+
+        return auth.getName();
+    }
+
+    /**
+     * Récupère l'ID du staff actuellement connecté
+     * @return ID du staff ou null si pas connecté ou pas staff
+     */
+    public String getCurrentStaffId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            return null;
+        }
+
+        // Vérifier que c'est bien un staff
+        if (!hasRole("STAFF") && !hasRole("ADMIN") && !hasRole("SECRETAIRE")) {
+            return null;
+        }
+
+        if (auth.getPrincipal() instanceof Jwt jwt) {
+            return jwt.getSubject();
+        }
+
+        return auth.getName();
+    }
+
+    /**
+     * Vérifie si l'utilisateur connecté a un rôle spécifique
+     */
+    public boolean hasRole(String role) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            return false;
+        }
+
+        String roleWithPrefix = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+        return auth.getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals(roleWithPrefix));
+    }
+
+    /**
+     * Vérifie si l'utilisateur connecté est un patient
+     */
+    public boolean isPatient() {
+        return hasRole("PATIENT");
+    }
+
+    /**
+     * Vérifie si l'utilisateur connecté est du staff
+     */
+    public boolean isStaff() {
+        return hasRole("STAFF") || hasRole("ADMIN") || hasRole("SECRETAIRE") ||
+                hasRole("PRELEVEUR") || hasRole("TECHNICIEN") || hasRole("RESPONSABLE_QUALITE");
+    }
+
+    /**
+     * Vérifie si l'utilisateur connecté est admin
+     */
+    public boolean isAdmin() {
+        return hasRole("ADMIN") || hasRole("SUPER_ADMIN");
+    }
+
+    /**
+     * Vérifie si un patient peut accéder à ses propres données
+     * @param patientId ID du patient dont on veut accéder aux données
+     * @return true si l'accès est autorisé
+     */
+    public boolean canAccessPatientData(String patientId) {
+        // Le staff peut accéder à toutes les données patient
+        if (isStaff()) {
+            log.debug("Staff user {} accessing patient data {}", getCurrentStaffId(), patientId);
+            return true;
+        }
+
+        // Un patient ne peut accéder qu'à ses propres données
+        if (isPatient()) {
+            String currentPatientId = getCurrentPatientId();
+            boolean canAccess = patientId.equals(currentPatientId);
+
+            if (!canAccess) {
+                log.warn("Patient {} attempted to access data of patient {}", currentPatientId, patientId);
+            }
+
+            return canAccess;
+        }
+
+        // Aucun autre type d'utilisateur ne peut accéder aux données patient
+        return false;
+    }
+
+    /**
+     * Récupère le JWT complet pour accéder à des claims spécifiques
+     */
+    public Jwt getCurrentJwt() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof Jwt jwt) {
+            return jwt;
+        }
+        return null;
+    }
+
+    /**
+     * Récupère une claim spécifique du JWT
+     */
+    public String getJwtClaim(String claimName) {
+        Jwt jwt = getCurrentJwt();
+        return jwt != null ? jwt.getClaimAsString(claimName) : null;
+    }
+
+    /**
+     * Récupère l'ID du laboratoire pour un staff
+     */
+    public String getCurrentLaboratoryId() {
+        if (!isStaff()) {
+            return null;
+        }
+        return getJwtClaim("laboratory_id");
+    }
+
+    /**
+     * Récupère le type d'utilisateur depuis le JWT
+     */
+    public String getUserType() {
+        return getJwtClaim("user_type");
+    }
+
+    /**
+     * Récupère le realm depuis le JWT
+     */
+    public String getRealm() {
+        return getJwtClaim("realm");
+    }
+
+    /**
+     * Récupère l'email de l'utilisateur connecté
+     */
+    public String getCurrentUserEmail() {
+        return getJwtClaim("email");
+    }
+
+    /**
+     * Vérifie si l'utilisateur connecté a vérifié son MFA (pour staff/admin)
+     */
+    public boolean isMfaVerified() {
+        Jwt jwt = getCurrentJwt();
+        if (jwt == null) {
+            return false;
+        }
+
+        Boolean mfaVerified = jwt.getClaimAsBoolean("mfa_verified");
+        return Boolean.TRUE.equals(mfaVerified);
+    }
+
+    /**
+     * Récupère l'ID de session pour l'audit
+     */
+    public String getSessionId() {
+        return getJwtClaim("session_id");
+    }
+
+    /**
+     * Récupère des informations complètes sur l'utilisateur connecté
+     */
+    public UserInfo getCurrentUserInfo() {
+        Jwt jwt = getCurrentJwt();
+        if (jwt == null) {
+            return null;
+        }
+
+        return UserInfo.builder()
+                .userId(jwt.getSubject())
+                .email(getJwtClaim("email"))
+                .userType(getUserType())
+                .realm(getRealm())
+                .laboratoryId(getCurrentLaboratoryId())
+                .sessionId(getSessionId())
+                .isPatient(isPatient())
+                .isStaff(isStaff())
+                .isAdmin(isAdmin())
+                .mfaVerified(isMfaVerified())
+                .build();
+    }
+
+    /**
+     * Classe pour encapsuler les informations utilisateur
+     */
+    @lombok.Data
+    @lombok.Builder
+    public static class UserInfo {
+        private String userId;
+        private String email;
+        private String userType;
+        private String realm;
+        private String laboratoryId;
+        private String sessionId;
+        private boolean isPatient;
+        private boolean isStaff;
+        private boolean isAdmin;
+        private boolean mfaVerified;
+    }
+}
+```
+
+# lims-patient-service/src/main/resources/application.yml
+
+```yml
+server:
+  port: 8092
+
+spring:
+  application:
+    name: lims-patient-service
+  profiles:
+    active: development
+
+  # Database configuration - Schema patients
+  datasource:
+    url: jdbc:postgresql://localhost:5432/lims_db
+    username: lims_user
+    password: dev_password_123
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: LIMS-Patient-Pool
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      connection-timeout: 20000
+      leak-detection-threshold: 60000
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate  # En production, utilisez 'validate'
+      default_schema: lims_patient
+    show-sql: true
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        default_schema: lims_patient
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+        batch_versioned_data: true
+
+  # Redis Configuration pour cache sessions patients
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: redis_dev_123
+      timeout: 2000ms
+      database: 2  # Base dédiée aux patients
+      jedis:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+# Keycloak Configuration - Realm Patient
+keycloak:
+  enabled: true
+  auth-server-url: http://localhost:8080
+  realm: lims-patient
+  resource: patient-service
+  credentials:
+    secret: dev-patient-secret-123
+
+# OAuth2 Resource Server Configuration
+security:
+  oauth2:
+    resourceserver:
+      jwt:
+        # Spring récupère les clés publiques UNE FOIS au démarrage
+        jwk-set-uri: http://auth.lims.local/realms/lims-patient/protocol/openid-connect/certs
+
+# Configuration spécifique LIMS Patient
+lims:
+  patient:
+    registration:
+      email-verification-required: true
+      auto-activation: false  # Validation manuelle par le staff
+      max-pending-registrations: 1000
+
+    otp:
+      provider: email  # Options: email, sms, both
+      validity-minutes: 10
+      max-attempts: 3
+
+    data-access:
+      allowed-staff-realms:
+        - lims-staff
+      audit-all-access: true
+
+    business-rules:
+      max-appointments-per-day: 5
+      appointment-window-days: 30
+
+# Monitoring et Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# OpenAPI Documentation
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+# Logging Configuration
+logging:
+  level:
+    com.lims.patient: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.springframework.web: WARN
+    org.springframework.transaction: WARN
+    org.springframework.orm: WARN
+    org.springframework.aop: WARN
+    org.springframework.cache: WARN
+    org.springframework.data: WARN
+    org.springframework.context: WARN
+    org.springframework.beans: WARN
+    org.springframework.boot: INFO
+    org.springframework.security.oauth2: DEBUG
+    org.springframework.security.web: DEBUG
+    org.keycloak: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: /var/log/lims/patient-service.log
+    max-size: 100MB
+    max-history: 30
+
+---
+# Profil développement
+spring:
+  config:
+    activate:
+      on-profile: development
+
+  # En développement, on peut être plus permissif
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+keycloak:
+  enabled: false  # Désactivé pour les tests locaux sans Keycloak
+
+# Logging plus verbeux en dev
+logging:
+  level:
+    com.lims.patient: TRACE
+    org.springframework.security: TRACE
+
+---
+# Profil production
+spring:
+  config:
+    activate:
+      on-profile: production
+
+  # Configuration stricte en production
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+keycloak:
+  enabled: true
+  auth-server-url: https://auth.lims.local
+
+# Logs optimisés pour la production
+logging:
+  level:
+    com.lims.patient: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+
+# SpringDoc désactivé en production
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+```
+
 # pom.xml
 
 ```xml
@@ -5428,6 +6542,7 @@ logging:
     <modules>
         <module>lims-auth-service</module>
         <module>lims-laboratory-service</module>
+        <module>lims-patient-service</module>
     </modules>
 
     <dependencyManagement>

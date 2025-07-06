@@ -1,0 +1,200 @@
+server:
+  port: 8092
+
+spring:
+  application:
+    name: lims-patient-service
+  profiles:
+    active: development
+
+  # Database configuration - Schema patients
+  datasource:
+    url: jdbc:postgresql://localhost:5432/lims_db
+    username: lims_user
+    password: dev_password_123
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: LIMS-Patient-Pool
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      connection-timeout: 20000
+      leak-detection-threshold: 60000
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate  # En production, utilisez 'validate'
+      default_schema: lims_patient
+    show-sql: true
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        default_schema: lims_patient
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+        batch_versioned_data: true
+
+  # Redis Configuration pour cache sessions patients
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: redis_dev_123
+      timeout: 2000ms
+      database: 2  # Base dédiée aux patients
+      jedis:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+# Keycloak Configuration - Realm Patient
+keycloak:
+  enabled: true
+  auth-server-url: http://localhost:8080
+  realm: lims-patient
+  resource: patient-service
+  credentials:
+    secret: dev-patient-secret-123
+
+# OAuth2 Resource Server Configuration
+security:
+  oauth2:
+    resourceserver:
+      jwt:
+        # Spring récupère les clés publiques UNE FOIS au démarrage
+        jwk-set-uri: http://auth.lims.local/realms/lims-patient/protocol/openid-connect/certs
+
+# Configuration spécifique LIMS Patient
+lims:
+  patient:
+    registration:
+      email-verification-required: true
+      auto-activation: false  # Validation manuelle par le staff
+      max-pending-registrations: 1000
+
+    otp:
+      provider: email  # Options: email, sms, both
+      validity-minutes: 10
+      max-attempts: 3
+
+    data-access:
+      allowed-staff-realms:
+        - lims-staff
+      audit-all-access: true
+
+    business-rules:
+      max-appointments-per-day: 5
+      appointment-window-days: 30
+
+# Monitoring et Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# OpenAPI Documentation
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+# Logging Configuration
+logging:
+  level:
+    com.lims.patient: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.springframework.web: WARN
+    org.springframework.transaction: WARN
+    org.springframework.orm: WARN
+    org.springframework.aop: WARN
+    org.springframework.cache: WARN
+    org.springframework.data: WARN
+    org.springframework.context: WARN
+    org.springframework.beans: WARN
+    org.springframework.boot: INFO
+    org.springframework.security.oauth2: DEBUG
+    org.springframework.security.web: DEBUG
+    org.keycloak: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: /var/log/lims/patient-service.log
+    max-size: 100MB
+    max-history: 30
+
+---
+# Profil développement
+spring:
+  config:
+    activate:
+      on-profile: development
+
+  # En développement, on peut être plus permissif
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+keycloak:
+  enabled: false  # Désactivé pour les tests locaux sans Keycloak
+
+# Logging plus verbeux en dev
+logging:
+  level:
+    com.lims.patient: TRACE
+    org.springframework.security: TRACE
+
+---
+# Profil production
+spring:
+  config:
+    activate:
+      on-profile: production
+
+  # Configuration stricte en production
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+keycloak:
+  enabled: true
+  auth-server-url: https://auth.lims.local
+
+# Logs optimisés pour la production
+logging:
+  level:
+    com.lims.patient: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
+
+# SpringDoc désactivé en production
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
