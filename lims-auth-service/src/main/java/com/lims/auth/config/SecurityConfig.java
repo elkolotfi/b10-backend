@@ -17,7 +17,10 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Base64;
 
 @Configuration
 @EnableWebSecurity
@@ -25,6 +28,9 @@ public class SecurityConfig {
 
     @Value("${security.oauth2.resourceserver.jwt.jwk-set-uri}")
     private String jwkSetUri;
+
+    @Value("${lims.auth.jwt.secret}")
+    private String jwtSecret;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -78,7 +84,17 @@ public class SecurityConfig {
 
     @Bean
     public JwtDecoder jwtDecoder() {
-        return NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
+        // Utiliser la même clé HMAC pour la validation
+        try {
+            byte[] keyBytes = Base64.getDecoder().decode(jwtSecret);
+            SecretKeySpec secretKey = new SecretKeySpec(keyBytes, "HmacSHA512");
+            return NimbusJwtDecoder.withSecretKey(secretKey).build();
+        } catch (IllegalArgumentException e) {
+            // Fallback si pas Base64
+            SecretKeySpec secretKey = new SecretKeySpec(
+                    jwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA512");
+            return NimbusJwtDecoder.withSecretKey(secretKey).build();
+        }
     }
 
     @Bean

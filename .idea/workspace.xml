@@ -4,15 +4,17 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="7aacdcd1-1ad1-4553-9a77-bce1e509ee8f" name="Changes" comment="init patient service">
+    <list default="true" id="7aacdcd1-1ad1-4553-9a77-bce1e509ee8f" name="Changes" comment="patient service running">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/codebase.md" beforeDir="false" afterPath="$PROJECT_DIR$/codebase.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/controller/AdminAuthController.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/controller/AdminAuthController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-laboratory-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/lims-laboratory-service/src/main/resources/application.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/config/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/config/SecurityConfig.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lims-patient-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/PatientServiceApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/PatientServiceApplication.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/config/PatientJwtAuthenticationConverter.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/config/PatientJwtAuthenticationConverter.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/config/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/config/SecurityConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/controller/PatientController.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/controller/PatientController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/security/PatientSecurityContext.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/security/PatientSecurityContext.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/resources/application.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/logs/lims-patient-service.log" beforeDir="false" afterPath="$PROJECT_DIR$/logs/lims-patient-service.log" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -133,14 +135,23 @@
       <option name="project" value="LOCAL" />
       <updated>1751802892366</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="patient service running">
+      <option name="closed" value="true" />
+      <created>1751833696949</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1751833696949</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="running service-auth 2" />
     <MESSAGE value="working basic mfa" />
     <MESSAGE value="init patient service" />
-    <option name="LAST_COMMIT_MESSAGE" value="init patient service" />
+    <MESSAGE value="patient service running" />
+    <option name="LAST_COMMIT_MESSAGE" value="patient service running" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -210,14 +221,30 @@
           <line>293</line>
           <option name="timeStamp" value="37" />
         </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-method">
-          <url>file://$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/service/AdminTokenService.java</url>
-          <line>28</line>
-          <properties class="com.lims.auth.service.AdminTokenService">
-            <option name="EMULATED" value="true" />
-            <option name="WATCH_EXIT" value="false" />
-          </properties>
-          <option name="timeStamp" value="38" />
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/config/PatientJwtAuthenticationConverter.java</url>
+          <line>30</line>
+          <option name="timeStamp" value="41" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/config/PatientJwtAuthenticationConverter.java</url>
+          <line>107</line>
+          <option name="timeStamp" value="42" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/config/PatientJwtAuthenticationConverter.java</url>
+          <line>126</line>
+          <option name="timeStamp" value="43" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/config/PatientJwtAuthenticationConverter.java</url>
+          <line>218</line>
+          <option name="timeStamp" value="46" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/security/PatientSecurityContext.java</url>
+          <line>123</line>
+          <option name="timeStamp" value="61" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

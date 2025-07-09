@@ -2,234 +2,236 @@ package com.lims.patient.security;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 
+import java.util.Collection;
+import java.util.UUID;
+
 /**
- * Utilitaire pour accéder au contexte de sécurité du service Patient
- *
- * Fournit des méthodes pour :
- * - Extraire l'ID du patient connecté
- * - Vérifier les permissions d'accès aux données
- * - Valider l'appartenance des données à l'utilisateur connecté
+ * Contexte de sécurité pour le service Patient.
+ * Fournit des méthodes utilitaires pour accéder aux informations de l'utilisateur connecté.
  */
-@Component
 @Slf4j
+@Component
 public class PatientSecurityContext {
 
     /**
-     * Récupère l'ID du patient actuellement connecté
-     * @return ID du patient ou null si pas connecté
+     * Récupère l'authentification courante
      */
-    public String getCurrentPatientId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated()) {
-            return null;
-        }
-
-        // Si c'est un JWT, extraire le subject (patient ID)
-        if (auth.getPrincipal() instanceof Jwt jwt) {
-            return jwt.getSubject();
-        }
-
-        return auth.getName();
+    private Authentication getCurrentAuthentication() {
+        return SecurityContextHolder.getContext().getAuthentication();
     }
 
     /**
-     * Récupère l'ID du staff actuellement connecté
-     * @return ID du staff ou null si pas connecté ou pas staff
+     * Récupère le JWT de l'utilisateur connecté
      */
-    public String getCurrentStaffId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated()) {
-            return null;
-        }
-
-        // Vérifier que c'est bien un staff
-        if (!hasRole("STAFF") && !hasRole("ADMIN") && !hasRole("SECRETAIRE")) {
-            return null;
-        }
-
-        if (auth.getPrincipal() instanceof Jwt jwt) {
-            return jwt.getSubject();
-        }
-
-        return auth.getName();
-    }
-
-    /**
-     * Vérifie si l'utilisateur connecté a un rôle spécifique
-     */
-    public boolean hasRole(String role) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated()) {
-            return false;
-        }
-
-        String roleWithPrefix = role.startsWith("ROLE_") ? role : "ROLE_" + role;
-        return auth.getAuthorities().stream()
-                .anyMatch(authority -> authority.getAuthority().equals(roleWithPrefix));
-    }
-
-    /**
-     * Vérifie si l'utilisateur connecté est un patient
-     */
-    public boolean isPatient() {
-        return hasRole("PATIENT");
-    }
-
-    /**
-     * Vérifie si l'utilisateur connecté est du staff
-     */
-    public boolean isStaff() {
-        return hasRole("STAFF") || hasRole("ADMIN") || hasRole("SECRETAIRE") ||
-                hasRole("PRELEVEUR") || hasRole("TECHNICIEN") || hasRole("RESPONSABLE_QUALITE");
-    }
-
-    /**
-     * Vérifie si l'utilisateur connecté est admin
-     */
-    public boolean isAdmin() {
-        return hasRole("ADMIN") || hasRole("SUPER_ADMIN");
-    }
-
-    /**
-     * Vérifie si un patient peut accéder à ses propres données
-     * @param patientId ID du patient dont on veut accéder aux données
-     * @return true si l'accès est autorisé
-     */
-    public boolean canAccessPatientData(String patientId) {
-        // Le staff peut accéder à toutes les données patient
-        if (isStaff()) {
-            log.debug("Staff user {} accessing patient data {}", getCurrentStaffId(), patientId);
-            return true;
-        }
-
-        // Un patient ne peut accéder qu'à ses propres données
-        if (isPatient()) {
-            String currentPatientId = getCurrentPatientId();
-            boolean canAccess = patientId.equals(currentPatientId);
-
-            if (!canAccess) {
-                log.warn("Patient {} attempted to access data of patient {}", currentPatientId, patientId);
-            }
-
-            return canAccess;
-        }
-
-        // Aucun autre type d'utilisateur ne peut accéder aux données patient
-        return false;
-    }
-
-    /**
-     * Récupère le JWT complet pour accéder à des claims spécifiques
-     */
-    public Jwt getCurrentJwt() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getPrincipal() instanceof Jwt jwt) {
-            return jwt;
+    private Jwt getCurrentJwt() {
+        Authentication auth = getCurrentAuthentication();
+        if (auth instanceof JwtAuthenticationToken jwtAuth) {
+            return jwtAuth.getToken();
         }
         return null;
     }
 
     /**
-     * Récupère une claim spécifique du JWT
+     * Récupère l'ID de l'utilisateur connecté
      */
-    public String getJwtClaim(String claimName) {
+    public String getCurrentUserId() {
         Jwt jwt = getCurrentJwt();
-        return jwt != null ? jwt.getClaimAsString(claimName) : null;
-    }
-
-    /**
-     * Récupère l'ID du laboratoire pour un staff
-     */
-    public String getCurrentLaboratoryId() {
-        if (!isStaff()) {
-            return null;
-        }
-        return getJwtClaim("laboratory_id");
-    }
-
-    /**
-     * Récupère le type d'utilisateur depuis le JWT
-     */
-    public String getUserType() {
-        return getJwtClaim("user_type");
-    }
-
-    /**
-     * Récupère le realm depuis le JWT
-     */
-    public String getRealm() {
-        return getJwtClaim("realm");
+        return jwt != null ? jwt.getSubject() : null;
     }
 
     /**
      * Récupère l'email de l'utilisateur connecté
      */
     public String getCurrentUserEmail() {
-        return getJwtClaim("email");
+        Jwt jwt = getCurrentJwt();
+        return jwt != null ? jwt.getClaimAsString("email") : null;
     }
 
     /**
-     * Vérifie si l'utilisateur connecté a vérifié son MFA (pour staff/admin)
+     * Récupère le type d'utilisateur connecté
      */
-    public boolean isMfaVerified() {
+    public String getCurrentUserType() {
         Jwt jwt = getCurrentJwt();
-        if (jwt == null) {
-            return false;
+        return jwt != null ? jwt.getClaimAsString("user_type") : null;
+    }
+
+    /**
+     * Récupère le rôle de l'utilisateur connecté
+     */
+    public String getCurrentUserRole() {
+        Jwt jwt = getCurrentJwt();
+        return jwt != null ? jwt.getClaimAsString("role") : null;
+    }
+
+    /**
+     * Récupère le realm de l'utilisateur connecté
+     */
+    public String getCurrentUserRealm() {
+        Jwt jwt = getCurrentJwt();
+        return jwt != null ? jwt.getClaimAsString("realm") : null;
+    }
+
+    /**
+     * Récupère l'ID du laboratoire de l'utilisateur connecté (pour le staff)
+     */
+    public String getCurrentUserLaboratoryId() {
+        Jwt jwt = getCurrentJwt();
+        return jwt != null ? jwt.getClaimAsString("laboratory_id") : null;
+    }
+
+    /**
+     * Récupère l'ID patient de l'utilisateur connecté (pour les patients)
+     */
+    public String getCurrentPatientId() {
+        Jwt jwt = getCurrentJwt();
+        return jwt != null ? jwt.getClaimAsString("patient_id") : null;
+    }
+
+    /**
+     * Vérifie si l'utilisateur connecté est un admin
+     */
+    public boolean isCurrentUserAdmin() {
+        String userType = getCurrentUserType();
+        return "ADMIN".equals(userType);
+    }
+
+    /**
+     * Vérifie si l'utilisateur connecté est un patient
+     */
+    public boolean isCurrentUserPatient() {
+        String userType = getCurrentUserType();
+        return "PATIENT".equals(userType);
+    }
+
+    /**
+     * Vérifie si l'utilisateur connecté est un membre du staff
+     */
+    public boolean isCurrentUserStaff() {
+        String userType = getCurrentUserType();
+        return "STAFF".equals(userType);
+    }
+
+    /**
+     * Vérifie si l'utilisateur a une autorité spécifique
+     */
+    private boolean hasAuthority(String authority) {
+        Authentication auth = getCurrentAuthentication();
+        if (auth != null) {
+            Collection<? extends GrantedAuthority> authorities = auth.getAuthorities();
+            return authorities.stream()
+                    .anyMatch(a -> a.getAuthority().equals(authority));
+        }
+        return false;
+    }
+
+    /**
+     * Vérifie si l'utilisateur peut accéder aux données d'un patient spécifique
+     */
+    public boolean canAccessPatient(UUID patientId) {
+        log.debug("Checking access to patient {} for user {}", patientId, getCurrentUserId());
+
+        // Les admins ont accès à tous les patients
+        if (isCurrentUserAdmin()) {
+            log.debug("Admin access granted to patient {}", patientId);
+            return true;
         }
 
-        Boolean mfaVerified = jwt.getClaimAsBoolean("mfa_verified");
-        return Boolean.TRUE.equals(mfaVerified);
-    }
-
-    /**
-     * Récupère l'ID de session pour l'audit
-     */
-    public String getSessionId() {
-        return getJwtClaim("session_id");
-    }
-
-    /**
-     * Récupère des informations complètes sur l'utilisateur connecté
-     */
-    public UserInfo getCurrentUserInfo() {
-        Jwt jwt = getCurrentJwt();
-        if (jwt == null) {
-            return null;
+        // Les patients peuvent accéder à leurs propres données
+        if (isCurrentUserPatient()) {
+            String currentPatientId = getCurrentPatientId();
+            boolean hasAccess = patientId.toString().equals(currentPatientId);
+            log.debug("Patient access to patient {}: {}", patientId, hasAccess);
+            return hasAccess;
         }
 
-        return UserInfo.builder()
-                .userId(jwt.getSubject())
-                .email(getJwtClaim("email"))
-                .userType(getUserType())
-                .realm(getRealm())
-                .laboratoryId(getCurrentLaboratoryId())
-                .sessionId(getSessionId())
-                .isPatient(isPatient())
-                .isStaff(isStaff())
-                .isAdmin(isAdmin())
-                .mfaVerified(isMfaVerified())
-                .build();
+        // Le staff peut accéder aux patients de leur laboratoire
+        if (isCurrentUserStaff()) {
+            // Pour l'instant, on permet l'accès à tout le staff
+            // Dans une implémentation complète, il faudrait vérifier si le patient
+            // appartient au même laboratoire que le staff
+            log.debug("Staff access granted to patient {} (basic implementation)", patientId);
+            return true;
+        }
+
+        log.debug("Access denied to patient {} for user {}", patientId, getCurrentUserId());
+        return false;
     }
 
     /**
-     * Classe pour encapsuler les informations utilisateur
+     * Vérifie si l'utilisateur peut lire tous les patients
      */
-    @lombok.Data
-    @lombok.Builder
-    public static class UserInfo {
-        private String userId;
-        private String email;
-        private String userType;
-        private String realm;
-        private String laboratoryId;
-        private String sessionId;
-        private boolean isPatient;
-        private boolean isStaff;
-        private boolean isAdmin;
-        private boolean mfaVerified;
+    public boolean canReadAllPatients() {
+        log.debug("Checking read all patients permission for user {}", getCurrentUserId());
+
+        // Les admins peuvent lire tous les patients
+        if (isCurrentUserAdmin()) {
+            log.debug("Admin can read all patients");
+            return true;
+        }
+
+        // Le staff peut lire les patients de leur laboratoire
+        if (isCurrentUserStaff()) {
+            log.debug("Staff can read patients in their laboratory");
+            return true;
+        }
+
+        log.debug("Read all patients denied for user {}", getCurrentUserId());
+        return false;
+    }
+
+    /**
+     * Vérifie si l'utilisateur peut écrire/modifier des données patient
+     */
+    public boolean canWritePatient() {
+        log.debug("Checking write patient permission for user {}", getCurrentUserId());
+
+        // Les admins peuvent écrire
+        if (isCurrentUserAdmin()) {
+            log.debug("Admin can write patient data");
+            return true;
+        }
+
+        // Le staff avec les bons rôles peut écrire
+        if (isCurrentUserStaff()) {
+            String role = getCurrentUserRole();
+            boolean canWrite = "ADMIN_LAB".equals(role) || "SECRETAIRE".equals(role);
+            log.debug("Staff write permission: {} (role: {})", canWrite, role);
+            return canWrite;
+        }
+
+        log.debug("Write patient denied for user {}", getCurrentUserId());
+        return false;
+    }
+
+    /**
+     * Vérifie si l'utilisateur peut supprimer des patients
+     */
+    public boolean canDeletePatient() {
+        log.debug("Checking delete patient permission for user {}", getCurrentUserId());
+
+        // Seuls les admins peuvent supprimer
+        boolean canDelete = isCurrentUserAdmin();
+        log.debug("Delete patient permission: {} for user {}", canDelete, getCurrentUserId());
+        return canDelete;
+    }
+
+    /**
+     * Vérifie si l'utilisateur a une permission spécifique
+     */
+    public boolean hasPermission(String permission) {
+        return hasAuthority("PERMISSION_" + permission);
+    }
+
+    /**
+     * Vérifie si l'utilisateur a un rôle spécifique
+     */
+    public boolean hasRole(String role) {
+        return hasAuthority("ROLE_" + role);
     }
 }
