@@ -6,6 +6,9 @@ import lombok.Builder;
 
 import java.time.LocalDateTime;
 
+/**
+ * DTO de réponse pour les métadonnées
+ */
 @Builder
 public record MetadataResponse(
         PatientStatus statut,
@@ -13,6 +16,6 @@ public record MetadataResponse(
         LocalDateTime dateModification,
         String creePar,
         String modifiePar,
-        LocalDateTime dateSuppression
+        Boolean actif
 ) {}
 

@@ -1,242 +1,353 @@
+
 package com.lims.patient.controller;
 
-import com.lims.patient.security.PatientSecurityContext;
+import com.lims.patient.dto.request.*;
+import com.lims.patient.dto.response.*;
+import com.lims.patient.enums.GenderType;
+import com.lims.patient.enums.PatientStatus;
+import com.lims.patient.service.PatientService;
+import com.lims.patient.service.PatientSearchService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Contrôleur pour la gestion des patients avec sécurité multi-realms
+ * Contrôleur REST pour la gestion des patients - Version centralisée corrigée
  */
-@Slf4j
 @RestController
 @RequestMapping("/api/v1/patients")
 @RequiredArgsConstructor
+@Slf4j
+@Tag(name = "Patients", description = "API de gestion des patients")
 public class PatientController {
 
-    private final PatientSecurityContext securityContext;
-    // private final PatientService patientService; // À injecter
+    private final PatientService patientService;
+    private final PatientSearchService patientSearchService;
+
+    // ============================================
+    // ENDPOINTS CRUD
+    // ============================================
 
     /**
-     * Récupère un patient par son ID
-     * Accessible par :
-     * - Admins (tous les patients)
-     * - Patients (leurs propres données uniquement)
-     * - Staff (patients de leur laboratoire)
-     */
-    @GetMapping("/{patientId}")
-    @PreAuthorize("@patientSecurityContext.canAccessPatient(#patientId)")
-    public ResponseEntity<?> getPatient(@PathVariable("patientId") UUID patientId) {
-        log.info("GET /patients/{} requested by user: {} ({})",
-                patientId,
-                securityContext.getCurrentUserId(),
-                securityContext.getCurrentUserType());
-
-        // Log des informations de sécurité pour debug
-        logSecurityContext();
-
-        // Vérification supplémentaire au niveau métier
-        if (!securityContext.canAccessPatient(patientId)) {
-            log.warn("Access denied for user {} to patient {}",
-                    securityContext.getCurrentUserId(), patientId);
-            return ResponseEntity.status(403).body("Access denied to this patient data");
-        }
-
-        // Simulation de récupération des données patient
-        return ResponseEntity.ok().body("""
-            {
-                "patientId": "%s",
-                "message": "Patient data retrieved successfully",
-                "accessedBy": "%s",
-                "userType": "%s",
-                "realm": "%s"
-            }
-            """.formatted(
-                patientId,
-                securityContext.getCurrentUserId(),
-                securityContext.getCurrentUserType(),
-                securityContext.getCurrentUserRealm()
-        ));
-    }
-
-    /**
-     * Liste tous les patients
-     * Accessible uniquement par les admins et le staff
-     */
-    @GetMapping
-    @PreAuthorize("@patientSecurityContext.canReadAllPatients()")
-    public ResponseEntity<?> getAllPatients() {
-        log.info("GET /patients requested by user: {} ({})",
-                securityContext.getCurrentUserId(),
-                securityContext.getCurrentUserType());
-
-        logSecurityContext();
-
-        return ResponseEntity.ok().body("""
-            {
-                "message": "Patients list retrieved successfully",
-                "accessedBy": "%s",
-                "userType": "%s",
-                "realm": "%s",
-                "laboratoryId": "%s"
-            }
-            """.formatted(
-                securityContext.getCurrentUserId(),
-                securityContext.getCurrentUserType(),
-                securityContext.getCurrentUserRealm(),
-                securityContext.getCurrentUserLaboratoryId()
-        ));
-    }
-
-    /**
-     * Crée un nouveau patient
-     * Accessible par les admins et le staff autorisé
+     * Créer un nouveau patient
      */
     @PostMapping
-    @PreAuthorize("@patientSecurityContext.canWritePatient()")
-    public ResponseEntity<?> createPatient(@RequestBody Object patientData) {
-        log.info("POST /patients requested by user: {} ({})",
-                securityContext.getCurrentUserId(),
-                securityContext.getCurrentUserType());
+    @Operation(summary = "Créer un nouveau patient")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Patient créé avec succès"),
+            @ApiResponse(responseCode = "400", description = "Données invalides"),
+            @ApiResponse(responseCode = "409", description = "Patient déjà existant")
+    })
+    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
+    public ResponseEntity<PatientResponse> createPatient(
+            @Valid @RequestBody CreatePatientRequest request) {
 
-        logSecurityContext();
+        log.info("Création d'un nouveau patient: {} {}",
+                request.personalInfo().prenom(), request.personalInfo().nom());
 
-        return ResponseEntity.ok().body("""
-            {
-                "message": "Patient created successfully",
-                "createdBy": "%s",
-                "userType": "%s",
-                "realm": "%s"
-            }
-            """.formatted(
-                securityContext.getCurrentUserId(),
-                securityContext.getCurrentUserType(),
-                securityContext.getCurrentUserRealm()
-        ));
+        PatientResponse response = patientService.createPatient(request);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     /**
-     * Met à jour un patient
-     * Accessible par les admins et le staff autorisé
+     * Récupérer un patient par ID
      */
-    @PutMapping("/{patientId}")
-    @PreAuthorize("@patientSecurityContext.canWritePatient() and @patientSecurityContext.canAccessPatient(#patientId)")
-    public ResponseEntity<?> updatePatient(@PathVariable UUID patientId, @RequestBody Object patientData) {
-        log.info("PUT /patients/{} requested by user: {} ({})",
-                patientId,
-                securityContext.getCurrentUserId(),
-                securityContext.getCurrentUserType());
+    @GetMapping("/{id}")
+    @Operation(summary = "Récupérer un patient par ID")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Patient trouvé"),
+            @ApiResponse(responseCode = "404", description = "Patient non trouvé")
+    })
+    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN') or hasRole('PATIENT')")
+    public ResponseEntity<PatientResponse> getPatient(
+            @Parameter(description = "ID du patient") @PathVariable(value = "id") UUID id) {
 
-        logSecurityContext();
+        log.info("Récupération du patient: {}", id);
 
-        return ResponseEntity.ok().body("""
-            {
-                "patientId": "%s",
-                "message": "Patient updated successfully",
-                "updatedBy": "%s",
-                "userType": "%s",
-                "realm": "%s"
-            }
-            """.formatted(
-                patientId,
-                securityContext.getCurrentUserId(),
-                securityContext.getCurrentUserType(),
-                securityContext.getCurrentUserRealm()
-        ));
+        PatientResponse response = patientService.getPatient(id);
+
+        return ResponseEntity.ok(response);
     }
 
     /**
-     * Supprime un patient
-     * Accessible uniquement par les admins
+     * Mettre à jour un patient
      */
-    @DeleteMapping("/{patientId}")
-    @PreAuthorize("@patientSecurityContext.canDeletePatient()")
-    public ResponseEntity<?> deletePatient(@PathVariable UUID patientId) {
-        log.info("DELETE /patients/{} requested by user: {} ({})",
-                patientId,
-                securityContext.getCurrentUserId(),
-                securityContext.getCurrentUserType());
+    @PutMapping("/{id}")
+    @Operation(summary = "Mettre à jour un patient")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Patient mis à jour"),
+            @ApiResponse(responseCode = "404", description = "Patient non trouvé"),
+            @ApiResponse(responseCode = "400", description = "Données invalides")
+    })
+    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
+    public ResponseEntity<PatientResponse> updatePatient(
+            @Parameter(description = "ID du patient") @PathVariable(value = "id") UUID id,
+            @Valid @RequestBody UpdatePatientRequest request) {
 
-        logSecurityContext();
+        log.info("Mise à jour du patient: {}", id);
 
-        return ResponseEntity.ok().body("""
-            {
-                "patientId": "%s",
-                "message": "Patient deleted successfully",
-                "deletedBy": "%s",
-                "userType": "%s",
-                "realm": "%s"
-            }
-            """.formatted(
-                patientId,
-                securityContext.getCurrentUserId(),
-                securityContext.getCurrentUserType(),
-                securityContext.getCurrentUserRealm()
-        ));
+        PatientResponse response = patientService.updatePatient(id, request);
+
+        return ResponseEntity.ok(response);
     }
 
     /**
-     * Endpoint pour récupérer les informations de l'utilisateur connecté
-     * Accessible par tous les utilisateurs authentifiés
+     * Supprimer un patient (soft delete)
      */
-    @GetMapping("/me")
-    public ResponseEntity<?> getCurrentUser() {
-        log.info("GET /patients/me requested by user: {} ({})",
-                securityContext.getCurrentUserId(),
-                securityContext.getCurrentUserType());
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Supprimer un patient")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Patient supprimé"),
+            @ApiResponse(responseCode = "404", description = "Patient non trouvé")
+    })
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deletePatient(
+            @Parameter(description = "ID du patient") @PathVariable(value = "id") UUID id) {
 
-        logSecurityContext();
+        log.info("Suppression du patient: {}", id);
 
-        return ResponseEntity.ok().body("""
-            {
-                "userId": "%s",
-                "email": "%s",
-                "userType": "%s",
-                "role": "%s",
-                "realm": "%s",
-                "laboratoryId": "%s",
-                "patientId": "%s"
-            }
-            """.formatted(
-                securityContext.getCurrentUserId(),
-                securityContext.getCurrentUserEmail(),
-                securityContext.getCurrentUserType(),
-                securityContext.getCurrentUserRole(),
-                securityContext.getCurrentUserRealm(),
-                securityContext.getCurrentUserLaboratoryId(),
-                securityContext.getCurrentPatientId()
-        ));
+        patientService.deletePatient(id);
+
+        return ResponseEntity.noContent().build();
+    }
+
+    // ============================================
+    // ENDPOINTS DE RECHERCHE
+    // ============================================
+
+    /**
+     * Recherche multicritères de patients (POST recommandé)
+     */
+    @PostMapping("/search")
+    @Operation(summary = "Recherche multicritères de patients")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Résultats de recherche"),
+            @ApiResponse(responseCode = "400", description = "Critères de recherche invalides")
+    })
+    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
+    public ResponseEntity<PatientSearchResponse> searchPatients(
+            @Valid @RequestBody PatientSearchRequest request) {
+
+        log.info("Recherche de patients avec critères: {}", request);
+
+        PatientSearchResponse response = patientService.searchPatients(request);
+
+        return ResponseEntity.ok(response);
     }
 
     /**
-     * Log détaillé du contexte de sécurité pour le debug
+     * Recherche simple par un seul critère (GET acceptable)
      */
-    private void logSecurityContext() {
-        if (log.isDebugEnabled()) {
-            log.debug("=== Security Context ===");
-            log.debug("User ID: {}", securityContext.getCurrentUserId());
-            log.debug("Email: {}", securityContext.getCurrentUserEmail());
-            log.debug("User Type: {}", securityContext.getCurrentUserType());
-            log.debug("Role: {}", securityContext.getCurrentUserRole());
-            log.debug("Realm: {}", securityContext.getCurrentUserRealm());
-            log.debug("Laboratory ID: {}", securityContext.getCurrentUserLaboratoryId());
-            log.debug("Patient ID: {}", securityContext.getCurrentPatientId());
-            log.debug("Is Admin: {}", securityContext.isCurrentUserAdmin());
-            log.debug("Is Patient: {}", securityContext.isCurrentUserPatient());
-            log.debug("Is Staff: {}", securityContext.isCurrentUserStaff());
-            log.debug("Can Read All Patients: {}", securityContext.canReadAllPatients());
-            log.debug("Can Write Patient: {}", securityContext.canWritePatient());
-            log.debug("Can Delete Patient: {}", securityContext.canDeletePatient());
-            log.debug("========================");
-        }
+    @GetMapping("/search/simple")
+    @Operation(summary = "Recherche simple par un critère")
+    @ApiResponse(responseCode = "200", description = "Résultats de recherche simple")
+    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
+    public ResponseEntity<List<PatientSummaryResponse>> simpleSearch(
+            @Parameter(description = "Type de recherche")
+            @RequestParam(value = "type") String type,
+
+            @Parameter(description = "Valeur recherchée")
+            @RequestParam(value = "value") String value,
+
+            @Parameter(description = "Limite de résultats")
+            @RequestParam(value = "limit", defaultValue = "20") int limit) {
+
+        log.info("Recherche simple: {} = {}", type, value);
+
+        List<PatientSummaryResponse> results = switch (type.toLowerCase()) {
+            case "nom" -> patientSearchService.searchByNomPrenom(value, null);
+            case "prenom" -> patientSearchService.searchByNomPrenom(null, value);
+            // case "ville" -> patientSearchService.searchByVille(value);
+            // case "medecin" -> patientSearchService.searchByMedecinTraitant(value);
+            default -> throw new IllegalArgumentException("Type de recherche non supporté: " + type);
+        };
+
+        return ResponseEntity.ok(results.stream().limit(limit).toList());
     }
 
-    /*@PostConstruct
-    public void debugJwt() {
-        JwtDebugTool.debugJwtDecoding();
-    }*/
+    /**
+     * Recherche rapide (typeahead) - GET acceptable car simple
+     */
+    @GetMapping("/search/quick")
+    @Operation(summary = "Recherche rapide de patients")
+    @ApiResponse(responseCode = "200", description = "Résultats de recherche rapide")
+    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
+    public ResponseEntity<List<PatientSummaryResponse>> quickSearch(
+            @Parameter(description = "Terme de recherche")
+            @RequestParam(value = "query") String query,
+            @Parameter(description = "Limite de résultats")
+            @RequestParam(value = "limit", defaultValue = "10") int limit) {
+
+        log.info("Recherche rapide: {}", query);
+
+        List<PatientSummaryResponse> results = patientSearchService.quickSearch(query, limit);
+
+        return ResponseEntity.ok(results);
+    }
+
+    // ============================================
+    // ENDPOINTS DE RECHERCHE SPÉCIFIQUES
+    // ============================================
+
+    /**
+     * Recherche par email
+     */
+    @GetMapping("/search/email")
+    @Operation(summary = "Recherche par email")
+    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
+    public ResponseEntity<PatientResponse> findByEmail(
+            @Parameter(description = "Email du patient")
+            @RequestParam(value = "email") String email) {
+
+        log.info("Recherche par email: {}", email);
+
+        Optional<PatientResponse> patient = patientService.findByEmail(email);
+
+        return patient.map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * Recherche par téléphone
+     */
+    @GetMapping("/search/telephone")
+    @Operation(summary = "Recherche par téléphone")
+    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
+    public ResponseEntity<PatientResponse> findByTelephone(
+            @Parameter(description = "Téléphone du patient")
+            @RequestParam(value = "telephone") String telephone) {
+
+        log.info("Recherche par téléphone: {}", telephone);
+
+        Optional<PatientResponse> patient = patientService.findByTelephone(telephone);
+
+        return patient.map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * Recherche par numéro de sécurité sociale
+     */
+    @GetMapping("/search/nir")
+    @Operation(summary = "Recherche par numéro de sécurité sociale")
+    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
+    public ResponseEntity<PatientResponse> findByNumeroSecu(
+            @Parameter(description = "Numéro de sécurité sociale")
+            @RequestParam(value = "numeroSecu") String numeroSecu) {
+
+        log.info("Recherche par numéro de sécurité sociale");
+
+        Optional<PatientResponse> patient = patientService.findByNumeroSecu(numeroSecu);
+
+        return patient.map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * Recherche par ville
+     */
+    @GetMapping("/search/ville")
+    @Operation(summary = "Recherche par ville")
+    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
+    public ResponseEntity<List<PatientSummaryResponse>> findByVille(
+            @Parameter(description = "Ville")
+            @RequestParam(value = "ville") String ville) {
+
+        log.info("Recherche par ville: {}", ville);
+
+        List<PatientSummaryResponse> patients = List.of(); // patientSearchService.searchByVille(ville);
+
+        return ResponseEntity.ok(patients);
+    }
+
+    /**
+     * Recherche par médecin traitant
+     */
+    @GetMapping("/search/medecin")
+    @Operation(summary = "Recherche par médecin traitant")
+    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
+    public ResponseEntity<List<PatientSummaryResponse>> findByMedecinTraitant(
+            @Parameter(description = "Médecin traitant")
+            @RequestParam(value = "medecin") String medecin) {
+
+        log.info("Recherche par médecin traitant: {}", medecin);
+
+        List<PatientSummaryResponse> patients = List.of(); // patientSearchService.searchByMedecinTraitant(medecin);
+
+        return ResponseEntity.ok(patients);
+    }
+
+    // ============================================
+    // ENDPOINTS DE LISTE
+    // ============================================
+
+    /**
+     * Liste des patients actifs
+     */
+    @GetMapping("/active")
+    @Operation(summary = "Liste des patients actifs")
+    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
+    public ResponseEntity<List<PatientSummaryResponse>> getActivePatients(
+            @Parameter(description = "Numéro de page")
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @Parameter(description = "Taille de la page")
+            @RequestParam(value = "size", defaultValue = "20") int size) {
+
+        log.info("Récupération des patients actifs");
+
+        List<PatientSummaryResponse> patients = patientService.getActivePatients(page, size);
+
+        return ResponseEntity.ok(patients);
+    }
+
+    /**
+     * Liste des patients avec notifications
+     */
+    @GetMapping("/notifications")
+    @Operation(summary = "Liste des patients avec notifications activées")
+    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
+    public ResponseEntity<List<PatientSummaryResponse>> getPatientsWithNotifications() {
+
+        log.info("Récupération des patients avec notifications");
+
+        List<PatientSummaryResponse> patients = List.of(); // patientSearchService.searchPatientsWithNotifications();
+
+        return ResponseEntity.ok(patients);
+    }
+
+    /**
+     * Statistiques des patients
+     */
+    @GetMapping("/stats")
+    @Operation(summary = "Statistiques des patients")
+    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
+    public ResponseEntity<PatientStatsResponse> getPatientStats() {
+
+        log.info("Récupération des statistiques patients");
+
+        PatientStatsResponse stats = PatientStatsResponse.builder()
+                .totalPatientsActifs(patientSearchService.countActivePatients())
+                .statistiquesParStatut(patientSearchService.getPatientStatisticsByStatus())
+                .statistiquesParSexe(patientSearchService.getPatientStatisticsByGender())
+                .statistiquesParVille(patientSearchService.getPatientStatisticsByCity())
+                .build();
+
+        return ResponseEntity.ok(stats);
+    }
 }

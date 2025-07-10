@@ -1,40 +1,32 @@
 package com.lims.patient.exception;
 
-import com.lims.patient.dto.error.ErrorResponse;
-import com.lims.patient.dto.error.FieldError;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.validation.BindException;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import lombok.extern.slf4j.Slf4j;
 
-import jakarta.validation.ConstraintViolationException;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.stream.Collectors;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * Gestionnaire global des exceptions pour le service Patient
+ * Gestionnaire global des exceptions pour le module Patient
  */
 @RestControllerAdvice
 @Slf4j
 public class PatientExceptionHandler {
 
     @ExceptionHandler(PatientNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handlePatientNotFound(
-            PatientNotFoundException ex, WebRequest request) {
-
-        log.warn("Patient non trouvé: {}", ex.getMessage());
+    public ResponseEntity<ErrorResponse> handlePatientNotFound(PatientNotFoundException ex, WebRequest request) {
+        log.error("Patient non trouvé: {}", ex.getMessage());
 
         ErrorResponse error = ErrorResponse.builder()
-                .code("PATIENT_NOT_FOUND")
-                .message("Patient non trouvé")
-                .detail(ex.getMessage())
                 .timestamp(LocalDateTime.now())
+                .status(HttpStatus.NOT_FOUND.value())
+                .error("Patient Not Found")
+                .message(ex.getMessage())
                 .path(request.getDescription(false))
                 .build();
 
@@ -42,16 +34,14 @@ public class PatientExceptionHandler {
     }
 
     @ExceptionHandler(DuplicatePatientException.class)
-    public ResponseEntity<ErrorResponse> handleDuplicatePatient(
-            DuplicatePatientException ex, WebRequest request) {
-
-        log.warn("Patient en doublon: {}", ex.getMessage());
+    public ResponseEntity<ErrorResponse> handleDuplicatePatient(DuplicatePatientException ex, WebRequest request) {
+        log.error("Patient en doublon: {}", ex.getMessage());
 
         ErrorResponse error = ErrorResponse.builder()
-                .code("DUPLICATE_PATIENT")
-                .message("Patient déjà existant")
-                .detail(ex.getMessage())
                 .timestamp(LocalDateTime.now())
+                .status(HttpStatus.CONFLICT.value())
+                .error("Duplicate Patient")
+                .message(ex.getMessage())
                 .path(request.getDescription(false))
                 .build();
 
@@ -59,120 +49,207 @@ public class PatientExceptionHandler {
     }
 
     @ExceptionHandler(InvalidPatientDataException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidPatientData(
-            InvalidPatientDataException ex, WebRequest request) {
-
-        log.warn("Données patient invalides: {}", ex.getMessage());
+    public ResponseEntity<ErrorResponse> handleInvalidPatientData(InvalidPatientDataException ex, WebRequest request) {
+        log.error("Données patient invalides: {}", ex.getMessage());
 
         ErrorResponse error = ErrorResponse.builder()
-                .code("INVALID_PATIENT_DATA")
-                .message("Données patient invalides")
-                .detail(ex.getMessage())
                 .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Invalid Patient Data")
+                .message(ex.getMessage())
                 .path(request.getDescription(false))
                 .build();
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidationError(
-            MethodArgumentNotValidException ex, WebRequest request) {
-
-        log.warn("Erreur de validation: {}", ex.getMessage());
-
-        List<FieldError> fieldErrors = ex.getBindingResult().getFieldErrors().stream()
-                .map(error -> FieldError.builder()
-                        .field(error.getField())
-                        .rejectedValue(error.getRejectedValue())
-                        .message(error.getDefaultMessage())
-                        .build())
-                .collect(Collectors.toList());
+    @ExceptionHandler(PatientOperationNotAllowedException.class)
+    public ResponseEntity<ErrorResponse> handleOperationNotAllowed(PatientOperationNotAllowedException ex, WebRequest request) {
+        log.error("Opération non autorisée: {}", ex.getMessage());
 
         ErrorResponse error = ErrorResponse.builder()
-                .code("VALIDATION_ERROR")
-                .message("Erreur de validation des données")
-                .detail("Un ou plusieurs champs contiennent des valeurs invalides")
                 .timestamp(LocalDateTime.now())
-                .path(request.getDescription(false))
-                .fieldErrors(fieldErrors)
-                .build();
-
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
-    }
-
-    @ExceptionHandler(BindException.class)
-    public ResponseEntity<ErrorResponse> handleBindError(
-            BindException ex, WebRequest request) {
-
-        log.warn("Erreur de binding: {}", ex.getMessage());
-
-        List<FieldError> fieldErrors = ex.getBindingResult().getFieldErrors().stream()
-                .map(error -> FieldError.builder()
-                        .field(error.getField())
-                        .rejectedValue(error.getRejectedValue())
-                        .message(error.getDefaultMessage())
-                        .build())
-                .collect(Collectors.toList());
-
-        ErrorResponse error = ErrorResponse.builder()
-                .code("BINDING_ERROR")
-                .message("Erreur de liaison des données")
-                .detail("Les données fournies ne peuvent pas être traitées")
-                .timestamp(LocalDateTime.now())
-                .path(request.getDescription(false))
-                .fieldErrors(fieldErrors)
-                .build();
-
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
-    }
-
-    @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ErrorResponse> handleConstraintViolation(
-            ConstraintViolationException ex, WebRequest request) {
-
-        log.warn("Violation de contrainte: {}", ex.getMessage());
-
-        ErrorResponse error = ErrorResponse.builder()
-                .code("CONSTRAINT_VIOLATION")
-                .message("Violation de contrainte de données")
-                .detail(ex.getMessage())
-                .timestamp(LocalDateTime.now())
-                .path(request.getDescription(false))
-                .build();
-
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
-    }
-
-    @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ErrorResponse> handleAccessDenied(
-            AccessDeniedException ex, WebRequest request) {
-
-        log.warn("Accès refusé: {}", ex.getMessage());
-
-        ErrorResponse error = ErrorResponse.builder()
-                .code("ACCESS_DENIED")
-                .message("Accès refusé")
-                .detail("Vous n'avez pas les permissions nécessaires pour effectuer cette action")
-                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.FORBIDDEN.value())
+                .error("Operation Not Allowed")
+                .message(ex.getMessage())
                 .path(request.getDescription(false))
                 .build();
 
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
     }
 
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGeneral(Exception ex, WebRequest request) {
-        log.error("Erreur inattendue", ex);
+    @ExceptionHandler(InvalidSearchCriteriaException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidSearchCriteria(InvalidSearchCriteriaException ex, WebRequest request) {
+        log.error("Critères de recherche invalides: {}", ex.getMessage());
 
         ErrorResponse error = ErrorResponse.builder()
-                .code("INTERNAL_ERROR")
-                .message("Erreur interne du serveur")
-                .detail("Une erreur inattendue s'est produite")
                 .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Invalid Search Criteria")
+                .message(ex.getMessage())
+                .path(request.getDescription(false))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    @ExceptionHandler(ConsentValidationException.class)
+    public ResponseEntity<ErrorResponse> handleConsentValidation(ConsentValidationException ex, WebRequest request) {
+        log.error("Validation du consentement échoué: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Consent Validation Failed")
+                .message(ex.getMessage())
+                .path(request.getDescription(false))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    @ExceptionHandler(PatientAccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(PatientAccessDeniedException ex, WebRequest request) {
+        log.error("Accès refusé: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.FORBIDDEN.value())
+                .error("Access Denied")
+                .message(ex.getMessage())
+                .path(request.getDescription(false))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+    }
+
+    @ExceptionHandler(PatientBusinessRuleException.class)
+    public ResponseEntity<ErrorResponse> handleBusinessRule(PatientBusinessRuleException ex, WebRequest request) {
+        log.error("Règle métier violée: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.UNPROCESSABLE_ENTITY.value())
+                .error("Business Rule Violation")
+                .message(ex.getMessage())
+                .path(request.getDescription(false))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(error);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleGenericException(Exception ex, WebRequest request) {
+        log.error("Erreur inattendue: {}", ex.getMessage(), ex);
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .error("Internal Server Error")
+                .message("Une erreur inattendue s'est produite")
                 .path(request.getDescription(false))
                 .build();
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+    }
+
+    /**
+     * Classe pour les réponses d'erreur
+     */
+    public static class ErrorResponse {
+        private LocalDateTime timestamp;
+        private int status;
+        private String error;
+        private String message;
+        private String path;
+        private Map<String, Object> details;
+
+        // Constructeurs
+        public ErrorResponse() {
+            this.details = new HashMap<>();
+        }
+
+        public ErrorResponse(LocalDateTime timestamp, int status, String error, String message, String path) {
+            this.timestamp = timestamp;
+            this.status = status;
+            this.error = error;
+            this.message = message;
+            this.path = path;
+            this.details = new HashMap<>();
+        }
+
+        // Builder pattern
+        public static ErrorResponseBuilder builder() {
+            return new ErrorResponseBuilder();
+        }
+
+        public static class ErrorResponseBuilder {
+            private LocalDateTime timestamp;
+            private int status;
+            private String error;
+            private String message;
+            private String path;
+            private Map<String, Object> details = new HashMap<>();
+
+            public ErrorResponseBuilder timestamp(LocalDateTime timestamp) {
+                this.timestamp = timestamp;
+                return this;
+            }
+
+            public ErrorResponseBuilder status(int status) {
+                this.status = status;
+                return this;
+            }
+
+            public ErrorResponseBuilder error(String error) {
+                this.error = error;
+                return this;
+            }
+
+            public ErrorResponseBuilder message(String message) {
+                this.message = message;
+                return this;
+            }
+
+            public ErrorResponseBuilder path(String path) {
+                this.path = path;
+                return this;
+            }
+
+            public ErrorResponseBuilder detail(String key, Object value) {
+                this.details.put(key, value);
+                return this;
+            }
+
+            public ErrorResponse build() {
+                ErrorResponse response = new ErrorResponse();
+                response.timestamp = this.timestamp;
+                response.status = this.status;
+                response.error = this.error;
+                response.message = this.message;
+                response.path = this.path;
+                response.details = this.details;
+                return response;
+            }
+        }
+
+        // Getters et setters
+        public LocalDateTime getTimestamp() { return timestamp; }
+        public void setTimestamp(LocalDateTime timestamp) { this.timestamp = timestamp; }
+
+        public int getStatus() { return status; }
+        public void setStatus(int status) { this.status = status; }
+
+        public String getError() { return error; }
+        public void setError(String error) { this.error = error; }
+
+        public String getMessage() { return message; }
+        public void setMessage(String message) { this.message = message; }
+
+        public String getPath() { return path; }
+        public void setPath(String path) { this.path = path; }
+
+        public Map<String, Object> getDetails() { return details; }
+        public void setDetails(Map<String, Object> details) { this.details = details; }
     }
 }

@@ -4,17 +4,46 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="7aacdcd1-1ad1-4553-9a77-bce1e509ee8f" name="Changes" comment="patient service running">
+    <list default="true" id="7aacdcd1-1ad1-4553-9a77-bce1e509ee8f" name="Changes" comment="patient admin auth working">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/codebase.md" beforeDir="false" afterPath="$PROJECT_DIR$/codebase.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/config/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-auth-service/src/main/java/com/lims/auth/config/SecurityConfig.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-patient-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/config/PatientJwtAuthenticationConverter.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/config/PatientJwtAuthenticationConverter.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/config/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/config/SecurityConfig.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/controller/PatientController.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/controller/PatientController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/security/PatientSecurityContext.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/security/PatientSecurityContext.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/resources/application.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/logs/lims-patient-service.log" beforeDir="false" afterPath="$PROJECT_DIR$/logs/lims-patient-service.log" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/request/ConsentRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/request/ConsentRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/request/ConsentUpdateRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/request/ConsentUpdateRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/request/ContactInfoRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/request/ContactInfoRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/request/ContactInfoUpdateRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/request/ContactInfoUpdateRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/request/CreatePatientRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/request/CreatePatientRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/request/InsuranceRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/request/InsuranceRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/request/PatientSearchRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/request/PatientSearchRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/request/PersonalInfoRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/request/PersonalInfoRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/request/PersonalInfoUpdateRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/request/PersonalInfoUpdateRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/request/UpdatePatientRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/request/UpdatePatientRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/response/ConsentResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/response/ConsentResponse.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/response/ContactInfoResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/response/ContactInfoResponse.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/response/InsuranceResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/response/InsuranceResponse.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/response/MetadataResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/response/MetadataResponse.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/response/PatientResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/response/PatientResponse.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/response/PatientSearchResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/response/PatientSearchResponse.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/response/PatientSummaryResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/response/PatientSummaryResponse.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/response/PersonalInfoResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/response/PersonalInfoResponse.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/entity/Patient.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/entity/Patient.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/entity/PatientAddress.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/entity/PatientContact.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/entity/PatientEmail.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/exception/DuplicatePatientException.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/exception/DuplicatePatientException.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/exception/InvalidPatientDataException.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/exception/InvalidPatientDataException.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/exception/PatientExceptionHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/exception/PatientExceptionHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/exception/PatientNotFoundException.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/exception/PatientNotFoundException.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/mapper/PatientMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/mapper/PatientMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/repository/PatientAddressRepository.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/repository/PatientContactRepository.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/repository/PatientEmailRepository.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/repository/PatientRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/repository/PatientRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/repository/PatientSearchRepository.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/repository/impl/PatientSearchRepositoryImpl.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientSearchService.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientSearchService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientService.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientValidationService.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientValidationService.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -41,7 +70,7 @@
     </option>
   </component>
   <component name="ProblemsViewState">
-    <option name="selectedTabId" value="QODANA_PROBLEMS_VIEW_TAB" />
+    <option name="selectedTabId" value="CurrentFile" />
   </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 0
@@ -63,10 +92,10 @@
     "git-widget-placeholder": "main",
     "kotlin-language-version-configured": "true",
     "last_opened_file_path": "/Users/elkolotfi/Desktop/NEW_START/PROJECTS/b10/backend/lims-system",
-    "settings.editor.selected.configurable": "preferences.keymap"
+    "settings.editor.selected.configurable": "settings.qodana"
   }
 }]]></component>
-  <component name="RunManager" selected="Application.PatientServiceApplication">
+  <component name="RunManager" selected="Application.AuthServiceApplication">
     <configuration name="AuthServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="ALTERNATIVE_JRE_PATH" value="corretto-21" />
       <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
@@ -143,7 +172,15 @@
       <option name="project" value="LOCAL" />
       <updated>1751833696949</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="patient admin auth working">
+      <option name="closed" value="true" />
+      <created>1752097698579</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1752097698579</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -151,7 +188,8 @@
     <MESSAGE value="working basic mfa" />
     <MESSAGE value="init patient service" />
     <MESSAGE value="patient service running" />
-    <option name="LAST_COMMIT_MESSAGE" value="patient service running" />
+    <MESSAGE value="patient admin auth working" />
+    <option name="LAST_COMMIT_MESSAGE" value="patient admin auth working" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -245,6 +283,21 @@
           <url>file://$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/security/PatientSecurityContext.java</url>
           <line>123</line>
           <option name="timeStamp" value="61" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/repository/impl/PatientSearchRepositoryImpl.java</url>
+          <line>71</line>
+          <option name="timeStamp" value="70" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/repository/impl/PatientSearchRepositoryImpl.java</url>
+          <line>64</line>
+          <option name="timeStamp" value="71" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/repository/impl/PatientSearchRepositoryImpl.java</url>
+          <line>53</line>
+          <option name="timeStamp" value="76" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

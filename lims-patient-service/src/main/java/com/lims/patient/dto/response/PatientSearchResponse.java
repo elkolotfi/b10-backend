@@ -1,17 +1,17 @@
 package com.lims.patient.dto.response;
 
-import com.lims.patient.dto.PageInfo;
-import com.lims.patient.dto.SearchStats;
 import lombok.Builder;
 
 import java.util.List;
 
 /**
- * DTO pour les résultats de recherche paginés
+ * DTO de réponse pour la recherche
  */
 @Builder
 public record PatientSearchResponse(
         List<PatientSummaryResponse> patients,
-        PageInfo pageInfo,
-        SearchStats stats
+        int currentPage,
+        int totalPages,
+        long totalElements,
+        int pageSize
 ) {}

@@ -1,3 +1,7 @@
+// ============================================
+// DTOs pour la création de patients (version centralisée)
+// ============================================
+
 package com.lims.patient.dto.request;
 
 import jakarta.validation.Valid;
@@ -7,8 +11,7 @@ import lombok.Builder;
 import java.util.List;
 
 /**
- * DTO principal pour la création d'un patient
- * Structure organisée par domaines fonctionnels
+ * DTO principal pour la création d'un patient - Version centralisée
  */
 @Builder
 public record CreatePatientRequest(

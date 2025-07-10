@@ -8,21 +8,18 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
- * DTO résumé pour les listes de patients
+ * DTO résumé pour la liste des patients
  */
 @Builder
 public record PatientSummaryResponse(
         String id,
-        String nom,
-        String prenom,
+        String nomComplet,
+        String email,
+        String telephone,
         LocalDate dateNaissance,
+        Integer age,
         GenderType sexe,
-        String numeroSecuMasque, // XXX XX XX XXX XXX XX (masqué)
-        String telephonePrincipal,
-        String emailPrincipal,
-        String villePrincipale,
+        String ville,
         PatientStatus statut,
-        Boolean aAssuranceActive,
-        Boolean aOrdonnanceEnCours,
         LocalDateTime dateCreation
 ) {}

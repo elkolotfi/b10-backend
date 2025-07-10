@@ -21,16 +21,16 @@ public record InsuranceRequest(
         @NotBlank @Size(max = 100)
         String numeroAdherent,
 
-        @NotNull @FutureOrPresent
+        @NotNull
         LocalDate dateDebut,
 
-        @Future
         LocalDate dateFin,
 
         Boolean tiersPayantAutorise,
 
-        @DecimalMin("0.0") @DecimalMax("100.0")
+        @DecimalMin("0.00") @DecimalMax("100.00")
         BigDecimal pourcentagePriseCharge,
 
-        String referenceDocument // Clé MinIO du document justificatif
+        @Size(max = 500)
+        String referenceDocument
 ) {}

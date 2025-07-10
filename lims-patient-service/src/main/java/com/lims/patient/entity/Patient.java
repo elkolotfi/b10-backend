@@ -12,6 +12,7 @@ import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -19,8 +20,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Entité principale Patient
- * Contient les données civiles obligatoires et préférences
+ * Entité principale Patient - Version centralisée
+ * Contient les données civiles obligatoires et les informations de contact centralisées
  */
 @Entity
 @Table(name = "patients", schema = "lims_patient")
@@ -55,6 +56,41 @@ public class Patient {
     @Column(name = "numero_secu", nullable = false, unique = true, length = 15)
     private String numeroSecu;
 
+    // ===== CONTACT CENTRALISÉ =====
+    @Column(name = "email", nullable = false, unique = true)
+    private String email;
+
+    @Column(name = "telephone", nullable = false, unique = true, length = 20)
+    private String telephone;
+
+    // ===== ADRESSE CENTRALISÉE =====
+    @Column(name = "adresse_ligne1", nullable = false)
+    private String adresseLigne1;
+
+    @Column(name = "adresse_ligne2")
+    private String adresseLigne2;
+
+    @Column(name = "code_postal", nullable = false, length = 10)
+    private String codePostal;
+
+    @Column(name = "ville", nullable = false, length = 100)
+    private String ville;
+
+    @Column(name = "departement", length = 100)
+    private String departement;
+
+    @Column(name = "region", length = 100)
+    private String region;
+
+    @Column(name = "pays", nullable = false, length = 100)
+    private String pays = "France";
+
+    @Column(name = "latitude", columnDefinition = "DECIMAL(10,8)")
+    private BigDecimal latitude;
+
+    @Column(name = "longitude", columnDefinition = "DECIMAL(11,8)")
+    private BigDecimal longitude;
+
     // ===== PRÉFÉRENCES COMMUNICATION =====
     @Enumerated(EnumType.STRING)
     @Column(name = "methode_livraison_preferee")
@@ -67,7 +103,17 @@ public class Patient {
     @Column(name = "langue_preferee", length = 5)
     private String languePreferee = "fr-FR";
 
-    // ===== DONNÉES MÉDICALES FACULTATIVES =====
+    // ===== PRÉFÉRENCES NOTIFICATIONS =====
+    @Column(name = "notifications_resultats")
+    private Boolean notificationsResultats = true;
+
+    @Column(name = "notifications_rdv")
+    private Boolean notificationsRdv = true;
+
+    @Column(name = "notifications_rappels")
+    private Boolean notificationsRappels = true;
+
+    // ===== DONNÉES MÉDICALES =====
     @Column(name = "medecin_traitant")
     private String medecinTraitant;
 
@@ -114,19 +160,7 @@ public class Patient {
     @Column(name = "date_suppression")
     private LocalDateTime dateSuppression; // Soft delete
 
-    // ===== RELATIONS =====
-    @OneToMany(mappedBy = "patient", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @Builder.Default
-    private List<PatientContact> contacts = new ArrayList<>();
-
-    @OneToMany(mappedBy = "patient", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @Builder.Default
-    private List<PatientAddress> adresses = new ArrayList<>();
-
-    @OneToMany(mappedBy = "patient", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @Builder.Default
-    private List<PatientEmail> emails = new ArrayList<>();
-
+    // ===== RELATIONS CONSERVÉES =====
     @OneToMany(mappedBy = "patient", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     private List<PatientAssurance> assurances = new ArrayList<>();
@@ -160,27 +194,36 @@ public class Patient {
     }
 
     /**
-     * Ajoute un contact téléphonique
+     * Obtient l'adresse complète formatée
      */
-    public void addContact(PatientContact contact) {
-        contact.setPatient(this);
-        this.contacts.add(contact);
+    public String getAdresseComplete() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(adresseLigne1);
+        if (adresseLigne2 != null && !adresseLigne2.trim().isEmpty()) {
+            sb.append(", ").append(adresseLigne2);
+        }
+        sb.append(", ").append(codePostal).append(" ").append(ville);
+        if (!pays.equals("France")) {
+            sb.append(", ").append(pays);
+        }
+        return sb.toString();
     }
 
     /**
-     * Ajoute une adresse
+     * Obtient le nom complet du patient
      */
-    public void addAdresse(PatientAddress adresse) {
-        adresse.setPatient(this);
-        this.adresses.add(adresse);
+    public String getNomComplet() {
+        return prenom + " " + nom;
     }
 
     /**
-     * Ajoute un email
+     * Calcule l'âge du patient
      */
-    public void addEmail(PatientEmail email) {
-        email.setPatient(this);
-        this.emails.add(email);
+    public int getAge() {
+        if (dateNaissance == null) {
+            return 0;
+        }
+        return LocalDate.now().getYear() - dateNaissance.getYear();
     }
 
     /**
@@ -189,5 +232,32 @@ public class Patient {
     public void addAssurance(PatientAssurance assurance) {
         assurance.setPatient(this);
         this.assurances.add(assurance);
+    }
+
+    /**
+     * Ajoute une ordonnance
+     */
+    public void addOrdonnance(Ordonnance ordonnance) {
+        ordonnance.setPatient(this);
+        this.ordonnances.add(ordonnance);
+    }
+
+    /**
+     * Vérifie si le patient a donné son consentement pour les notifications
+     */
+    public boolean hasNotificationConsent() {
+        return consentementEmail || consentementSms;
+    }
+
+    /**
+     * Vérifie si le patient accepte les notifications d'un type donné
+     */
+    public boolean acceptsNotification(String type) {
+        return switch (type.toLowerCase()) {
+            case "resultats" -> notificationsResultats != null && notificationsResultats;
+            case "rdv" -> notificationsRdv != null && notificationsRdv;
+            case "rappels" -> notificationsRappels != null && notificationsRappels;
+            default -> false;
+        };
     }
 }

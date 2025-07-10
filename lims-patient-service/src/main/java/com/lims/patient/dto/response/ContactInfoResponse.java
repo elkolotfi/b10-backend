@@ -4,13 +4,29 @@ import com.lims.patient.enums.DeliveryMethod;
 import com.lims.patient.enums.NotificationPreference;
 import lombok.Builder;
 
-import java.util.List;
+import java.math.BigDecimal;
 
+/**
+ * DTO de réponse pour les informations de contact
+ */
 @Builder
 public record ContactInfoResponse(
-        List<PhoneContactResponse> telephones,
-        List<EmailContactResponse> emails,
-        List<AddressResponse> adresses,
+        String email,
+        String telephone,
+        String adresseComplete,
+        String adresseLigne1,
+        String adresseLigne2,
+        String codePostal,
+        String ville,
+        String departement,
+        String region,
+        String pays,
+        BigDecimal latitude,
+        BigDecimal longitude,
         DeliveryMethod methodeLivraisonPreferee,
-        NotificationPreference preferenceNotification
+        NotificationPreference preferenceNotification,
+        String languePreferee,
+        Boolean notificationsResultats,
+        Boolean notificationsRdv,
+        Boolean notificationsRappels
 ) {}

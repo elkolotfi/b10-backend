@@ -1,10 +1,12 @@
 package com.lims.patient.repository;
 
 import com.lims.patient.entity.Patient;
+import com.lims.patient.enums.GenderType;
 import com.lims.patient.enums.PatientStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -15,46 +17,74 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Repository pour les patients - Version avec Specifications
+ */
 @Repository
-public interface PatientRepository extends JpaRepository<Patient, UUID> {
+public interface PatientRepository extends JpaRepository<Patient, UUID>, JpaSpecificationExecutor<Patient> {
 
-    // ===== RECHERCHES DE BASE =====
+    // ===== RECHERCHES DE BASE SIMPLES =====
 
     /**
-     * Trouve un patient par ID excluant les supprimés
+     * Trouve un patient par ID (non supprimé)
      */
     Optional<Patient> findByIdAndDateSuppressionIsNull(UUID id);
 
     /**
-     * Trouve un patient par NIR excluant les supprimés
+     * Trouve un patient par numéro de sécurité sociale
      */
     Optional<Patient> findByNumeroSecuAndDateSuppressionIsNull(String numeroSecu);
 
     /**
-     * Vérifie l'existence d'un patient par NIR excluant les supprimés
+     * Trouve un patient par email (égalité exacte)
+     */
+    Optional<Patient> findByEmailIgnoreCaseAndDateSuppressionIsNull(String email);
+
+    /**
+     * Trouve un patient par téléphone
+     */
+    Optional<Patient> findByTelephoneAndDateSuppressionIsNull(String telephone);
+
+    // ===== VÉRIFICATIONS D'EXISTENCE =====
+
+    /**
+     * Vérifie si un patient existe avec ce numéro de sécurité sociale
      */
     boolean existsByNumeroSecuAndDateSuppressionIsNull(String numeroSecu);
 
-    // ===== RECHERCHES PAR CRITÈRES =====
+    /**
+     * Vérifie si un patient existe avec cet email (insensible à la casse)
+     */
+    boolean existsByEmailIgnoreCaseAndDateSuppressionIsNull(String email);
 
     /**
-     * Recherche par nom et prénom (insensible à la casse)
+     * Vérifie si un patient existe avec ce téléphone
      */
-    @Query("SELECT p FROM Patient p WHERE " +
-            "LOWER(p.nom) LIKE LOWER(CONCAT('%', :nom, '%')) AND " +
-            "LOWER(p.prenom) LIKE LOWER(CONCAT('%', :prenom, '%')) AND " +
-            "p.dateSuppression IS NULL")
-    List<Patient> findByNomAndPrenomContainingIgnoreCase(
-            @Param("nom") String nom,
-            @Param("prenom") String prenom);
+    boolean existsByTelephoneAndDateSuppressionIsNull(String telephone);
+
+    // ===== RECHERCHES PAR STATUT =====
 
     /**
-     * Recherche par fragment de NIR (pour les 3-4 derniers chiffres)
+     * Trouve tous les patients par statut
      */
-    @Query("SELECT p FROM Patient p WHERE " +
-            "p.numeroSecu LIKE CONCAT('%', :fragment) AND " +
-            "p.dateSuppression IS NULL")
-    List<Patient> findByNumeroSecuEndingWith(@Param("fragment") String fragment);
+    Page<Patient> findByStatutAndDateSuppressionIsNull(PatientStatus statut, Pageable pageable);
+
+    /**
+     * Trouve tous les patients actifs
+     */
+    List<Patient> findByStatutAndDateSuppressionIsNull(PatientStatus statut);
+
+    // ===== RECHERCHES SPÉCIALISÉES (gardées pour compatibilité) =====
+
+    /**
+     * Recherche par nom et prénom (utilise les methods queries Spring Data)
+     */
+    List<Patient> findByNomContainingIgnoreCaseAndDateSuppressionIsNull(String nom);
+
+    /**
+     * Recherche par ville
+     */
+    List<Patient> findByVilleContainingIgnoreCaseAndDateSuppressionIsNull(String ville);
 
     /**
      * Recherche par date de naissance
@@ -62,61 +92,101 @@ public interface PatientRepository extends JpaRepository<Patient, UUID> {
     List<Patient> findByDateNaissanceAndDateSuppressionIsNull(LocalDate dateNaissance);
 
     /**
-     * Recherche par tranche d'âge
+     * Recherche par sexe
+     */
+    List<Patient> findBySexeAndDateSuppressionIsNull(GenderType sexe);
+
+    /**
+     * Recherche par région
+     */
+    List<Patient> findByRegionAndDateSuppressionIsNull(String region);
+
+    /**
+     * Recherche par département
+     */
+    List<Patient> findByDepartementAndDateSuppressionIsNull(String departement);
+
+    // ===== RECHERCHES AVEC REQUÊTES PERSONNALISÉES (si nécessaire) =====
+
+    /**
+     * Recherche par proximité géographique
+     */
+    @Query(value = "SELECT * FROM lims_patient.patients p WHERE " +
+            "p.date_suppression IS NULL AND " +
+            "p.latitude IS NOT NULL AND p.longitude IS NOT NULL AND " +
+            "ST_DWithin(ST_MakePoint(p.longitude, p.latitude)::geography, " +
+            "ST_MakePoint(:longitude, :latitude)::geography, :rayonMetres)",
+            nativeQuery = true)
+    List<Patient> findByProximity(@Param("latitude") Double latitude,
+                                  @Param("longitude") Double longitude,
+                                  @Param("rayonMetres") Double rayonMetres);
+
+    // ===== RECHERCHES DE PATIENTS AVEC CONDITIONS SPÉCIALES =====
+
+    /**
+     * Trouve les patients avec notifications activées
      */
     @Query("SELECT p FROM Patient p WHERE " +
-            "p.dateNaissance BETWEEN :dateNaissanceDebut AND :dateNaissanceFin AND " +
+            "p.dateSuppression IS NULL AND " +
+            "p.statut = 'ACTIF' AND " +
+            "(p.notificationsResultats = true OR p.notificationsRdv = true OR p.notificationsRappels = true)")
+    List<Patient> findPatientsWithNotificationsEnabled();
+
+    /**
+     * Trouve les patients avec allergies
+     */
+    @Query("SELECT p FROM Patient p WHERE " +
+            "p.allergiesConnues IS NOT NULL AND " +
+            "p.allergiesConnues != '' AND " +
             "p.dateSuppression IS NULL")
-    List<Patient> findByDateNaissanceBetween(
-            @Param("dateNaissanceDebut") LocalDate dateNaissanceDebut,
-            @Param("dateNaissanceFin") LocalDate dateNaissanceFin);
+    List<Patient> findPatientsWithAllergies();
+
+    /**
+     * Trouve les patients avec antécédents médicaux
+     */
+    @Query("SELECT p FROM Patient p WHERE " +
+            "p.antecedentsMedicaux IS NOT NULL AND " +
+            "p.antecedentsMedicaux != '' AND " +
+            "p.dateSuppression IS NULL")
+    List<Patient> findPatientsWithMedicalHistory();
 
     // ===== STATISTIQUES =====
 
     /**
-     * Compte les patients actifs (non supprimés)
+     * Compte le nombre de patients par statut
      */
-    long countByDateSuppressionIsNull();
+    @Query("SELECT p.statut, COUNT(p) FROM Patient p WHERE p.dateSuppression IS NULL GROUP BY p.statut")
+    List<Object[]> countPatientsByStatus();
 
     /**
-     * Compte les patients par statut
+     * Compte le nombre de patients par sexe
      */
-    long countByStatutAndDateSuppressionIsNull(PatientStatus statut);
+    @Query("SELECT p.sexe, COUNT(p) FROM Patient p WHERE p.dateSuppression IS NULL GROUP BY p.sexe")
+    List<Object[]> countPatientsByGender();
 
     /**
-     * Compte les nouveaux patients depuis une date
+     * Compte le nombre de patients par ville
      */
-    long countByDateCreationGreaterThanEqualAndDateSuppressionIsNull(LocalDateTime dateDebut);
+    @Query("SELECT p.ville, COUNT(p) FROM Patient p WHERE " +
+            "p.dateSuppression IS NULL GROUP BY p.ville ORDER BY COUNT(p) DESC")
+    List<Object[]> countPatientsByCity();
 
     /**
-     * Trouve les patients créés par un utilisateur spécifique
+     * Compte le nombre total de patients actifs
      */
-    List<Patient> findByCreePar(String creePar);
+    @Query("SELECT COUNT(p) FROM Patient p WHERE p.dateSuppression IS NULL AND p.statut = 'ACTIF'")
+    long countActivePatients();
 
-    // ===== RECHERCHES AVANCÉES =====
+    // ===== REQUÊTES DE MAINTENANCE =====
 
     /**
-     * Recherche de patients avec assurance active
+     * Trouve les patients récemment modifiés
      */
-    @Query("SELECT DISTINCT p FROM Patient p " +
-            "JOIN p.assurances a WHERE " +
-            "a.estActive = true AND " +
-            "(a.dateFin IS NULL OR a.dateFin >= CURRENT_DATE) AND " +
+    @Query("SELECT p FROM Patient p WHERE " +
+            "p.dateModification > :dateLimit AND " +
             "p.dateSuppression IS NULL")
-    List<Patient> findPatientsWithActiveInsurance();
+    List<Patient> findRecentlyModifiedPatients(@Param("dateLimit") LocalDateTime dateLimit);
 
-    /**
-     * Recherche de patients avec ordonnance en cours
-     */
-    @Query("SELECT DISTINCT p FROM Patient p " +
-            "JOIN p.ordonnances o WHERE " +
-            "o.statut IN ('EN_ATTENTE', 'VALIDEE') AND " +
-            "o.dateSuppression IS NULL AND " +
-            "p.dateSuppression IS NULL")
-    List<Patient> findPatientsWithActivePrescription();
-
-    /**
-     * Recherche paginée de tous les patients actifs
-     */
-    Page<Patient> findByDateSuppressionIsNullOrderByNomAsc(Pageable pageable);
+    // NOTE: Plus besoin de findByMultipleCriteria complexe !
+    // La recherche multicritères se fait maintenant avec les Specifications
 }

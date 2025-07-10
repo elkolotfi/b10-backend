@@ -2,14 +2,15 @@ package com.lims.patient.dto.request;
 
 import lombok.Builder;
 
+import java.util.List;
+
 /**
- * DTO pour la modification d'un patient
- * Tous les champs sont optionnels pour permettre les mises à jour partielles
+ * DTO pour la mise à jour d'un patient
  */
 @Builder
 public record UpdatePatientRequest(
         PersonalInfoUpdateRequest personalInfo,
         ContactInfoUpdateRequest contactInfo,
-        ConsentUpdateRequest consent,
-        String modifiedBy
+        List<InsuranceRequest> insurances,
+        ConsentUpdateRequest consent
 ) {}

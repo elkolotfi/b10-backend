@@ -5,10 +5,13 @@ import com.lims.patient.entity.*;
 import com.lims.patient.enums.PrescriptionStatus;
 import org.mapstruct.*;
 
+import java.time.LocalDate;
+import java.time.Period;
 import java.util.List;
+import java.util.UUID;
 
 /**
- * Mapper principal pour convertir les entités Patient en DTOs
+ * Mapper principal pour convertir les entités Patient en DTOs - Version centralisée
  * Utilise MapStruct pour la génération automatique du code
  */
 @Mapper(
@@ -29,7 +32,6 @@ public interface PatientMapper {
     @Mapping(target = "personalInfo", source = ".", qualifiedByName = "toPersonalInfoResponse")
     @Mapping(target = "contactInfo", source = ".", qualifiedByName = "toContactInfoResponse")
     @Mapping(target = "insurances", source = "assurances")
-    @Mapping(target = "ordonnances", source = "ordonnances", qualifiedByName = "toPrescriptionSummaryList")
     @Mapping(target = "consent", source = ".", qualifiedByName = "toConsentResponse")
     @Mapping(target = "metadata", source = ".", qualifiedByName = "toMetadataResponse")
     PatientResponse toPatientResponse(Patient patient);
@@ -38,12 +40,15 @@ public interface PatientMapper {
      * Convertit une entité Patient en PatientSummaryResponse pour les listes
      */
     @Mapping(target = "id", source = "id", qualifiedByName = "uuidToString")
-    @Mapping(target = "numeroSecuMasque", source = ".", qualifiedByName = "maskNIR")
-    @Mapping(target = "telephonePrincipal", source = ".", qualifiedByName = "getPrimaryPhone")
-    @Mapping(target = "emailPrincipal", source = ".", qualifiedByName = "getPrimaryEmail")
-    @Mapping(target = "villePrincipale", source = ".", qualifiedByName = "getPrimaryCity")
-    @Mapping(target = "aAssuranceActive", source = ".", qualifiedByName = "hasActiveInsurance")
-    @Mapping(target = "aOrdonnanceEnCours", source = ".", qualifiedByName = "hasActivePrescription")
+    @Mapping(target = "nomComplet", source = ".", qualifiedByName = "buildFullName")
+    @Mapping(target = "email", source = "email")
+    @Mapping(target = "telephone", source = "telephone")
+    @Mapping(target = "dateNaissance", source = "dateNaissance")
+    @Mapping(target = "age", source = ".", qualifiedByName = "calculateAge")
+    @Mapping(target = "sexe", source = "sexe")
+    @Mapping(target = "ville", source = "ville")
+    @Mapping(target = "statut", source = "statut")
+    @Mapping(target = "dateCreation", source = "dateCreation")
     PatientSummaryResponse toPatientSummaryResponse(Patient patient);
 
     // ============================================
@@ -54,7 +59,6 @@ public interface PatientMapper {
      * Mappe les informations personnelles
      */
     @Named("toPersonalInfoResponse")
-    @Mapping(target = "numeroSecuMasque", source = ".", qualifiedByName = "maskNIR")
     default PersonalInfoResponse toPersonalInfoResponse(Patient patient) {
         if (patient == null) return null;
 
@@ -66,26 +70,39 @@ public interface PatientMapper {
                 .lieuNaissance(patient.getLieuNaissance())
                 .sexe(patient.getSexe())
                 .numeroSecuMasque(maskNIR(patient))
+                .age(calculateAge(patient))
                 .medecinTraitant(patient.getMedecinTraitant())
                 .allergiesConnues(patient.getAllergiesConnues())
                 .antecedentsMedicaux(patient.getAntecedentsMedicaux())
-                .languePreferee(patient.getLanguePreferee())
                 .build();
     }
 
     /**
-     * Mappe les informations de contact
+     * Mappe les informations de contact centralisées
      */
     @Named("toContactInfoResponse")
     default ContactInfoResponse toContactInfoResponse(Patient patient) {
         if (patient == null) return null;
 
         return ContactInfoResponse.builder()
-                .telephones(toPhoneContactResponseList(patient.getContacts()))
-                .emails(toEmailContactResponseList(patient.getEmails()))
-                .adresses(toAddressResponseList(patient.getAdresses()))
+                .email(patient.getEmail())
+                .telephone(patient.getTelephone())
+                .adresseComplete(buildAdresseComplete(patient))
+                .adresseLigne1(patient.getAdresseLigne1())
+                .adresseLigne2(patient.getAdresseLigne2())
+                .codePostal(patient.getCodePostal())
+                .ville(patient.getVille())
+                .departement(patient.getDepartement())
+                .region(patient.getRegion())
+                .pays(patient.getPays())
+                .latitude(patient.getLatitude())
+                .longitude(patient.getLongitude())
                 .methodeLivraisonPreferee(patient.getMethodeLivraisonPreferee())
                 .preferenceNotification(patient.getPreferenceNotification())
+                .languePreferee(patient.getLanguePreferee())
+                .notificationsResultats(patient.getNotificationsResultats())
+                .notificationsRdv(patient.getNotificationsRdv())
+                .notificationsRappels(patient.getNotificationsRappels())
                 .build();
     }
 
@@ -117,42 +134,19 @@ public interface PatientMapper {
                 .dateModification(patient.getDateModification())
                 .creePar(patient.getCreePar())
                 .modifiePar(patient.getModifiePar())
-                .dateSuppression(patient.getDateSuppression())
+                .actif(patient.isActive())
                 .build();
     }
 
     // ============================================
-    // MAPPERS POUR ENTITÉS LIÉES
+    // MAPPERS POUR ENTITÉS LIÉES (CONSERVÉES)
     // ============================================
-
-    /**
-     * Mappe les contacts téléphoniques
-     */
-    @Mapping(target = "id", source = "id", qualifiedByName = "uuidToString")
-    PhoneContactResponse toPhoneContactResponse(PatientContact contact);
-
-    List<PhoneContactResponse> toPhoneContactResponseList(List<PatientContact> contacts);
-
-    /**
-     * Mappe les adresses
-     */
-    @Mapping(target = "id", source = "id", qualifiedByName = "uuidToString")
-    AddressResponse toAddressResponse(PatientAddress address);
-
-    List<AddressResponse> toAddressResponseList(List<PatientAddress> addresses);
-
-    /**
-     * Mappe les emails
-     */
-    @Mapping(target = "id", source = "id", qualifiedByName = "uuidToString")
-    EmailContactResponse toEmailContactResponse(PatientEmail email);
-
-    List<EmailContactResponse> toEmailContactResponseList(List<PatientEmail> emails);
 
     /**
      * Mappe les assurances
      */
     @Mapping(target = "id", source = "id", qualifiedByName = "uuidToString")
+    @Mapping(target = "estActive", source = "estActive")
     InsuranceResponse toInsuranceResponse(PatientAssurance assurance);
 
     List<InsuranceResponse> toInsuranceResponseList(List<PatientAssurance> assurances);
@@ -175,68 +169,42 @@ public interface PatientMapper {
     PrescriptionSummaryResponse toPrescriptionSummaryResponse(Ordonnance ordonnance);
 
     // ============================================
-    // MÉTHODES UTILITAIRES
+    // MÉTHODES UTILITAIRES ADAPTÉES
     // ============================================
 
     /**
      * Convertit UUID en String
      */
     @Named("uuidToString")
-    default String uuidToString(java.util.UUID uuid) {
+    default String uuidToString(UUID uuid) {
         return uuid != null ? uuid.toString() : null;
     }
 
     /**
-     * Masque le NIR pour la sécurité
+     * Construit l'adresse complète
      */
-    @Named("maskNIR")
-    default String maskNIR(Patient patient) {
-        if (patient == null || patient.getNumeroSecu() == null) {
-            return "***************";
+    default String buildAdresseComplete(Patient patient) {
+        if (patient == null) return null;
+
+        StringBuilder sb = new StringBuilder();
+
+        if (patient.getAdresseLigne1() != null) {
+            sb.append(patient.getAdresseLigne1());
         }
-        return patient.getNumeroSecuMasque();
-    }
 
-    /**
-     * Récupère le téléphone principal
-     */
-    @Named("getPrimaryPhone")
-    default String getPrimaryPhone(Patient patient) {
-        if (patient == null || patient.getContacts() == null) return null;
+        if (patient.getAdresseLigne2() != null && !patient.getAdresseLigne2().trim().isEmpty()) {
+            sb.append(", ").append(patient.getAdresseLigne2());
+        }
 
-        return patient.getContacts().stream()
-                .filter(PatientContact::getEstPrincipal)
-                .findFirst()
-                .map(PatientContact::getNumeroTelephone)
-                .orElse(null);
-    }
+        if (patient.getCodePostal() != null && patient.getVille() != null) {
+            sb.append(", ").append(patient.getCodePostal()).append(" ").append(patient.getVille());
+        }
 
-    /**
-     * Récupère l'email principal
-     */
-    @Named("getPrimaryEmail")
-    default String getPrimaryEmail(Patient patient) {
-        if (patient == null || patient.getEmails() == null) return null;
+        if (patient.getPays() != null && !patient.getPays().equals("France")) {
+            sb.append(", ").append(patient.getPays());
+        }
 
-        return patient.getEmails().stream()
-                .filter(PatientEmail::getEstPrincipal)
-                .findFirst()
-                .map(PatientEmail::getAdresseEmail)
-                .orElse(null);
-    }
-
-    /**
-     * Récupère la ville principale
-     */
-    @Named("getPrimaryCity")
-    default String getPrimaryCity(Patient patient) {
-        if (patient == null || patient.getAdresses() == null) return null;
-
-        return patient.getAdresses().stream()
-                .filter(PatientAddress::getEstPrincipale)
-                .findFirst()
-                .map(PatientAddress::getVille)
-                .orElse(null);
+        return sb.toString();
     }
 
     /**
@@ -247,7 +215,8 @@ public interface PatientMapper {
         if (patient == null || patient.getAssurances() == null) return false;
 
         return patient.getAssurances().stream()
-                .anyMatch(PatientAssurance::isCurrentlyValid);
+                .anyMatch(assurance -> assurance.getEstActive() != null && assurance.getEstActive() &&
+                        (assurance.getDateFin() == null || assurance.getDateFin().isAfter(LocalDate.now())));
     }
 
     /**
@@ -270,43 +239,180 @@ public interface PatientMapper {
     default Integer countAnalyses(List<OrdonnanceAnalyse> analyses) {
         return analyses != null ? analyses.size() : 0;
     }
+
+    /**
+     * Construit le nom complet
+     */
+    @Named("buildFullName")
+    default String buildFullName(Patient patient) {
+        if (patient == null) return null;
+
+        StringBuilder sb = new StringBuilder();
+
+        if (patient.getPrenom() != null) {
+            sb.append(patient.getPrenom());
+        }
+
+        if (patient.getNom() != null) {
+            if (sb.length() > 0) {
+                sb.append(" ");
+            }
+            sb.append(patient.getNom());
+        }
+
+        return sb.toString();
+    }
+
+    /**
+     * Vérifie si le patient est mineur
+     */
+    @Named("isMinor")
+    default Boolean isMinor(Patient patient) {
+        if (patient == null || patient.getDateNaissance() == null) return false;
+        return patient.getDateNaissance().isAfter(LocalDate.now().minusYears(18));
+    }
+
+    /**
+     * Calcule l'âge du patient
+     */
+    @Named("calculateAge")
+    default Integer calculateAge(Patient patient) {
+        if (patient == null || patient.getDateNaissance() == null) return 0;
+        return Period.between(patient.getDateNaissance(), LocalDate.now()).getYears();
+    }
+
+    /**
+     * Masque le numéro de sécurité sociale
+     */
+    @Named("maskNIR")
+    default String maskNIR(Patient patient) {
+        if (patient == null || patient.getNumeroSecu() == null) {
+            return "***************";
+        }
+
+        String nir = patient.getNumeroSecu();
+        if (nir.length() >= 8) {
+            return nir.substring(0, 4) + "*******" + nir.substring(nir.length() - 4);
+        }
+        return "***************";
+    }
+
+    /**
+     * Formatage du téléphone pour l'affichage
+     */
+    default String formatTelephone(String telephone) {
+        if (telephone == null || telephone.isEmpty()) return null;
+
+        // Supprime les espaces et caractères spéciaux
+        String cleaned = telephone.replaceAll("[^0-9+]", "");
+
+        // Format français : +33 1 23 45 67 89
+        if (cleaned.startsWith("+33") && cleaned.length() == 12) {
+            return cleaned.substring(0, 3) + " " +
+                    cleaned.substring(3, 4) + " " +
+                    cleaned.substring(4, 6) + " " +
+                    cleaned.substring(6, 8) + " " +
+                    cleaned.substring(8, 10) + " " +
+                    cleaned.substring(10, 12);
+        }
+
+        return telephone; // Retourne tel quel si pas de format reconnu
+    }
+
+    /**
+     * Validation de l'email
+     */
+    default Boolean isValidEmail(String email) {
+        if (email == null || email.isEmpty()) return false;
+        return email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
+    }
+
+    /**
+     * Validation du téléphone
+     */
+    default Boolean isValidTelephone(String telephone) {
+        if (telephone == null || telephone.isEmpty()) return false;
+        return telephone.matches("^\\+[1-9][0-9]{8,14}$");
+    }
+
+    /**
+     * Obtient le statut de validation du patient
+     */
+    default String getValidationStatus(Patient patient) {
+        if (patient == null) return "INVALID";
+
+        boolean hasValidEmail = isValidEmail(patient.getEmail());
+        boolean hasValidTelephone = isValidTelephone(patient.getTelephone());
+        boolean hasValidAddress = patient.getAdresseLigne1() != null &&
+                patient.getCodePostal() != null &&
+                patient.getVille() != null;
+
+        if (hasValidEmail && hasValidTelephone && hasValidAddress) {
+            return "COMPLETE";
+        } else if (hasValidEmail || hasValidTelephone) {
+            return "PARTIAL";
+        } else {
+            return "INCOMPLETE";
+        }
+    }
+
+    /**
+     * Obtient une représentation courte du patient pour les logs
+     */
+    default String toLogString(Patient patient) {
+        if (patient == null) return "Patient[null]";
+
+        return String.format("Patient[id=%s, nom=%s, prenom=%s, email=%s]",
+                patient.getId(),
+                patient.getNom(),
+                patient.getPrenom(),
+                patient.getEmail());
+    }
+
+    /**
+     * Vérifie si le patient a des notifications activées
+     */
+    default Boolean hasNotificationsEnabled(Patient patient) {
+        if (patient == null) return false;
+
+        return (patient.getNotificationsResultats() != null && patient.getNotificationsResultats()) ||
+                (patient.getNotificationsRdv() != null && patient.getNotificationsRdv()) ||
+                (patient.getNotificationsRappels() != null && patient.getNotificationsRappels());
+    }
+
+    /**
+     * Obtient les types de notifications activées
+     */
+    default List<String> getEnabledNotificationTypes(Patient patient) {
+        if (patient == null) return List.of();
+
+        List<String> types = new java.util.ArrayList<>();
+
+        if (patient.getNotificationsResultats() != null && patient.getNotificationsResultats()) {
+            types.add("RESULTATS");
+        }
+        if (patient.getNotificationsRdv() != null && patient.getNotificationsRdv()) {
+            types.add("RDV");
+        }
+        if (patient.getNotificationsRappels() != null && patient.getNotificationsRappels()) {
+            types.add("RAPPELS");
+        }
+
+        return types;
+    }
+
+    /**
+     * Obtient une description textuelle du statut du patient
+     */
+    default String getStatusDescription(Patient patient) {
+        if (patient == null || patient.getStatut() == null) return "Statut inconnu";
+
+        return switch (patient.getStatut()) {
+            case ACTIF -> "Patient actif";
+            case INACTIF -> "Patient inactif";
+            case SUSPENDU -> "Patient suspendu";
+            case DECEDE -> "Patient décédé";
+            default -> "Statut inconnu";
+        };
+    }
 }
-
-// ============================================
-// MAPPER POUR AUDIT
-// ============================================
-
-
-
-// ============================================
-// CONFIGURATION MAPPER
-// ============================================
-
-
-
-// ============================================
-// ENTITÉ AUDIT LOG (MANQUANTE)
-// ============================================
-
-
-
-// ============================================
-// DTO AUDIT RESPONSE (MANQUANT)
-// ============================================
-
-
-
-// ============================================
-// EXCEPTIONS PERSONNALISÉES
-// ============================================
-
-
-
-
-
-
-
-// ============================================
-// GLOBAL EXCEPTION HANDLER
-// ============================================
-

@@ -6,6 +6,9 @@ import lombok.Builder;
 
 import java.time.LocalDate;
 
+/**
+ * DTO de réponse pour les informations personnelles
+ */
 @Builder
 public record PersonalInfoResponse(
         String nom,
@@ -14,9 +17,9 @@ public record PersonalInfoResponse(
         LocalDate dateNaissance,
         String lieuNaissance,
         GenderType sexe,
-        String numeroSecuMasque, // Format masqué pour sécurité
+        String numeroSecuMasque,
+        Integer age,
         String medecinTraitant,
         String allergiesConnues,
-        String antecedentsMedicaux,
-        String languePreferee
+        String antecedentsMedicaux
 ) {}

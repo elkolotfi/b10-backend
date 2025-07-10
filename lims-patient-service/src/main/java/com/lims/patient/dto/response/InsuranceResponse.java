@@ -3,9 +3,12 @@ package com.lims.patient.dto.response;
 import com.lims.patient.enums.InsuranceType;
 import lombok.Builder;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
+/**
+ * DTO de réponse pour une assurance
+ */
 @Builder
 public record InsuranceResponse(
         String id,
@@ -16,7 +19,6 @@ public record InsuranceResponse(
         LocalDate dateFin,
         Boolean estActive,
         Boolean tiersPayantAutorise,
-        Double pourcentagePriseCharge,
-        String referenceDocument,
-        LocalDateTime dateUploadDocument
+        BigDecimal pourcentagePriseCharge,
+        String referenceDocument
 ) {}

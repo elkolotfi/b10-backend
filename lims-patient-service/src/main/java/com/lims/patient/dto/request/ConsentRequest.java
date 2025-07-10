@@ -1,6 +1,5 @@
 package com.lims.patient.dto.request;
 
-import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 
@@ -9,8 +8,7 @@ import lombok.Builder;
  */
 @Builder
 public record ConsentRequest(
-        @NotNull(message = "Le consentement pour la création de compte est obligatoire")
-        @AssertTrue(message = "Le consentement pour la création de compte doit être accepté")
+        @NotNull
         Boolean consentementCreationCompte,
 
         @NotNull
