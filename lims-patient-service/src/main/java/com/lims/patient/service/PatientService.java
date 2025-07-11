@@ -156,6 +156,14 @@ public class PatientService {
     }
 
     /**
+     * Recherche par nom et prénom - DÉLÉGUÉ
+     */
+    @Transactional(readOnly = true)
+    public List<PatientSummaryResponse> searchByPhone(String phone) {
+        return patientSearchService.searchByPhone(phone);
+    }
+
+    /**
      * Suggestions d'autocomplétion - DÉLÉGUÉ
      */
     @Transactional(readOnly = true)

@@ -6652,144 +6652,56 @@ public class InfoController {
 # lims-patient-service/src/main/java/com/lims/patient/controller/PatientController.java
 
 ```java
-
 package com.lims.patient.controller;
 
-import com.lims.patient.dto.request.*;
-import com.lims.patient.dto.response.*;
-import com.lims.patient.enums.GenderType;
-import com.lims.patient.enums.PatientStatus;
-import com.lims.patient.service.PatientService;
+import com.lims.patient.dto.error.ErrorResponse;
+import com.lims.patient.dto.request.PatientSearchRequest;
+import com.lims.patient.dto.response.PatientResponse;
+import com.lims.patient.dto.response.PatientSearchResponse;
+import com.lims.patient.dto.response.PatientSummaryResponse;
+import com.lims.patient.service.PatientAuditService;
 import com.lims.patient.service.PatientSearchService;
+import com.lims.patient.service.PatientService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Contrôleur REST pour la gestion des patients - Version centralisée corrigée
- */
 @RestController
 @RequestMapping("/api/v1/patients")
 @RequiredArgsConstructor
 @Slf4j
-@Tag(name = "Patients", description = "API de gestion des patients")
+@Validated
+@Tag(name = "Patients", description = "Gestion des patients")
+@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class PatientController {
-
+    private final PatientAuditService auditService;
     private final PatientService patientService;
     private final PatientSearchService patientSearchService;
-
-    // ============================================
-    // ENDPOINTS CRUD
-    // ============================================
-
-    /**
-     * Créer un nouveau patient
-     */
-    @PostMapping
-    @Operation(summary = "Créer un nouveau patient")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "Patient créé avec succès"),
-            @ApiResponse(responseCode = "400", description = "Données invalides"),
-            @ApiResponse(responseCode = "409", description = "Patient déjà existant")
-    })
-    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
-    public ResponseEntity<PatientResponse> createPatient(
-            @Valid @RequestBody CreatePatientRequest request) {
-
-        log.info("Création d'un nouveau patient: {} {}",
-                request.personalInfo().prenom(), request.personalInfo().nom());
-
-        PatientResponse response = patientService.createPatient(request);
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
-    }
-
-    /**
-     * Récupérer un patient par ID
-     */
-    @GetMapping("/{id}")
-    @Operation(summary = "Récupérer un patient par ID")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Patient trouvé"),
-            @ApiResponse(responseCode = "404", description = "Patient non trouvé")
-    })
-    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN') or hasRole('PATIENT')")
-    public ResponseEntity<PatientResponse> getPatient(
-            @Parameter(description = "ID du patient") @PathVariable(value = "id") UUID id) {
-
-        log.info("Récupération du patient: {}", id);
-
-        PatientResponse response = patientService.getPatient(id);
-
-        return ResponseEntity.ok(response);
-    }
-
-    /**
-     * Mettre à jour un patient
-     */
-    @PutMapping("/{id}")
-    @Operation(summary = "Mettre à jour un patient")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Patient mis à jour"),
-            @ApiResponse(responseCode = "404", description = "Patient non trouvé"),
-            @ApiResponse(responseCode = "400", description = "Données invalides")
-    })
-    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
-    public ResponseEntity<PatientResponse> updatePatient(
-            @Parameter(description = "ID du patient") @PathVariable(value = "id") UUID id,
-            @Valid @RequestBody UpdatePatientRequest request) {
-
-        log.info("Mise à jour du patient: {}", id);
-
-        PatientResponse response = patientService.updatePatient(id, request);
-
-        return ResponseEntity.ok(response);
-    }
-
-    /**
-     * Supprimer un patient (soft delete)
-     */
-    @DeleteMapping("/{id}")
-    @Operation(summary = "Supprimer un patient")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "204", description = "Patient supprimé"),
-            @ApiResponse(responseCode = "404", description = "Patient non trouvé")
-    })
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deletePatient(
-            @Parameter(description = "ID du patient") @PathVariable(value = "id") UUID id) {
-
-        log.info("Suppression du patient: {}", id);
-
-        patientService.deletePatient(id);
-
-        return ResponseEntity.noContent().build();
-    }
-
-    // ============================================
-    // ENDPOINTS DE RECHERCHE
-    // ============================================
 
     /**
      * Recherche multicritères de patients (POST recommandé)
      */
     @PostMapping("/search")
-    @Operation(summary = "Recherche multicritères de patients")
+    @Operation(summary = "Recherche multicritères de patients",
+            description = "Recherche avancée avec support du nom complet ou nom/prénom séparés")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Résultats de recherche"),
             @ApiResponse(responseCode = "400", description = "Critères de recherche invalides")
@@ -6806,203 +6718,187 @@ public class PatientController {
     }
 
     /**
-     * Recherche simple par un seul critère (GET acceptable)
+     * Recherche rapide par nom complet (GET)
      */
-    @GetMapping("/search/simple")
-    @Operation(summary = "Recherche simple par un critère")
-    @ApiResponse(responseCode = "200", description = "Résultats de recherche simple")
+    @GetMapping("/search/quick")
+    @Operation(summary = "Recherche rapide par nom complet",
+            description = "Recherche rapide limitée à 10 résultats pour autocomplétion")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Résultats de recherche rapide"),
+            @ApiResponse(responseCode = "400", description = "Paramètre de recherche invalide")
+    })
     @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
-    public ResponseEntity<List<PatientSummaryResponse>> simpleSearch(
-            @Parameter(description = "Type de recherche")
-            @RequestParam(value = "type") String type,
+    public ResponseEntity<List<PatientSummaryResponse>> quickSearch(
+            @Parameter(description = "Nom complet à rechercher (nom et/ou prénom)")
+            @RequestParam @Size(min = 2, max = 100, message = "Le nom complet doit contenir entre 2 et 100 caractères")
+            String nomComplet) {
 
-            @Parameter(description = "Valeur recherchée")
-            @RequestParam(value = "value") String value,
+        log.info("Recherche rapide par nom complet: {}", nomComplet);
 
-            @Parameter(description = "Limite de résultats")
-            @RequestParam(value = "limit", defaultValue = "20") int limit) {
+        List<PatientSummaryResponse> results = patientService.quickSearchByNomComplet(nomComplet);
 
-        log.info("Recherche simple: {} = {}", type, value);
-
-        List<PatientSummaryResponse> results = switch (type.toLowerCase()) {
-            case "nom" -> patientSearchService.searchByNomPrenom(value, null);
-            case "prenom" -> patientSearchService.searchByNomPrenom(null, value);
-            // case "ville" -> patientSearchService.searchByVille(value);
-            // case "medecin" -> patientSearchService.searchByMedecinTraitant(value);
-            default -> throw new IllegalArgumentException("Type de recherche non supporté: " + type);
-        };
-
-        return ResponseEntity.ok(results.stream().limit(limit).toList());
+        return ResponseEntity.ok(results);
     }
 
     /**
-     * Recherche rapide (typeahead) - GET acceptable car simple
+     * Recherche par nom complet avec pagination (GET)
      */
-    @GetMapping("/search/quick")
-    @Operation(summary = "Recherche rapide de patients")
-    @ApiResponse(responseCode = "200", description = "Résultats de recherche rapide")
+    @GetMapping("/search/nom-complet")
+    @Operation(summary = "Recherche par nom complet avec pagination",
+            description = "Recherche par nom complet avec support de la pagination")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Résultats de recherche paginés"),
+            @ApiResponse(responseCode = "400", description = "Paramètres invalides")
+    })
     @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
-    public ResponseEntity<List<PatientSummaryResponse>> quickSearch(
-            @Parameter(description = "Terme de recherche")
-            @RequestParam(value = "query") String query,
-            @Parameter(description = "Limite de résultats")
-            @RequestParam(value = "limit", defaultValue = "10") int limit) {
+    public ResponseEntity<PatientSearchResponse> searchByNomComplet(
+            @Parameter(description = "Nom complet à rechercher")
+            @RequestParam @Size(min = 2, max = 100) String nomComplet,
 
-        log.info("Recherche rapide: {}", query);
+            @Parameter(description = "Numéro de page (0-based)")
+            @RequestParam(defaultValue = "0") @Min(0) int page,
 
-        List<PatientSummaryResponse> results = patientSearchService.quickSearch(query, limit);
+            @Parameter(description = "Taille de page")
+            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
+
+        log.info("Recherche par nom complet avec pagination: {} (page: {}, size: {})",
+                nomComplet, page, size);
+
+        PatientSearchResponse response = patientSearchService.searchByNomComplet(nomComplet, page, size);
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Autocomplétion pour le nom complet
+     */
+    @GetMapping("/search/suggest")
+    @Operation(summary = "Suggestions pour autocomplétion",
+            description = "Retourne des suggestions de noms complets pour l'autocomplétion")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Liste des suggestions"),
+            @ApiResponse(responseCode = "400", description = "Paramètre invalide")
+    })
+    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
+    public ResponseEntity<List<String>> suggestNomComplet(
+            @Parameter(description = "Début du nom à rechercher (minimum 2 caractères)")
+            @RequestParam @Size(min = 2, max = 50) String input) {
+
+        log.info("Suggestion d'autocomplétion pour: {}", input);
+
+        List<String> suggestions = patientService.suggestNomComplet(input);
+
+        return ResponseEntity.ok(suggestions);
+    }
+
+    /**
+     * Recherche par nom et prénom séparés (rétrocompatibilité)
+     */
+    @GetMapping("/search/nom-prenom")
+    @Operation(summary = "Recherche par nom et prénom séparés",
+            description = "Méthode legacy pour la recherche par nom et prénom séparés")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Liste des patients trouvés"),
+            @ApiResponse(responseCode = "400", description = "Paramètres invalides")
+    })
+    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
+    @Deprecated(since = "2.0", forRemoval = false)
+    public ResponseEntity<List<PatientSummaryResponse>> searchByNomPrenom(
+            @Parameter(description = "Nom du patient")
+            @RequestParam(required = false) @Size(max = 100) String nom,
+
+            @Parameter(description = "Prénom du patient")
+            @RequestParam(required = false) @Size(max = 100) String prenom) {
+
+        log.info("Recherche legacy par nom: {} et prénom: {}", nom, prenom);
+
+        List<PatientSummaryResponse> results = patientService.searchByNomPrenom(nom, prenom);
+
+        return ResponseEntity.ok(results);
+    }
+
+    /**
+     * Recherche par nom et prénom séparés (rétrocompatibilité)
+     */
+    @GetMapping("/search/telephone")
+    @Operation(summary = "Recherche par telephone",
+            description = "Méthode legacy pour la recherche par numéro de telephone")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Liste des patients trouvés"),
+            @ApiResponse(responseCode = "400", description = "Paramètres invalides")
+    })
+    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
+    @Deprecated(since = "2.0", forRemoval = false)
+    public ResponseEntity<List<PatientSummaryResponse>> searchByPhone(
+            @Parameter(description = "telephone")
+            @RequestParam(value = "telephone") @Size(max = 100) String phone) {
+
+        log.info("Recherche legacy par telephone: {}", phone);
+
+        List<PatientSummaryResponse> results = patientService.searchByPhone(phone);
 
         return ResponseEntity.ok(results);
     }
 
     // ============================================
-    // ENDPOINTS DE RECHERCHE SPÉCIFIQUES
+    // GET PATIENT BY ID
     // ============================================
 
-    /**
-     * Recherche par email
-     */
-    @GetMapping("/search/email")
-    @Operation(summary = "Recherche par email")
-    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
-    public ResponseEntity<PatientResponse> findByEmail(
-            @Parameter(description = "Email du patient")
-            @RequestParam(value = "email") String email) {
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN_LAB', 'SECRETAIRE', 'PRELEVEUR', 'TECHNICIEN', 'SUPER_ADMIN') or " +
+            "(hasRole('PATIENT') and @patientService.isPatientOwner(authentication.name, #id))")
+    @Operation(
+            summary = "Récupérer les détails d'un patient",
+            description = "Récupère toutes les informations d'un patient spécifique. " +
+                    "Accessible au personnel du laboratoire ou au patient lui-même."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Patient trouvé",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = PatientResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Patient non trouvé",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Accès interdit - Patient ne peut accéder qu'à ses propres données"
+            )
+    })
+    public ResponseEntity<PatientResponse> getPatientById(
+            @Parameter(description = "ID du patient", required = true)
+            @PathVariable(value = "id") UUID id,
+            Authentication authentication) {
 
-        log.info("Recherche par email: {}", email);
+        log.info("Consultation du patient {} par l'utilisateur: {}", id, authentication.getName());
 
-        Optional<PatientResponse> patient = patientService.findByEmail(email);
+        // Détermination du type d'utilisateur
+        String userType = authentication.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().contains("PATIENT")) ? "PATIENT" : "STAFF";
 
-        return patient.map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
+        // Audit de l'accès
+        /*auditService.logPatientAccess(
+                id,
+                "VIEW_PATIENT",
+                "Consultation des détails du patient",
+                authentication.getName(),
+                userType
+        );*/
 
-    /**
-     * Recherche par téléphone
-     */
-    @GetMapping("/search/telephone")
-    @Operation(summary = "Recherche par téléphone")
-    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
-    public ResponseEntity<PatientResponse> findByTelephone(
-            @Parameter(description = "Téléphone du patient")
-            @RequestParam(value = "telephone") String telephone) {
+        PatientResponse patient = patientService.getPatient(id);
 
-        log.info("Recherche par téléphone: {}", telephone);
+        log.info("Patient {} consulté avec succès", id);
 
-        Optional<PatientResponse> patient = patientService.findByTelephone(telephone);
-
-        return patient.map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
-
-    /**
-     * Recherche par numéro de sécurité sociale
-     */
-    @GetMapping("/search/nir")
-    @Operation(summary = "Recherche par numéro de sécurité sociale")
-    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
-    public ResponseEntity<PatientResponse> findByNumeroSecu(
-            @Parameter(description = "Numéro de sécurité sociale")
-            @RequestParam(value = "numeroSecu") String numeroSecu) {
-
-        log.info("Recherche par numéro de sécurité sociale");
-
-        Optional<PatientResponse> patient = patientService.findByNumeroSecu(numeroSecu);
-
-        return patient.map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
-
-    /**
-     * Recherche par ville
-     */
-    @GetMapping("/search/ville")
-    @Operation(summary = "Recherche par ville")
-    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
-    public ResponseEntity<List<PatientSummaryResponse>> findByVille(
-            @Parameter(description = "Ville")
-            @RequestParam(value = "ville") String ville) {
-
-        log.info("Recherche par ville: {}", ville);
-
-        List<PatientSummaryResponse> patients = List.of(); // patientSearchService.searchByVille(ville);
-
-        return ResponseEntity.ok(patients);
-    }
-
-    /**
-     * Recherche par médecin traitant
-     */
-    @GetMapping("/search/medecin")
-    @Operation(summary = "Recherche par médecin traitant")
-    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
-    public ResponseEntity<List<PatientSummaryResponse>> findByMedecinTraitant(
-            @Parameter(description = "Médecin traitant")
-            @RequestParam(value = "medecin") String medecin) {
-
-        log.info("Recherche par médecin traitant: {}", medecin);
-
-        List<PatientSummaryResponse> patients = List.of(); // patientSearchService.searchByMedecinTraitant(medecin);
-
-        return ResponseEntity.ok(patients);
-    }
-
-    // ============================================
-    // ENDPOINTS DE LISTE
-    // ============================================
-
-    /**
-     * Liste des patients actifs
-     */
-    @GetMapping("/active")
-    @Operation(summary = "Liste des patients actifs")
-    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
-    public ResponseEntity<List<PatientSummaryResponse>> getActivePatients(
-            @Parameter(description = "Numéro de page")
-            @RequestParam(value = "page", defaultValue = "0") int page,
-            @Parameter(description = "Taille de la page")
-            @RequestParam(value = "size", defaultValue = "20") int size) {
-
-        log.info("Récupération des patients actifs");
-
-        List<PatientSummaryResponse> patients = patientService.getActivePatients(page, size);
-
-        return ResponseEntity.ok(patients);
-    }
-
-    /**
-     * Liste des patients avec notifications
-     */
-    @GetMapping("/notifications")
-    @Operation(summary = "Liste des patients avec notifications activées")
-    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
-    public ResponseEntity<List<PatientSummaryResponse>> getPatientsWithNotifications() {
-
-        log.info("Récupération des patients avec notifications");
-
-        List<PatientSummaryResponse> patients = List.of(); // patientSearchService.searchPatientsWithNotifications();
-
-        return ResponseEntity.ok(patients);
-    }
-
-    /**
-     * Statistiques des patients
-     */
-    @GetMapping("/stats")
-    @Operation(summary = "Statistiques des patients")
-    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
-    public ResponseEntity<PatientStatsResponse> getPatientStats() {
-
-        log.info("Récupération des statistiques patients");
-
-        PatientStatsResponse stats = PatientStatsResponse.builder()
-                .totalPatientsActifs(patientSearchService.countActivePatients())
-                .statistiquesParStatut(patientSearchService.getPatientStatisticsByStatus())
-                .statistiquesParSexe(patientSearchService.getPatientStatisticsByGender())
-                .statistiquesParVille(patientSearchService.getPatientStatisticsByCity())
-                .build();
-
-        return ResponseEntity.ok(stats);
+        return ResponseEntity.ok(patient);
     }
 }
 ```
@@ -7529,6 +7425,8 @@ package com.lims.patient.dto.request;
 
 import com.lims.patient.enums.GenderType;
 import com.lims.patient.enums.PatientStatus;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.Builder;
 
 import java.time.LocalDate;
@@ -7538,8 +7436,13 @@ import java.time.LocalDate;
  */
 @Builder
 public record PatientSearchRequest(
+        // Recherche par nom et prénom séparés (ancienne méthode)
         String nom,
         String prenom,
+
+        // Recherche par nom complet (nouvelle méthode)
+        String nomComplet,
+
         String numeroSecu,
         String email,
         String telephone,
@@ -7548,11 +7451,67 @@ public record PatientSearchRequest(
         LocalDate dateNaissance,
         GenderType sexe,
         PatientStatus statut,
-        int page,
-        int size,
+
+        @Min(0) int page,
+        @Min(1) @Max(100) int size,
         String sortBy,
         String sortDirection
-) {}
+) {
+
+    /**
+     * Constructeur par défaut avec valeurs par défaut pour pagination
+     */
+    public PatientSearchRequest {
+        if (page < 0) page = 0;
+        if (size < 1) size = 10;
+        if (size > 100) size = 100;
+        if (sortBy == null || sortBy.trim().isEmpty()) sortBy = "dateCreation";
+        if (sortDirection == null || (!sortDirection.equalsIgnoreCase("asc") && !sortDirection.equalsIgnoreCase("desc"))) {
+            sortDirection = "desc";
+        }
+    }
+
+    /**
+     * Vérifie si la recherche utilise le nom complet
+     */
+    public boolean isNomCompletSearch() {
+        return nomComplet != null && !nomComplet.trim().isEmpty();
+    }
+
+    /**
+     * Vérifie si la recherche utilise nom/prénom séparés
+     */
+    public boolean isNomPrenomSearch() {
+        return (nom != null && !nom.trim().isEmpty()) ||
+                (prenom != null && !prenom.trim().isEmpty());
+    }
+
+    /**
+     * Retourne les mots-clés du nom complet pour la recherche
+     */
+    public String[] getNomCompletKeywords() {
+        if (!isNomCompletSearch()) {
+            return new String[0];
+        }
+
+        return nomComplet.trim()
+                .toLowerCase()
+                .split("\\s+"); // Divise par un ou plusieurs espaces
+    }
+
+    /**
+     * Normalise le nom complet pour la recherche
+     */
+    public String getNomCompletNormalized() {
+        if (!isNomCompletSearch()) {
+            return "";
+        }
+
+        return nomComplet.trim()
+                .toLowerCase()
+                .replaceAll("\\s+", " "); // Remplace les espaces multiples par un seul
+    }
+}
 ```
 
 # lims-patient-service/src/main/java/com/lims/patient/dto/request/PersonalInfoRequest.java
@@ -8007,6 +7966,7 @@ public record PatientSummaryResponse(
         String email,
         String telephone,
         LocalDate dateNaissance,
+        String numeroSecuMasque,
         Integer age,
         GenderType sexe,
         String ville,
@@ -8548,6 +8508,10 @@ public class Patient {
             case "rappels" -> notificationsRappels != null && notificationsRappels;
             default -> false;
         };
+    }
+
+    public void setCreepar(String creepar) {
+        this.creePar = creepar;
     }
 }
 ```
@@ -9515,6 +9479,7 @@ public interface PatientMapper {
     @Mapping(target = "nomComplet", source = ".", qualifiedByName = "buildFullName")
     @Mapping(target = "email", source = "email")
     @Mapping(target = "telephone", source = "telephone")
+    @Mapping(target = "numeroSecuMasque", source = "numeroSecuMasque")
     @Mapping(target = "dateNaissance", source = "dateNaissance")
     @Mapping(target = "age", source = ".", qualifiedByName = "calculateAge")
     @Mapping(target = "sexe", source = "sexe")
@@ -10156,76 +10121,143 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Repository pour les patients - Version avec Specifications
+ * Repository pour les patients - Version harmonisée avec l'architecture des services
+ * Supporte les Specifications pour les recherches complexes + méthodes simples optimisées
  */
 @Repository
 public interface PatientRepository extends JpaRepository<Patient, UUID>, JpaSpecificationExecutor<Patient> {
 
-    // ===== RECHERCHES DE BASE SIMPLES =====
+    // ===============================================================
+    // RECHERCHES DE BASE CRITIQUES (utilisées par PatientService)
+    // ===============================================================
 
     /**
      * Trouve un patient par ID (non supprimé)
+     * Utilisé par: PatientService.getPatient()
      */
     Optional<Patient> findByIdAndDateSuppressionIsNull(UUID id);
 
     /**
-     * Trouve un patient par numéro de sécurité sociale
+     * Trouve un patient par numéro de sécurité sociale (non supprimé)
+     * Utilisé par: PatientService.findByNumeroSecu()
      */
     Optional<Patient> findByNumeroSecuAndDateSuppressionIsNull(String numeroSecu);
 
     /**
-     * Trouve un patient par email (égalité exacte)
+     * Trouve un patient par email (égalité exacte, insensible à la casse, non supprimé)
+     * Utilisé par: PatientService.findByEmail()
      */
     Optional<Patient> findByEmailIgnoreCaseAndDateSuppressionIsNull(String email);
 
     /**
-     * Trouve un patient par téléphone
+     * Version alternative pour la compatibilité (nom exact utilisé dans le service)
+     */
+    default Optional<Patient> findByEmailAndDateSuppressionIsNull(String email) {
+        return findByEmailIgnoreCaseAndDateSuppressionIsNull(email);
+    }
+
+    /**
+     * Trouve un patient par téléphone (non supprimé)
+     * Utilisé par: PatientService.findByTelephone()
      */
     Optional<Patient> findByTelephoneAndDateSuppressionIsNull(String telephone);
 
-    // ===== VÉRIFICATIONS D'EXISTENCE =====
+    // ===============================================================
+    // VÉRIFICATIONS D'EXISTENCE (utilisées par PatientService)
+    // ===============================================================
 
     /**
      * Vérifie si un patient existe avec ce numéro de sécurité sociale
+     * Utilisé par: PatientService.existsByNumeroSecu()
      */
     boolean existsByNumeroSecuAndDateSuppressionIsNull(String numeroSecu);
 
     /**
      * Vérifie si un patient existe avec cet email (insensible à la casse)
+     * Utilisé par: PatientService.existsByEmail()
      */
     boolean existsByEmailIgnoreCaseAndDateSuppressionIsNull(String email);
 
     /**
+     * Version alternative pour la compatibilité
+     */
+    default boolean existsByEmailAndDateSuppressionIsNull(String email) {
+        return existsByEmailIgnoreCaseAndDateSuppressionIsNull(email);
+    }
+
+    /**
      * Vérifie si un patient existe avec ce téléphone
+     * Utilisé par: PatientService.existsByTelephone()
      */
     boolean existsByTelephoneAndDateSuppressionIsNull(String telephone);
 
-    // ===== RECHERCHES PAR STATUT =====
+    // ===============================================================
+    // RECHERCHES PAR STATUT (utilisées par PatientService)
+    // ===============================================================
 
     /**
-     * Trouve tous les patients par statut
+     * Trouve tous les patients par statut avec pagination
+     * Utilisé par: PatientService.getActivePatients()
      */
     Page<Patient> findByStatutAndDateSuppressionIsNull(PatientStatus statut, Pageable pageable);
 
     /**
-     * Trouve tous les patients actifs
+     * Trouve tous les patients par statut (sans pagination)
      */
     List<Patient> findByStatutAndDateSuppressionIsNull(PatientStatus statut);
 
-    // ===== RECHERCHES SPÉCIALISÉES (gardées pour compatibilité) =====
-
     /**
-     * Recherche par nom et prénom (utilise les methods queries Spring Data)
+     * Compte les patients par statut
+     * Utilisé par: PatientService.countActivePatients()
      */
-    List<Patient> findByNomContainingIgnoreCaseAndDateSuppressionIsNull(String nom);
+    long countByStatutAndDateSuppressionIsNull(PatientStatus statut);
+
+    // ===============================================================
+    // RECHERCHES SPÉCIALISÉES OPTIMISÉES (pour PatientSearchService)
+    // ===============================================================
 
     /**
-     * Recherche par ville
+     * Recherche optimisée par nom (pour autocomplétion rapide)
+     * Note: Les recherches complexes utilisent les Specifications
+     */
+    @Query("SELECT p FROM Patient p WHERE " +
+            "LOWER(p.nom) LIKE LOWER(CONCAT('%', :nom, '%')) AND " +
+            "p.dateSuppression IS NULL " +
+            "ORDER BY p.nom, p.prenom")
+    List<Patient> findByNomContainingIgnoreCase(@Param("nom") String nom, Pageable pageable);
+
+    /**
+     * Recherche optimisée par prénom (pour autocomplétion rapide)
+     */
+    @Query("SELECT p FROM Patient p WHERE " +
+            "LOWER(p.prenom) LIKE LOWER(CONCAT('%', :prenom, '%')) AND " +
+            "p.dateSuppression IS NULL " +
+            "ORDER BY p.prenom, p.nom")
+    List<Patient> findByPrenomContainingIgnoreCase(@Param("prenom") String prenom, Pageable pageable);
+
+    /**
+     * Recherche optimisée par nom complet (concaténation nom + prénom)
+     * Utilisé pour les suggestions d'autocomplétion
+     */
+    @Query("SELECT p FROM Patient p WHERE " +
+            "(LOWER(CONCAT(p.nom, ' ', p.prenom)) LIKE LOWER(CONCAT('%', :nomComplet, '%')) OR " +
+            " LOWER(CONCAT(p.prenom, ' ', p.nom)) LIKE LOWER(CONCAT('%', :nomComplet, '%'))) AND " +
+            "p.dateSuppression IS NULL " +
+            "ORDER BY p.nom, p.prenom")
+    List<Patient> findByNomCompletContaining(@Param("nomComplet") String nomComplet, Pageable pageable);
+
+    /**
+     * Recherche par ville (pour filtres rapides)
      */
     List<Patient> findByVilleContainingIgnoreCaseAndDateSuppressionIsNull(String ville);
 
     /**
-     * Recherche par date de naissance
+     * Recherche par code postal (pour filtres géographiques)
+     */
+    List<Patient> findByCodePostalAndDateSuppressionIsNull(String codePostal);
+
+    /**
+     * Recherche par date de naissance exacte
      */
     List<Patient> findByDateNaissanceAndDateSuppressionIsNull(LocalDate dateNaissance);
 
@@ -10234,20 +10266,67 @@ public interface PatientRepository extends JpaRepository<Patient, UUID>, JpaSpec
      */
     List<Patient> findBySexeAndDateSuppressionIsNull(GenderType sexe);
 
+    // ===============================================================
+    // RECHERCHES MÉTIER SPÉCIALISÉES
+    // ===============================================================
+
+    /**
+     * Trouve les patients avec notifications activées
+     * Utilisé pour les campagnes de communication
+     */
+    @Query("SELECT p FROM Patient p WHERE " +
+            "p.dateSuppression IS NULL AND " +
+            "p.statut = :statut AND " +
+            "(p.consentementEmail = true OR p.consentementSms = true)")
+    List<Patient> findPatientsWithNotificationsEnabled(@Param("statut") PatientStatus statut);
+
+    /**
+     * Trouve les patients par tranche d'âge
+     */
+    @Query("SELECT p FROM Patient p WHERE " +
+            "p.dateSuppression IS NULL AND " +
+            "p.dateNaissance BETWEEN :dateNaissanceMin AND :dateNaissanceMax " +
+            "ORDER BY p.dateNaissance DESC")
+    List<Patient> findByAgeRange(@Param("dateNaissanceMin") LocalDate dateNaissanceMin,
+                                 @Param("dateNaissanceMax") LocalDate dateNaissanceMax);
+
+    /**
+     * Trouve les patients créés récemment
+     */
+    @Query("SELECT p FROM Patient p WHERE " +
+            "p.dateCreation >= :dateLimit AND " +
+            "p.dateSuppression IS NULL " +
+            "ORDER BY p.dateCreation DESC")
+    List<Patient> findRecentlyCreatedPatients(@Param("dateLimit") LocalDateTime dateLimit);
+
+    /**
+     * Trouve les patients récemment modifiés
+     */
+    @Query("SELECT p FROM Patient p WHERE " +
+            "p.dateModification >= :dateLimit AND " +
+            "p.dateSuppression IS NULL " +
+            "ORDER BY p.dateModification DESC")
+    List<Patient> findRecentlyModifiedPatients(@Param("dateLimit") LocalDateTime dateLimit);
+
+    // ===============================================================
+    // RECHERCHES GÉOGRAPHIQUES
+    // ===============================================================
+
+    /**
+     * Recherche par département (basé sur le code postal)
+     */
+    @Query("SELECT p FROM Patient p WHERE " +
+            "p.codePostal LIKE CONCAT(:codeDepartement, '%') AND " +
+            "p.dateSuppression IS NULL")
+    List<Patient> findByDepartement(@Param("codeDepartement") String codeDepartement);
+
     /**
      * Recherche par région
      */
     List<Patient> findByRegionAndDateSuppressionIsNull(String region);
 
     /**
-     * Recherche par département
-     */
-    List<Patient> findByDepartementAndDateSuppressionIsNull(String departement);
-
-    // ===== RECHERCHES AVEC REQUÊTES PERSONNALISÉES (si nécessaire) =====
-
-    /**
-     * Recherche par proximité géographique
+     * Recherche par proximité géographique (si vous avez des coordonnées GPS)
      */
     @Query(value = "SELECT * FROM lims_patient.patients p WHERE " +
             "p.date_suppression IS NULL AND " +
@@ -10259,74 +10338,145 @@ public interface PatientRepository extends JpaRepository<Patient, UUID>, JpaSpec
                                   @Param("longitude") Double longitude,
                                   @Param("rayonMetres") Double rayonMetres);
 
-    // ===== RECHERCHES DE PATIENTS AVEC CONDITIONS SPÉCIALES =====
+    // ===============================================================
+    // STATISTIQUES (utilisées par PatientSearchService)
+    // ===============================================================
 
     /**
-     * Trouve les patients avec notifications activées
+     * Compte le nombre total de patients actifs
+     * Utilisé par: PatientSearchService.countActivePatients()
      */
-    @Query("SELECT p FROM Patient p WHERE " +
-            "p.dateSuppression IS NULL AND " +
-            "p.statut = 'ACTIF' AND " +
-            "(p.notificationsResultats = true OR p.notificationsRdv = true OR p.notificationsRappels = true)")
-    List<Patient> findPatientsWithNotificationsEnabled();
+    @Query("SELECT COUNT(p) FROM Patient p WHERE p.dateSuppression IS NULL AND p.statut = 'ACTIF'")
+    long countActivePatients();
 
     /**
-     * Trouve les patients avec allergies
-     */
-    @Query("SELECT p FROM Patient p WHERE " +
-            "p.allergiesConnues IS NOT NULL AND " +
-            "p.allergiesConnues != '' AND " +
-            "p.dateSuppression IS NULL")
-    List<Patient> findPatientsWithAllergies();
-
-    /**
-     * Trouve les patients avec antécédents médicaux
-     */
-    @Query("SELECT p FROM Patient p WHERE " +
-            "p.antecedentsMedicaux IS NOT NULL AND " +
-            "p.antecedentsMedicaux != '' AND " +
-            "p.dateSuppression IS NULL")
-    List<Patient> findPatientsWithMedicalHistory();
-
-    // ===== STATISTIQUES =====
-
-    /**
-     * Compte le nombre de patients par statut
+     * Statistiques par statut
+     * Utilisé par: PatientSearchService.getPatientStatisticsByStatus()
      */
     @Query("SELECT p.statut, COUNT(p) FROM Patient p WHERE p.dateSuppression IS NULL GROUP BY p.statut")
     List<Object[]> countPatientsByStatus();
 
     /**
-     * Compte le nombre de patients par sexe
+     * Statistiques par sexe
+     * Utilisé par: PatientSearchService.getPatientStatisticsByGender()
      */
     @Query("SELECT p.sexe, COUNT(p) FROM Patient p WHERE p.dateSuppression IS NULL GROUP BY p.sexe")
     List<Object[]> countPatientsByGender();
 
     /**
-     * Compte le nombre de patients par ville
+     * Statistiques par ville (top 10)
+     * Utilisé par: PatientSearchService.getPatientStatisticsByCity()
      */
     @Query("SELECT p.ville, COUNT(p) FROM Patient p WHERE " +
-            "p.dateSuppression IS NULL GROUP BY p.ville ORDER BY COUNT(p) DESC")
+            "p.dateSuppression IS NULL AND p.ville IS NOT NULL " +
+            "GROUP BY p.ville ORDER BY COUNT(p) DESC")
     List<Object[]> countPatientsByCity();
 
     /**
-     * Compte le nombre total de patients actifs
+     * Statistiques par tranche d'âge
      */
-    @Query("SELECT COUNT(p) FROM Patient p WHERE p.dateSuppression IS NULL AND p.statut = 'ACTIF'")
-    long countActivePatients();
-
-    // ===== REQUÊTES DE MAINTENANCE =====
+    @Query("SELECT " +
+            "CASE " +
+            "  WHEN EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM p.dateNaissance) < 18 THEN 'Moins de 18 ans' " +
+            "  WHEN EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM p.dateNaissance) BETWEEN 18 AND 30 THEN '18-30 ans' " +
+            "  WHEN EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM p.dateNaissance) BETWEEN 31 AND 50 THEN '31-50 ans' " +
+            "  WHEN EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM p.dateNaissance) BETWEEN 51 AND 70 THEN '51-70 ans' " +
+            "  ELSE 'Plus de 70 ans' " +
+            "END AS trancheAge, COUNT(p) " +
+            "FROM Patient p WHERE p.dateSuppression IS NULL AND p.dateNaissance IS NOT NULL " +
+            "GROUP BY " +
+            "CASE " +
+            "  WHEN EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM p.dateNaissance) < 18 THEN 'Moins de 18 ans' " +
+            "  WHEN EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM p.dateNaissance) BETWEEN 18 AND 30 THEN '18-30 ans' " +
+            "  WHEN EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM p.dateNaissance) BETWEEN 31 AND 50 THEN '31-50 ans' " +
+            "  WHEN EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM p.dateNaissance) BETWEEN 51 AND 70 THEN '51-70 ans' " +
+            "  ELSE 'Plus de 70 ans' " +
+            "END")
+    List<Object[]> countPatientsByAgeRange();
 
     /**
-     * Trouve les patients récemment modifiés
+     * Statistiques d'évolution (nouveaux patients par mois)
+     */
+    @Query("SELECT " +
+            "EXTRACT(YEAR FROM p.dateCreation) as annee, " +
+            "EXTRACT(MONTH FROM p.dateCreation) as mois, " +
+            "COUNT(p) as nombrePatients " +
+            "FROM Patient p WHERE " +
+            "p.dateSuppression IS NULL AND " +
+            "p.dateCreation >= :dateDebut " +
+            "GROUP BY EXTRACT(YEAR FROM p.dateCreation), EXTRACT(MONTH FROM p.dateCreation) " +
+            "ORDER BY annee DESC, mois DESC")
+    List<Object[]> countNewPatientsByMonth(@Param("dateDebut") LocalDateTime dateDebut);
+
+    // ===============================================================
+    // REQUÊTES DE MAINTENANCE ET AUDIT
+    // ===============================================================
+
+    /**
+     * Trouve les doublons potentiels par nom/prénom/date de naissance
+     */
+    @Query("SELECT p1 FROM Patient p1 WHERE EXISTS (" +
+            "SELECT p2 FROM Patient p2 WHERE " +
+            "p1.id != p2.id AND " +
+            "p1.dateSuppression IS NULL AND p2.dateSuppression IS NULL AND " +
+            "LOWER(p1.nom) = LOWER(p2.nom) AND " +
+            "LOWER(p1.prenom) = LOWER(p2.prenom) AND " +
+            "p1.dateNaissance = p2.dateNaissance)")
+    List<Patient> findPotentialDuplicates();
+
+    /**
+     * Trouve les patients avec des données incomplètes
      */
     @Query("SELECT p FROM Patient p WHERE " +
-            "p.dateModification > :dateLimit AND " +
-            "p.dateSuppression IS NULL")
-    List<Patient> findRecentlyModifiedPatients(@Param("dateLimit") LocalDateTime dateLimit);
+            "p.dateSuppression IS NULL AND " +
+            "(p.email IS NULL OR p.telephone IS NULL OR p.ville IS NULL)")
+    List<Patient> findPatientsWithIncompleteData();
 
-    // NOTE: Plus besoin de findByMultipleCriteria complexe !
-    // La recherche multicritères se fait maintenant avec les Specifications
+    /**
+     * Trouve les patients inactifs depuis longtemps
+     */
+    @Query("SELECT p FROM Patient p WHERE " +
+            "p.dateSuppression IS NULL AND " +
+            "p.statut = 'INACTIF' AND " +
+            "p.dateModification < :dateLimit")
+    List<Patient> findLongInactivePatients(@Param("dateLimit") LocalDateTime dateLimit);
+
+    // ===============================================================
+    // MÉTHODES UTILITAIRES
+    // ===============================================================
+
+    /**
+     * Compte le nombre total de patients (incluant supprimés)
+     */
+    @Query("SELECT COUNT(p) FROM Patient p")
+    long countAllPatients();
+
+    /**
+     * Compte le nombre de patients supprimés
+     */
+    @Query("SELECT COUNT(p) FROM Patient p WHERE p.dateSuppression IS NOT NULL")
+    long countDeletedPatients();
+
+    /**
+     * Trouve les patients créés par un utilisateur spécifique
+     */
+    List<Patient> findByCreeParAndDateSuppressionIsNull(String creePar);
+
+    /**
+     * Recherche full-text simple (si votre base de données le supporte)
+     */
+    @Query("SELECT p FROM Patient p WHERE " +
+            "p.dateSuppression IS NULL AND " +
+            "(LOWER(p.nom) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+            " LOWER(p.prenom) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+            " LOWER(p.email) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+            " p.telephone LIKE CONCAT('%', :searchTerm, '%') OR " +
+            " LOWER(p.ville) LIKE LOWER(CONCAT('%', :searchTerm, '%')))")
+    List<Patient> findByFullTextSearch(@Param("searchTerm") String searchTerm, Pageable pageable);
+
+    // NOTE IMPORTANTE:
+    // Les recherches complexes multicritères se font maintenant avec les Specifications
+    // dans PatientSpecifications, ce qui offre plus de flexibilité et de performance
 }
 ```
 
@@ -10732,12 +10882,15 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
+import java.time.Period;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Service de recherche de patients - Version avec Specifications dynamiques
+ * Service de recherche de patients - Version adaptée avec nomComplet et Specifications dynamiques
  */
 @Service
 @RequiredArgsConstructor
@@ -10748,11 +10901,23 @@ public class PatientSearchService {
     private final PatientRepository patientRepository;
 
     /**
-     * Recherche de patients avec critères multiples - VERSION DYNAMIQUE
-     * Construction dynamique de la requête selon les critères fournis
+     * Recherche de patients avec critères multiples - VERSION ADAPTÉE
+     * Support du nomComplet ET des critères séparés
      */
     public PatientSearchResponse searchPatients(PatientSearchRequest request) {
         log.info("Recherche de patients avec critères: {}", request);
+
+        // Validation des critères - si tout est vide, retourner une page vide
+        if (isEmptySearchRequest(request)) {
+            log.warn("Recherche sans critères - retour d'une page vide");
+            return PatientSearchResponse.builder()
+                    .patients(List.of())
+                    .currentPage(request.page())
+                    .totalPages(0)
+                    .totalElements(0L)
+                    .pageSize(request.size())
+                    .build();
+        }
 
         // Validation et correction des paramètres de pagination
         int page = Math.max(0, request.page());
@@ -10767,25 +10932,8 @@ public class PatientSearchService {
         Sort sort = buildSort(request.sortBy(), request.sortDirection());
         Pageable pageable = PageRequest.of(page, size, sort);
 
-        // Déterminer si c'est une recherche exacte par email
-        boolean emailExactMatch = isEmailExactSearch(request);
-
-        log.debug("Recherche email exacte: {}", emailExactMatch);
-
-        // Construction de la specification dynamique
-        Specification<Patient> specification = PatientSpecifications.searchCriteria(
-                request.nom(),
-                request.prenom(),
-                request.numeroSecu(),
-                request.email(),
-                request.telephone(),
-                request.ville(),
-                request.codePostal(),
-                request.dateNaissance(),
-                request.sexe(),
-                request.statut(),
-                emailExactMatch
-        );
+        // Construction de la specification selon le mode de recherche
+        Specification<Patient> specification = buildSearchSpecification(request);
 
         // Exécution de la requête
         Page<Patient> patientsPage = patientRepository.findAll(specification, pageable);
@@ -10809,8 +10957,208 @@ public class PatientSearchService {
     }
 
     /**
+     * Construction de la specification selon le mode de recherche
+     */
+    private Specification<Patient> buildSearchSpecification(PatientSearchRequest request) {
+        Specification<Patient> spec = Specification.where(PatientSpecifications.notDeleted());
+
+        // Mode recherche par nom complet (prioritaire)
+        if (request.isNomCompletSearch()) {
+            log.debug("Mode recherche par nom complet: {}", request.nomComplet());
+            spec = spec.and(PatientSpecifications.nomCompletAdvanced(request.nomComplet()));
+        }
+        // Mode recherche par nom/prénom séparés
+        else if (request.isNomPrenomSearch()) {
+            log.debug("Mode recherche par nom/prénom séparés: {} / {}", request.nom(), request.prenom());
+            if (StringUtils.hasText(request.nom())) {
+                spec = spec.and(PatientSpecifications.hasNom(request.nom()));
+            }
+            if (StringUtils.hasText(request.prenom())) {
+                spec = spec.and(PatientSpecifications.hasPrenom(request.prenom()));
+            }
+        }
+
+        // Ajout des autres critères
+        spec = addOtherCriteria(spec, request);
+
+        return spec;
+    }
+
+    /**
+     * Ajoute les autres critères de recherche à la specification
+     */
+    private Specification<Patient> addOtherCriteria(Specification<Patient> spec, PatientSearchRequest request) {
+        if (StringUtils.hasText(request.numeroSecu())) {
+            spec = spec.and(PatientSpecifications.hasNumeroSecu(request.numeroSecu()));
+        }
+
+        if (StringUtils.hasText(request.email())) {
+            boolean emailExactMatch = isEmailExactSearch(request);
+            spec = spec.and(emailExactMatch
+                    ? PatientSpecifications.hasEmail(request.email())
+                    : PatientSpecifications.hasEmailContaining(request.email()));
+        }
+
+        if (StringUtils.hasText(request.telephone())) {
+            spec = spec.and(PatientSpecifications.hasTelephone(request.telephone()));
+        }
+
+        if (StringUtils.hasText(request.ville())) {
+            spec = spec.and(PatientSpecifications.hasVille(request.ville()));
+        }
+
+        if (StringUtils.hasText(request.codePostal())) {
+            spec = spec.and(PatientSpecifications.hasCodePostal(request.codePostal()));
+        }
+
+        if (request.dateNaissance() != null) {
+            spec = spec.and(PatientSpecifications.hasDateNaissance(request.dateNaissance()));
+        }
+
+        if (request.sexe() != null) {
+            spec = spec.and(PatientSpecifications.hasSexe(request.sexe()));
+        }
+
+        if (request.statut() != null) {
+            spec = spec.and(PatientSpecifications.hasStatut(request.statut()));
+        }
+
+        return spec;
+    }
+
+    /**
+     * Recherche rapide par nom complet avec limite de résultats
+     */
+    public List<PatientSummaryResponse> quickSearchByNomComplet(String nomComplet) {
+        log.info("Recherche rapide par nom complet: {}", nomComplet);
+
+        if (!StringUtils.hasText(nomComplet)) {
+            return List.of();
+        }
+
+        Specification<Patient> spec = Specification.where(PatientSpecifications.notDeleted())
+                .and(PatientSpecifications.nomCompletAdvanced(nomComplet));
+
+        // Limiter à 10 résultats pour la recherche rapide
+        Pageable pageable = PageRequest.of(0, 10, Sort.by(Sort.Direction.ASC, "nom", "prenom"));
+
+        List<Patient> patients = patientRepository.findAll(spec, pageable).getContent();
+
+        return patients.stream()
+                .map(this::mapToSummaryResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Recherche par nom complet avec pagination
+     */
+    public PatientSearchResponse searchByNomComplet(String nomComplet, int page, int size) {
+        log.info("Recherche par nom complet avec pagination: {} (page: {}, size: {})", nomComplet, page, size);
+
+        PatientSearchRequest request = PatientSearchRequest.builder()
+                .nomComplet(nomComplet)
+                .page(page)
+                .size(size)
+                .sortBy("nom")
+                .sortDirection("asc")
+                .build();
+
+        return searchPatients(request);
+    }
+
+    /**
+     * Suggestions d'autocomplétion pour le nom complet
+     */
+    public List<String> suggestNomComplet(String input) {
+        if (!StringUtils.hasText(input) || input.length() < 2) {
+            return List.of();
+        }
+
+        Specification<Patient> spec = Specification.where(PatientSpecifications.notDeleted())
+                .and(PatientSpecifications.nomCompletContains(input));
+
+        Pageable pageable = PageRequest.of(0, 5);
+
+        List<Patient> patients = patientRepository.findAll(spec, pageable).getContent();
+
+        return patients.stream()
+                .map(patient -> String.format("%s %s", patient.getNom(), patient.getPrenom()).trim())
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Recherche de patients par nom et prénom (rétrocompatibilité)
+     */
+    public List<PatientSummaryResponse> searchByNomPrenom(String nom, String prenom) {
+        log.info("Recherche par nom: {} et prénom: {}", nom, prenom);
+
+        PatientSearchRequest request = PatientSearchRequest.builder()
+                .nom(nom)
+                .prenom(prenom)
+                .page(0)
+                .size(50)
+                .sortBy("nom")
+                .sortDirection("asc")
+                .build();
+
+        return searchPatients(request).patients();
+    }
+
+    public List<PatientSummaryResponse> searchByPhone(String phone) {
+        log.info("Recherche par telephone: {}", phone);
+
+        PatientSearchRequest request = PatientSearchRequest.builder()
+                .telephone(phone)
+                .build();
+
+        return searchPatients(request).patients();
+    }
+
+    /**
+     * Recherche rapide (typeahead) - version adaptée
+     */
+    public List<PatientSummaryResponse> quickSearch(String query, int limit) {
+        log.info("Recherche rapide: {}", query);
+
+        if (query == null || query.trim().length() < 2) {
+            return List.of();
+        }
+
+        // Recherche dans nom complet, nom, prénom ou email
+        Specification<Patient> spec = Specification.where(PatientSpecifications.notDeleted())
+                .and(PatientSpecifications.nomCompletContains(query)
+                        .or(PatientSpecifications.hasNom(query))
+                        .or(PatientSpecifications.hasPrenom(query))
+                        .or(PatientSpecifications.hasEmailContaining(query)));
+
+        // Pagination pour limiter les résultats
+        Pageable pageable = PageRequest.of(0, limit, Sort.by("dateCreation").descending());
+        Page<Patient> patients = patientRepository.findAll(spec, pageable);
+
+        return patients.stream()
+                .map(this::mapToSummaryResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Vérifie si la requête de recherche est complètement vide
+     */
+    private boolean isEmptySearchRequest(PatientSearchRequest request) {
+        return !request.isNomCompletSearch() &&
+                !request.isNomPrenomSearch() &&
+                !StringUtils.hasText(request.numeroSecu()) &&
+                !StringUtils.hasText(request.email()) &&
+                !StringUtils.hasText(request.telephone()) &&
+                !StringUtils.hasText(request.ville()) &&
+                !StringUtils.hasText(request.codePostal()) &&
+                request.dateNaissance() == null &&
+                request.sexe() == null &&
+                request.statut() == null;
+    }
+
+    /**
      * Détermine si c'est une recherche exacte par email
-     * (email seul ou email qui ressemble à une adresse complète)
      */
     private boolean isEmailExactSearch(PatientSearchRequest request) {
         if (request.email() == null || request.email().trim().isEmpty()) {
@@ -10825,15 +11173,15 @@ public class PatientSearchService {
         }
 
         // Si c'est le seul critère de recherche, recherche exacte aussi
-        return areOtherCriteriaEmpty(request);
+        return isOnlyEmailSearch(request);
     }
 
     /**
-     * Vérifie si les autres critères sont vides
+     * Vérifie si seul l'email est utilisé comme critère
      */
-    private boolean areOtherCriteriaEmpty(PatientSearchRequest request) {
-        return (request.nom() == null || request.nom().trim().isEmpty()) &&
-                (request.prenom() == null || request.prenom().trim().isEmpty()) &&
+    private boolean isOnlyEmailSearch(PatientSearchRequest request) {
+        return !request.isNomCompletSearch() &&
+                !request.isNomPrenomSearch() &&
                 (request.numeroSecu() == null || request.numeroSecu().trim().isEmpty()) &&
                 (request.telephone() == null || request.telephone().trim().isEmpty()) &&
                 (request.ville() == null || request.ville().trim().isEmpty()) &&
@@ -10841,47 +11189,6 @@ public class PatientSearchService {
                 request.dateNaissance() == null &&
                 request.sexe() == null &&
                 request.statut() == null;
-    }
-
-    /**
-     * Recherche de patients par nom et prénom
-     */
-    public List<PatientSummaryResponse> searchByNomPrenom(String nom, String prenom) {
-        log.info("Recherche par nom: {} et prénom: {}", nom, prenom);
-
-        Specification<Patient> spec = PatientSpecifications.searchCriteria(
-                nom, prenom, null, null, null, null, null, null, null, null, false);
-
-        List<Patient> patients = patientRepository.findAll(spec);
-
-        return patients.stream()
-                .map(this::mapToSummaryResponse)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Recherche rapide (typeahead)
-     */
-    public List<PatientSummaryResponse> quickSearch(String query, int limit) {
-        log.info("Recherche rapide: {}", query);
-
-        if (query == null || query.trim().length() < 2) {
-            return List.of();
-        }
-
-        // Recherche dans nom, prénom ou email
-        Specification<Patient> spec = Specification.where(PatientSpecifications.notDeleted())
-                .and(PatientSpecifications.hasNom(query)
-                        .or(PatientSpecifications.hasPrenom(query))
-                        .or(PatientSpecifications.hasEmailContaining(query)));
-
-        // Pagination pour limiter les résultats
-        Pageable pageable = PageRequest.of(0, limit, Sort.by("dateCreation").descending());
-        Page<Patient> patients = patientRepository.findAll(spec, pageable);
-
-        return patients.stream()
-                .map(this::mapToSummaryResponse)
-                .collect(Collectors.toList());
     }
 
     /**
@@ -10910,13 +11217,22 @@ public class PatientSearchService {
      * Mappe un Patient vers PatientSummaryResponse
      */
     private PatientSummaryResponse mapToSummaryResponse(Patient patient) {
+        String nomComplet = String.format("%s %s",
+                patient.getNom() != null ? patient.getNom() : "",
+                patient.getPrenom() != null ? patient.getPrenom() : "").trim();
+
+        Integer age = null;
+        if (patient.getDateNaissance() != null) {
+            age = Period.between(patient.getDateNaissance(), LocalDate.now()).getYears();
+        }
+
         return PatientSummaryResponse.builder()
                 .id(patient.getId().toString())
-                .nomComplet(patient.getNomComplet())
+                .nomComplet(nomComplet)
                 .email(patient.getEmail())
                 .telephone(patient.getTelephone())
                 .dateNaissance(patient.getDateNaissance())
-                .age(patient.getAge())
+                .age(age)
                 .sexe(patient.getSexe())
                 .ville(patient.getVille())
                 .statut(patient.getStatut())
@@ -10924,7 +11240,7 @@ public class PatientSearchService {
                 .build();
     }
 
-    // ===== AUTRES MÉTHODES (inchangées) =====
+    // ===== MÉTHODES STATISTIQUES (inchangées) =====
 
     public long countActivePatients() {
         return patientRepository.countActivePatients();
@@ -10966,15 +11282,19 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Period;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Service principal pour la gestion des patients - Version centralisée
+ * Service principal pour la gestion des patients
+ * Architecture séparée : CRUD dans PatientService, recherches dans PatientSearchService
  */
 @Service
 @RequiredArgsConstructor
@@ -10983,7 +11303,11 @@ import java.util.stream.Collectors;
 public class PatientService {
 
     private final PatientRepository patientRepository;
-    private final PatientSearchService patientSearchService;
+    private final PatientSearchService patientSearchService; // Délégation pour les recherches
+
+    // ====================================================================
+    // MÉTHODES CRUD PRINCIPALES
+    // ====================================================================
 
     /**
      * Crée un nouveau patient avec structure centralisée
@@ -11010,114 +11334,180 @@ public class PatientService {
         }
 
         // 5. Sauvegarde
-        patient = patientRepository.save(patient);
+        Patient savedPatient = patientRepository.save(patient);
 
-        log.info("Patient créé avec succès: ID={}", patient.getId());
-        return mapToResponse(patient);
+        log.info("Patient créé avec succès: {} (ID: {})",
+                savedPatient.getNomComplet(), savedPatient.getId());
+
+        return mapToPatientResponse(savedPatient);
+    }
+
+    /**
+     * Récupère un patient par son ID
+     */
+    @Transactional(readOnly = true)
+    public PatientResponse getPatient(UUID id) {
+        log.debug("Récupération du patient: {}", id);
+
+        Patient patient = patientRepository.findByIdAndDateSuppressionIsNull(id)
+                .orElseThrow(() -> new PatientNotFoundException("Patient non trouvé: " + id));
+
+        return mapToPatientResponse(patient);
     }
 
     /**
      * Met à jour un patient existant
      */
-    public PatientResponse updatePatient(UUID patientId, UpdatePatientRequest request) {
-        log.info("Mise à jour du patient: {}", patientId);
+    public PatientResponse updatePatient(UUID id, UpdatePatientRequest request) {
+        log.info("Mise à jour du patient: {}", id);
 
-        Patient patient = getPatientById(patientId);
+        Patient patient = patientRepository.findByIdAndDateSuppressionIsNull(id)
+                .orElseThrow(() -> new PatientNotFoundException("Patient non trouvé: " + id));
 
-        // Validation de la mise à jour
-        validateUpdateRequest(request, patient);
+        // Mettre à jour les champs modifiables
+        updatePatientFields(patient, request);
 
-        // Mise à jour des informations personnelles
-        if (request.personalInfo() != null) {
-            updatePersonalInfo(patient, request.personalInfo());
-        }
+        Patient savedPatient = patientRepository.save(patient);
 
-        // Mise à jour des informations de contact
-        if (request.contactInfo() != null) {
-            updateContactInfo(patient, request.contactInfo());
-        }
+        log.info("Patient mis à jour: {} (ID: {})", savedPatient.getNomComplet(), id);
 
-        // Mise à jour des consentements
-        if (request.consent() != null) {
-            updateConsent(patient, request.consent());
-        }
-
-        // Mise à jour des assurances
-        if (request.insurances() != null) {
-            updateInsurances(patient, request.insurances());
-        }
-
-        patient = patientRepository.save(patient);
-        log.info("Patient mis à jour avec succès: {}", patientId);
-
-        return mapToResponse(patient);
-    }
-
-    /**
-     * Recherche un patient par ID
-     */
-    @Transactional(readOnly = true)
-    public PatientResponse getPatient(UUID patientId) {
-        Patient patient = getPatientById(patientId);
-        return mapToResponse(patient);
+        return mapToPatientResponse(savedPatient);
     }
 
     /**
      * Suppression logique d'un patient
      */
-    public void deletePatient(UUID patientId) {
-        log.info("Suppression du patient: {}", patientId);
+    public void deletePatient(UUID id, String deleteReason) {
+        log.info("Suppression logique du patient: {} - Raison: {}", id, deleteReason);
 
-        Patient patient = getPatientById(patientId);
-        patient.setStatut(PatientStatus.INACTIF);
+        Patient patient = patientRepository.findByIdAndDateSuppressionIsNull(id)
+                .orElseThrow(() -> new PatientNotFoundException("Patient non trouvé: " + id));
+
         patient.setDateSuppression(LocalDateTime.now());
+        patient.setStatut(PatientStatus.INACTIF);
 
         patientRepository.save(patient);
-        log.info("Patient supprimé avec succès: {}", patientId);
+
+        log.info("Patient supprimé logiquement: {}", id);
     }
 
+    // ====================================================================
+    // MÉTHODES DE RECHERCHE - DÉLÉGATION À PatientSearchService
+    // ====================================================================
+
     /**
-     * Recherche de patients avec critères multiples
+     * Recherche multicritères - DÉLÉGUÉ au PatientSearchService
      */
     @Transactional(readOnly = true)
     public PatientSearchResponse searchPatients(PatientSearchRequest request) {
-        log.info("Recherche de patients avec les critères: {}", request);
+        log.debug("Délégation de la recherche au PatientSearchService");
         return patientSearchService.searchPatients(request);
     }
 
     /**
-     * Recherche par email
+     * Recherche rapide par nom complet - DÉLÉGUÉ
+     */
+    @Transactional(readOnly = true)
+    public List<PatientSummaryResponse> quickSearchByNomComplet(String nomComplet) {
+        return patientSearchService.quickSearchByNomComplet(nomComplet);
+    }
+
+    /**
+     * Recherche par nom et prénom - DÉLÉGUÉ
+     */
+    @Transactional(readOnly = true)
+    public List<PatientSummaryResponse> searchByNomPrenom(String nom, String prenom) {
+        return patientSearchService.searchByNomPrenom(nom, prenom);
+    }
+
+    /**
+     * Recherche par nom et prénom - DÉLÉGUÉ
+     */
+    @Transactional(readOnly = true)
+    public List<PatientSummaryResponse> searchByPhone(String phone) {
+        return patientSearchService.searchByPhone(phone);
+    }
+
+    /**
+     * Suggestions d'autocomplétion - DÉLÉGUÉ
+     */
+    @Transactional(readOnly = true)
+    public List<String> suggestNomComplet(String input) {
+        return patientSearchService.suggestNomComplet(input);
+    }
+
+    /**
+     * Recherche rapide générale - DÉLÉGUÉ
+     */
+    @Transactional(readOnly = true)
+    public List<PatientSummaryResponse> quickSearch(String query, int limit) {
+        return patientSearchService.quickSearch(query, limit);
+    }
+
+    // ====================================================================
+    // MÉTHODES DE RECHERCHE SPÉCIFIQUES (restent dans PatientService)
+    // ====================================================================
+
+    /**
+     * Recherche par email - unique et critique pour l'authentification
      */
     @Transactional(readOnly = true)
     public Optional<PatientResponse> findByEmail(String email) {
-        return patientRepository.findByEmailIgnoreCaseAndDateSuppressionIsNull(email)
-                .map(this::mapToResponse);
+        log.debug("Recherche par email: {}", email);
+
+        if (!StringUtils.hasText(email)) {
+            return Optional.empty();
+        }
+
+        Optional<Patient> patient = patientRepository.findByEmailAndDateSuppressionIsNull(email.toLowerCase().trim());
+
+        return patient.map(this::mapToPatientResponse);
     }
 
     /**
-     * Recherche par téléphone
+     * Recherche par téléphone - unique et critique
      */
     @Transactional(readOnly = true)
     public Optional<PatientResponse> findByTelephone(String telephone) {
-        return patientRepository.findByTelephoneAndDateSuppressionIsNull(telephone)
-                .map(this::mapToResponse);
+        log.debug("Recherche par téléphone: {}", telephone);
+
+        if (!StringUtils.hasText(telephone)) {
+            return Optional.empty();
+        }
+
+        Optional<Patient> patient = patientRepository.findByTelephoneAndDateSuppressionIsNull(telephone.trim());
+
+        return patient.map(this::mapToPatientResponse);
     }
 
     /**
-     * Recherche par numéro de sécurité sociale
+     * Recherche par numéro de sécurité sociale - unique et critique
      */
     @Transactional(readOnly = true)
     public Optional<PatientResponse> findByNumeroSecu(String numeroSecu) {
-        return patientRepository.findByNumeroSecuAndDateSuppressionIsNull(numeroSecu)
-                .map(this::mapToResponse);
+        log.debug("Recherche par numéro de sécurité sociale");
+
+        if (!StringUtils.hasText(numeroSecu)) {
+            return Optional.empty();
+        }
+
+        Optional<Patient> patient = patientRepository.findByNumeroSecuAndDateSuppressionIsNull(numeroSecu.trim());
+
+        return patient.map(this::mapToPatientResponse);
     }
 
+    // ====================================================================
+    // MÉTHODES UTILITAIRES ET LISTES
+    // ====================================================================
+
     /**
-     * Obtient tous les patients actifs
+     * Liste des patients actifs avec pagination
      */
     @Transactional(readOnly = true)
     public List<PatientSummaryResponse> getActivePatients(int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("dateCreation").descending());
+        log.debug("Récupération des patients actifs - page: {}, size: {}", page, size);
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("nom", "prenom"));
         Page<Patient> patients = patientRepository.findByStatutAndDateSuppressionIsNull(
                 PatientStatus.ACTIF, pageable);
 
@@ -11126,26 +11516,52 @@ public class PatientService {
                 .collect(Collectors.toList());
     }
 
-    // ============================================
-    // MÉTHODES PRIVÉES
-    // ============================================
-
     /**
-     * Récupère un patient par ID ou lance une exception
+     * Compte le nombre de patients actifs
      */
-    private Patient getPatientById(UUID patientId) {
-        return patientRepository.findByIdAndDateSuppressionIsNull(patientId)
-                .orElseThrow(() -> new PatientNotFoundException("Patient non trouvé: " + patientId));
+    @Transactional(readOnly = true)
+    public long countActivePatients() {
+        return patientRepository.countByStatutAndDateSuppressionIsNull(PatientStatus.ACTIF);
     }
 
     /**
-     * Validation de la requête de création
+     * Vérifie si un patient existe par email
      */
-    private void validateCreateRequest(CreatePatientRequest request) {
-        if (request == null) {
-            throw new InvalidPatientDataException("La requête de création ne peut pas être nulle");
+    @Transactional(readOnly = true)
+    public boolean existsByEmail(String email) {
+        if (!StringUtils.hasText(email)) {
+            return false;
         }
+        return patientRepository.existsByEmailAndDateSuppressionIsNull(email.toLowerCase().trim());
+    }
 
+    /**
+     * Vérifie si un patient existe par téléphone
+     */
+    @Transactional(readOnly = true)
+    public boolean existsByTelephone(String telephone) {
+        if (!StringUtils.hasText(telephone)) {
+            return false;
+        }
+        return patientRepository.existsByTelephoneAndDateSuppressionIsNull(telephone.trim());
+    }
+
+    /**
+     * Vérifie si un patient existe par numéro de sécurité sociale
+     */
+    @Transactional(readOnly = true)
+    public boolean existsByNumeroSecu(String numeroSecu) {
+        if (!StringUtils.hasText(numeroSecu)) {
+            return false;
+        }
+        return patientRepository.existsByNumeroSecuAndDateSuppressionIsNull(numeroSecu.trim());
+    }
+
+    // ====================================================================
+    // MÉTHODES PRIVÉES DE SUPPORT
+    // ====================================================================
+
+    private void validateCreateRequest(CreatePatientRequest request) {
         if (request.personalInfo() == null) {
             throw new InvalidPatientDataException("Les informations personnelles sont obligatoires");
         }
@@ -11158,223 +11574,240 @@ public class PatientService {
             throw new InvalidPatientDataException("Les consentements sont obligatoires");
         }
 
-        // Validation du consentement obligatoire
-        if (!request.consent().consentementCreationCompte()) {
+        PersonalInfoRequest personalInfo = request.personalInfo();
+        ContactInfoRequest contactInfo = request.contactInfo();
+        ConsentRequest consent = request.consent();
+
+        // Validation des informations personnelles obligatoires
+        if (!StringUtils.hasText(personalInfo.nom()) || !StringUtils.hasText(personalInfo.prenom())) {
+            throw new InvalidPatientDataException("Le nom et le prénom sont obligatoires");
+        }
+
+        if (!StringUtils.hasText(personalInfo.numeroSecu())) {
+            throw new InvalidPatientDataException("Le numéro de sécurité sociale est obligatoire");
+        }
+
+        if (personalInfo.dateNaissance() == null) {
+            throw new InvalidPatientDataException("La date de naissance est obligatoire");
+        }
+
+        if (personalInfo.sexe() == null) {
+            throw new InvalidPatientDataException("Le sexe est obligatoire");
+        }
+
+        // Validation des informations de contact obligatoires
+        if (!StringUtils.hasText(contactInfo.email())) {
+            throw new InvalidPatientDataException("L'email est obligatoire");
+        }
+
+        if (!StringUtils.hasText(contactInfo.telephone())) {
+            throw new InvalidPatientDataException("Le téléphone est obligatoire");
+        }
+
+        if (!StringUtils.hasText(contactInfo.adresseLigne1()) ||
+                !StringUtils.hasText(contactInfo.codePostal()) ||
+                !StringUtils.hasText(contactInfo.ville())) {
+            throw new InvalidPatientDataException("L'adresse complète est obligatoire");
+        }
+
+        // Validation des consentements obligatoires
+        if (consent.consentementCreationCompte() == null || !consent.consentementCreationCompte()) {
             throw new InvalidPatientDataException("Le consentement de création de compte est obligatoire");
         }
     }
 
-    /**
-     * Validation de la requête de mise à jour
-     */
-    private void validateUpdateRequest(UpdatePatientRequest request, Patient patient) {
-        if (request == null) {
-            throw new InvalidPatientDataException("La requête de mise à jour ne peut pas être nulle");
-        }
-
-        // Validation que le patient peut être modifié
-        if (patient.getStatut() == PatientStatus.DECEDE) {
-            throw new InvalidPatientDataException("Impossible de modifier un patient décédé");
-        }
-    }
-
-    /**
-     * Vérification des doublons
-     */
     private void checkForDuplicates(CreatePatientRequest request) {
-        // Vérification par numéro de sécurité sociale
-        if (patientRepository.existsByNumeroSecuAndDateSuppressionIsNull(
-                request.personalInfo().numeroSecu())) {
-            throw new DuplicatePatientException("Un patient avec ce numéro de sécurité sociale existe déjà");
-        }
-
         // Vérification par email
-        if (patientRepository.existsByEmailIgnoreCaseAndDateSuppressionIsNull(
-                request.contactInfo().email())) {
+        if (existsByEmail(request.contactInfo().email())) {
             throw new DuplicatePatientException("Un patient avec cet email existe déjà");
         }
 
         // Vérification par téléphone
-        if (patientRepository.existsByTelephoneAndDateSuppressionIsNull(
-                request.contactInfo().telephone())) {
+        if (existsByTelephone(request.contactInfo().telephone())) {
             throw new DuplicatePatientException("Un patient avec ce téléphone existe déjà");
+        }
+
+        // Vérification par numéro de sécurité sociale
+        if (existsByNumeroSecu(request.personalInfo().numeroSecu())) {
+            throw new DuplicatePatientException("Un patient avec ce numéro de sécurité sociale existe déjà");
         }
     }
 
-    /**
-     * Construction de l'entité Patient depuis la requête
-     */
     private Patient buildPatientFromRequest(CreatePatientRequest request) {
         PersonalInfoRequest personalInfo = request.personalInfo();
         ContactInfoRequest contactInfo = request.contactInfo();
         ConsentRequest consent = request.consent();
 
-        return Patient.builder()
-                // Informations personnelles
-                .nom(personalInfo.nom())
-                .prenom(personalInfo.prenom())
-                .nomJeuneFille(personalInfo.nomJeuneFille())
-                .dateNaissance(personalInfo.dateNaissance())
-                .lieuNaissance(personalInfo.lieuNaissance())
-                .sexe(personalInfo.sexe())
-                .numeroSecu(personalInfo.numeroSecu())
-                .medecinTraitant(personalInfo.medecinTraitant())
-                .allergiesConnues(personalInfo.allergiesConnues())
-                .antecedentsMedicaux(personalInfo.antecedentsMedicaux())
+        Patient patient = new Patient();
+        // L'ID sera généré automatiquement par @GeneratedValue(strategy = GenerationType.UUID)
 
-                // Informations de contact centralisées
-                .email(contactInfo.email())
-                .telephone(contactInfo.telephone())
-                .adresseLigne1(contactInfo.adresseLigne1())
-                .adresseLigne2(contactInfo.adresseLigne2())
-                .codePostal(contactInfo.codePostal())
-                .ville(contactInfo.ville())
-                .departement(contactInfo.departement())
-                .region(contactInfo.region())
-                .pays(contactInfo.pays() != null ? contactInfo.pays() : "France")
-                .latitude(contactInfo.latitude())
-                .longitude(contactInfo.longitude())
+        // === INFORMATIONS PERSONNELLES ===
+        patient.setNom(personalInfo.nom().toUpperCase().trim());
+        patient.setPrenom(capitalizeFirstLetter(personalInfo.prenom().trim()));
+        patient.setNomJeuneFille(personalInfo.nomJeuneFille());
+        patient.setDateNaissance(personalInfo.dateNaissance());
+        patient.setLieuNaissance(personalInfo.lieuNaissance());
+        patient.setSexe(personalInfo.sexe());
+        patient.setNumeroSecu(personalInfo.numeroSecu());
+        patient.setMedecinTraitant(personalInfo.medecinTraitant());
+        patient.setAllergiesConnues(personalInfo.allergiesConnues());
+        patient.setAntecedentsMedicaux(personalInfo.antecedentsMedicaux());
 
-                // Préférences de communication
-                .methodeLivraisonPreferee(contactInfo.methodeLivraisonPreferee())
-                .preferenceNotification(contactInfo.preferenceNotification())
-                .languePreferee(contactInfo.languePreferee() != null ? contactInfo.languePreferee() : "fr-FR")
-                .notificationsResultats(contactInfo.notificationsResultats() != null ? contactInfo.notificationsResultats() : true)
-                .notificationsRdv(contactInfo.notificationsRdv() != null ? contactInfo.notificationsRdv() : true)
-                .notificationsRappels(contactInfo.notificationsRappels() != null ? contactInfo.notificationsRappels() : true)
+        // === INFORMATIONS DE CONTACT CENTRALISÉES ===
+        patient.setEmail(contactInfo.email().toLowerCase().trim());
+        patient.setTelephone(contactInfo.telephone());
+        patient.setAdresseLigne1(contactInfo.adresseLigne1());
+        patient.setAdresseLigne2(contactInfo.adresseLigne2());
+        patient.setCodePostal(contactInfo.codePostal());
+        patient.setVille(contactInfo.ville());
+        patient.setDepartement(contactInfo.departement());
+        patient.setRegion(contactInfo.region());
+        patient.setPays(contactInfo.pays() != null ? contactInfo.pays() : "France");
+        patient.setLatitude(contactInfo.latitude());
+        patient.setLongitude(contactInfo.longitude());
 
-                // Consentements RGPD
-                .consentementCreationCompte(consent.consentementCreationCompte())
-                .consentementSms(consent.consentementSms())
-                .consentementEmail(consent.consentementEmail())
-                .dateConsentement(consent.consentementCreationCompte() ? LocalDateTime.now() : null)
+        // === PRÉFÉRENCES DE COMMUNICATION ===
+        patient.setMethodeLivraisonPreferee(contactInfo.methodeLivraisonPreferee());
+        patient.setPreferenceNotification(contactInfo.preferenceNotification());
+        patient.setLanguePreferee(contactInfo.languePreferee() != null ? contactInfo.languePreferee() : "fr-FR");
+        patient.setNotificationsResultats(contactInfo.notificationsResultats() != null ? contactInfo.notificationsResultats() : true);
+        patient.setNotificationsRdv(contactInfo.notificationsRdv() != null ? contactInfo.notificationsRdv() : true);
+        patient.setNotificationsRappels(contactInfo.notificationsRappels() != null ? contactInfo.notificationsRappels() : true);
 
-                // Métadonnées
-                .statut(PatientStatus.ACTIF)
-                .creePar(request.createdBy())
-                .build();
+        // === CONSENTEMENTS RGPD ===
+        patient.setConsentementCreationCompte(consent.consentementCreationCompte());
+        patient.setConsentementSms(consent.consentementSms());
+        patient.setConsentementEmail(consent.consentementEmail());
+        patient.setDateConsentement(LocalDateTime.now());
+
+        // === MÉTADONNÉES ===
+        patient.setStatut(PatientStatus.ACTIF);
+        patient.setDateCreation(LocalDateTime.now());
+        patient.setCreepar(request.createdBy() != null ? request.createdBy() : "SYSTEM");
+
+        return patient;
     }
 
-    /**
-     * Construction d'une assurance depuis la requête
-     */
     private PatientAssurance buildAssuranceFromRequest(InsuranceRequest request) {
-        return PatientAssurance.builder()
-                .typeAssurance(request.typeAssurance())
-                .nomOrganisme(request.nomOrganisme())
-                .numeroAdherent(request.numeroAdherent())
-                .dateDebut(request.dateDebut())
-                .dateFin(request.dateFin())
-                .tiersPayantAutorise(request.tiersPayantAutorise() != null ? request.tiersPayantAutorise() : false)
-                .pourcentagePriseCharge(request.pourcentagePriseCharge())
-                .referenceDocument(request.referenceDocument())
-                .estActive(true)
-                .build();
+        PatientAssurance assurance = new PatientAssurance();
+        // L'ID sera généré automatiquement si l'entité a @GeneratedValue
+        assurance.setTypeAssurance(request.typeAssurance());
+        assurance.setNomOrganisme(request.nomOrganisme());
+        assurance.setNumeroAdherent(request.numeroAdherent());
+        assurance.setDateDebut(request.dateDebut());
+        assurance.setDateFin(request.dateFin());
+        assurance.setTiersPayantAutorise(request.tiersPayantAutorise());
+        assurance.setPourcentagePriseCharge(request.pourcentagePriseCharge());
+        assurance.setReferenceDocument(request.referenceDocument());
+        assurance.setEstActive(true);
+        return assurance;
     }
 
-    /**
-     * Met à jour les informations personnelles
-     */
-    private void updatePersonalInfo(Patient patient, PersonalInfoUpdateRequest personalInfo) {
-        if (personalInfo.nom() != null) patient.setNom(personalInfo.nom());
-        if (personalInfo.prenom() != null) patient.setPrenom(personalInfo.prenom());
-        if (personalInfo.nomJeuneFille() != null) patient.setNomJeuneFille(personalInfo.nomJeuneFille());
-        if (personalInfo.dateNaissance() != null) patient.setDateNaissance(personalInfo.dateNaissance());
-        if (personalInfo.lieuNaissance() != null) patient.setLieuNaissance(personalInfo.lieuNaissance());
-        if (personalInfo.sexe() != null) patient.setSexe(personalInfo.sexe());
-        if (personalInfo.medecinTraitant() != null) patient.setMedecinTraitant(personalInfo.medecinTraitant());
-        if (personalInfo.allergiesConnues() != null) patient.setAllergiesConnues(personalInfo.allergiesConnues());
-        if (personalInfo.antecedentsMedicaux() != null) patient.setAntecedentsMedicaux(personalInfo.antecedentsMedicaux());
-    }
-
-    /**
-     * Met à jour les informations de contact
-     */
-    private void updateContactInfo(Patient patient, ContactInfoUpdateRequest contactInfo) {
-        if (contactInfo.email() != null) patient.setEmail(contactInfo.email());
-        if (contactInfo.telephone() != null) patient.setTelephone(contactInfo.telephone());
-        if (contactInfo.adresseLigne1() != null) patient.setAdresseLigne1(contactInfo.adresseLigne1());
-        if (contactInfo.adresseLigne2() != null) patient.setAdresseLigne2(contactInfo.adresseLigne2());
-        if (contactInfo.codePostal() != null) patient.setCodePostal(contactInfo.codePostal());
-        if (contactInfo.ville() != null) patient.setVille(contactInfo.ville());
-        if (contactInfo.departement() != null) patient.setDepartement(contactInfo.departement());
-        if (contactInfo.region() != null) patient.setRegion(contactInfo.region());
-        if (contactInfo.pays() != null) patient.setPays(contactInfo.pays());
-        if (contactInfo.latitude() != null) patient.setLatitude(contactInfo.latitude());
-        if (contactInfo.longitude() != null) patient.setLongitude(contactInfo.longitude());
-        if (contactInfo.methodeLivraisonPreferee() != null) patient.setMethodeLivraisonPreferee(contactInfo.methodeLivraisonPreferee());
-        if (contactInfo.preferenceNotification() != null) patient.setPreferenceNotification(contactInfo.preferenceNotification());
-        if (contactInfo.languePreferee() != null) patient.setLanguePreferee(contactInfo.languePreferee());
-        if (contactInfo.notificationsResultats() != null) patient.setNotificationsResultats(contactInfo.notificationsResultats());
-        if (contactInfo.notificationsRdv() != null) patient.setNotificationsRdv(contactInfo.notificationsRdv());
-        if (contactInfo.notificationsRappels() != null) patient.setNotificationsRappels(contactInfo.notificationsRappels());
-    }
-
-    /**
-     * Met à jour les consentements
-     */
-    private void updateConsent(Patient patient, ConsentUpdateRequest consent) {
-        if (consent.consentementSms() != null) patient.setConsentementSms(consent.consentementSms());
-        if (consent.consentementEmail() != null) patient.setConsentementEmail(consent.consentementEmail());
-    }
-
-    /**
-     * Met à jour les assurances
-     */
-    private void updateInsurances(Patient patient, List<InsuranceRequest> insurances) {
-        // Suppression des anciennes assurances
-        patient.getAssurances().clear();
-
-        // Ajout des nouvelles assurances
-        for (InsuranceRequest insuranceRequest : insurances) {
-            PatientAssurance assurance = buildAssuranceFromRequest(insuranceRequest);
-            patient.addAssurance(assurance);
+    private void updatePatientFields(Patient patient, UpdatePatientRequest request) {
+        // Mise à jour des informations personnelles
+        if (request.personalInfo() != null) {
+            PersonalInfoUpdateRequest personalInfo = request.personalInfo(); // ← Correction du type
+            if (StringUtils.hasText(personalInfo.nom())) {
+                patient.setNom(personalInfo.nom().toUpperCase().trim());
+            }
+            if (StringUtils.hasText(personalInfo.prenom())) {
+                patient.setPrenom(capitalizeFirstLetter(personalInfo.prenom().trim()));
+            }
+            if (personalInfo.dateNaissance() != null) {
+                patient.setDateNaissance(personalInfo.dateNaissance());
+            }
+            if (personalInfo.sexe() != null) {
+                patient.setSexe(personalInfo.sexe());
+            }
+            if (StringUtils.hasText(personalInfo.nomJeuneFille())) {
+                patient.setNomJeuneFille(personalInfo.nomJeuneFille());
+            }
+            if (StringUtils.hasText(personalInfo.lieuNaissance())) {
+                patient.setLieuNaissance(personalInfo.lieuNaissance());
+            }
+            if (StringUtils.hasText(personalInfo.medecinTraitant())) {
+                patient.setMedecinTraitant(personalInfo.medecinTraitant());
+            }
+            if (personalInfo.allergiesConnues() != null) {
+                patient.setAllergiesConnues(personalInfo.allergiesConnues());
+            }
+            if (personalInfo.antecedentsMedicaux() != null) {
+                patient.setAntecedentsMedicaux(personalInfo.antecedentsMedicaux());
+            }
         }
+
+        // Mise à jour des informations de contact
+        if (request.contactInfo() != null) {
+            ContactInfoUpdateRequest contactInfo = request.contactInfo(); // ← Probablement aussi à corriger
+            if (StringUtils.hasText(contactInfo.email())) {
+                patient.setEmail(contactInfo.email().toLowerCase().trim());
+            }
+            if (StringUtils.hasText(contactInfo.telephone())) {
+                patient.setTelephone(contactInfo.telephone());
+            }
+            if (StringUtils.hasText(contactInfo.adresseLigne1())) {
+                patient.setAdresseLigne1(contactInfo.adresseLigne1());
+            }
+            if (contactInfo.adresseLigne2() != null) {
+                patient.setAdresseLigne2(contactInfo.adresseLigne2());
+            }
+            if (StringUtils.hasText(contactInfo.codePostal())) {
+                patient.setCodePostal(contactInfo.codePostal());
+            }
+            if (StringUtils.hasText(contactInfo.ville())) {
+                patient.setVille(contactInfo.ville());
+            }
+            if (contactInfo.departement() != null) {
+                patient.setDepartement(contactInfo.departement());
+            }
+            if (contactInfo.region() != null) {
+                patient.setRegion(contactInfo.region());
+            }
+            if (contactInfo.pays() != null) {
+                patient.setPays(contactInfo.pays());
+            }
+            if (contactInfo.preferenceNotification() != null) {
+                patient.setPreferenceNotification(contactInfo.preferenceNotification());
+            }
+            if (contactInfo.languePreferee() != null) {
+                patient.setLanguePreferee(contactInfo.languePreferee());
+            }
+        }
+
+        patient.setDateModification(LocalDateTime.now());
+        patient.setModifiePar("SYSTEM"); // À adapter selon le contexte d'authentification
+    }
+
+    private String capitalizeFirstLetter(String str) {
+        if (str == null || str.isEmpty()) {
+            return str;
+        }
+        return str.substring(0, 1).toUpperCase() + str.substring(1).toLowerCase();
     }
 
     /**
-     * Mappe un Patient vers PatientResponse
+     * Mapping complet vers PatientResponse
      */
-    private PatientResponse mapToResponse(Patient patient) {
-        return PatientResponse.builder()
-                .id(patient.getId().toString())
-                .personalInfo(mapToPersonalInfoResponse(patient))
-                .contactInfo(mapToContactInfoResponse(patient))
-                .insurances(patient.getAssurances().stream()
-                        .map(this::mapToInsuranceResponse)
-                        .collect(Collectors.toList()))
-                .consent(mapToConsentResponse(patient))
-                .metadata(mapToMetadataResponse(patient))
-                .build();
-    }
-
-    /**
-     * Mappe vers PersonalInfoResponse
-     */
-    private PersonalInfoResponse mapToPersonalInfoResponse(Patient patient) {
-        return PersonalInfoResponse.builder()
+    private PatientResponse mapToPatientResponse(Patient patient) {
+        // Construction des informations personnelles
+        PersonalInfoResponse personalInfo = PersonalInfoResponse.builder()
                 .nom(patient.getNom())
                 .prenom(patient.getPrenom())
                 .nomJeuneFille(patient.getNomJeuneFille())
                 .dateNaissance(patient.getDateNaissance())
                 .lieuNaissance(patient.getLieuNaissance())
                 .sexe(patient.getSexe())
-                .numeroSecuMasque(patient.getNumeroSecuMasque())
+                .numeroSecuMasque(maskNumeroSecu(patient.getNumeroSecu()))
                 .age(patient.getAge())
                 .medecinTraitant(patient.getMedecinTraitant())
                 .allergiesConnues(patient.getAllergiesConnues())
                 .antecedentsMedicaux(patient.getAntecedentsMedicaux())
                 .build();
-    }
 
-    /**
-     * Mappe vers ContactInfoResponse
-     */
-    private ContactInfoResponse mapToContactInfoResponse(Patient patient) {
-        return ContactInfoResponse.builder()
+        // Construction des informations de contact
+        ContactInfoResponse contactInfo = ContactInfoResponse.builder()
                 .email(patient.getEmail())
                 .telephone(patient.getTelephone())
-                .adresseComplete(patient.getAdresseComplete())
                 .adresseLigne1(patient.getAdresseLigne1())
                 .adresseLigne2(patient.getAdresseLigne2())
                 .codePostal(patient.getCodePostal())
@@ -11391,68 +11824,66 @@ public class PatientService {
                 .notificationsRdv(patient.getNotificationsRdv())
                 .notificationsRappels(patient.getNotificationsRappels())
                 .build();
-    }
 
-    /**
-     * Mappe vers InsuranceResponse
-     */
-    private InsuranceResponse mapToInsuranceResponse(PatientAssurance assurance) {
-        return InsuranceResponse.builder()
-                .id(assurance.getId().toString())
-                .typeAssurance(assurance.getTypeAssurance())
-                .nomOrganisme(assurance.getNomOrganisme())
-                .numeroAdherent(assurance.getNumeroAdherent())
-                .dateDebut(assurance.getDateDebut())
-                .dateFin(assurance.getDateFin())
-                .estActive(assurance.getEstActive())
-                .tiersPayantAutorise(assurance.getTiersPayantAutorise())
-                .pourcentagePriseCharge(assurance.getPourcentagePriseCharge())
-                .referenceDocument(assurance.getReferenceDocument())
-                .build();
-    }
-
-    /**
-     * Mappe vers ConsentResponse
-     */
-    private ConsentResponse mapToConsentResponse(Patient patient) {
-        return ConsentResponse.builder()
+        // Construction des consentements
+        ConsentResponse consent = ConsentResponse.builder()
                 .consentementCreationCompte(patient.getConsentementCreationCompte())
                 .consentementSms(patient.getConsentementSms())
                 .consentementEmail(patient.getConsentementEmail())
                 .dateConsentement(patient.getDateConsentement())
                 .build();
-    }
 
-    /**
-     * Mappe vers MetadataResponse
-     */
-    private MetadataResponse mapToMetadataResponse(Patient patient) {
-        return MetadataResponse.builder()
+        // Construction des métadonnées
+        MetadataResponse metadata = MetadataResponse.builder()
                 .statut(patient.getStatut())
                 .dateCreation(patient.getDateCreation())
                 .dateModification(patient.getDateModification())
                 .creePar(patient.getCreePar())
                 .modifiePar(patient.getModifiePar())
-                .actif(patient.isActive())
+                .actif(patient.getStatut() == PatientStatus.ACTIF)
+                .build();
+
+        return PatientResponse.builder()
+                .id(patient.getId().toString()) // Convertir UUID en String pour le DTO
+                .personalInfo(personalInfo)
+                .contactInfo(contactInfo)
+                .consent(consent)
+                .metadata(metadata)
                 .build();
     }
 
     /**
-     * Mappe vers PatientSummaryResponse
+     * Mapping simplifié vers PatientSummaryResponse
      */
     private PatientSummaryResponse mapToSummaryResponse(Patient patient) {
+        String nomComplet = String.format("%s %s",
+                patient.getNom() != null ? patient.getNom() : "",
+                patient.getPrenom() != null ? patient.getPrenom() : "").trim();
+
+        Integer age = null;
+        if (patient.getDateNaissance() != null) {
+            age = Period.between(patient.getDateNaissance(), LocalDate.now()).getYears();
+        }
+
         return PatientSummaryResponse.builder()
-                .id(patient.getId().toString())
-                .nomComplet(patient.getNomComplet())
+                .id(patient.getId().toString()) // Convertir UUID en String pour le DTO
+                .nomComplet(nomComplet)
                 .email(patient.getEmail())
                 .telephone(patient.getTelephone())
                 .dateNaissance(patient.getDateNaissance())
-                .age(patient.getAge())
+                .age(age)
                 .sexe(patient.getSexe())
                 .ville(patient.getVille())
                 .statut(patient.getStatut())
                 .dateCreation(patient.getDateCreation())
                 .build();
+    }
+
+    private String maskNumeroSecu(String numeroSecu) {
+        if (numeroSecu == null || numeroSecu.length() < 8) {
+            return "****";
+        }
+        return numeroSecu.substring(0, 4) + "***" + numeroSecu.substring(numeroSecu.length() - 2);
     }
 }
 ```
@@ -11929,14 +12360,24 @@ package com.lims.patient.specification;
 import com.lims.patient.entity.Patient;
 import com.lims.patient.enums.GenderType;
 import com.lims.patient.enums.PatientStatus;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Predicate;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Specifications pour construire dynamiquement les requêtes Patient
+ * Spécifications JPA complètes pour les requêtes de recherche de patients
+ * Version adaptée avec support du nomComplet
  */
+@Slf4j
 public class PatientSpecifications {
+
+    // ===== SPÉCIFICATIONS DE BASE =====
 
     /**
      * Specification de base : patient non supprimé
@@ -11945,6 +12386,82 @@ public class PatientSpecifications {
         return (root, query, criteriaBuilder) ->
                 criteriaBuilder.isNull(root.get("dateSuppression"));
     }
+
+    // ===== SPÉCIFICATIONS POUR NOM COMPLET =====
+
+    /**
+     * Recherche par nom complet - version simple
+     */
+    public static Specification<Patient> nomCompletContains(String nomComplet) {
+        return (root, query, criteriaBuilder) -> {
+            if (!StringUtils.hasText(nomComplet)) {
+                return criteriaBuilder.conjunction();
+            }
+
+            String searchValue = "%" + nomComplet.toLowerCase() + "%";
+
+            // Créer une expression concaténée : nom + " " + prenom
+            Expression<String> nomCompletExpression = criteriaBuilder.concat(
+                    criteriaBuilder.lower(root.get("nom")),
+                    criteriaBuilder.concat(" ", criteriaBuilder.lower(root.get("prenom")))
+            );
+
+            // Aussi créer l'expression inverse : prenom + " " + nom
+            Expression<String> prenomNomExpression = criteriaBuilder.concat(
+                    criteriaBuilder.lower(root.get("prenom")),
+                    criteriaBuilder.concat(" ", criteriaBuilder.lower(root.get("nom")))
+            );
+
+            // Chercher dans les deux sens
+            Predicate nomPrenomMatch = criteriaBuilder.like(nomCompletExpression, searchValue);
+            Predicate prenomNomMatch = criteriaBuilder.like(prenomNomExpression, searchValue);
+
+            // Aussi chercher dans nom seul et prénom seul
+            Predicate nomSeulMatch = criteriaBuilder.like(
+                    criteriaBuilder.lower(root.get("nom")), searchValue);
+            Predicate prenomSeulMatch = criteriaBuilder.like(
+                    criteriaBuilder.lower(root.get("prenom")), searchValue);
+
+            return criteriaBuilder.or(nomPrenomMatch, prenomNomMatch, nomSeulMatch, prenomSeulMatch);
+        };
+    }
+
+    /**
+     * Recherche avancée par nom complet avec mots-clés multiples
+     */
+    public static Specification<Patient> nomCompletAdvanced(String nomComplet) {
+        return (root, query, criteriaBuilder) -> {
+            if (!StringUtils.hasText(nomComplet)) {
+                return criteriaBuilder.conjunction();
+            }
+
+            String[] keywords = nomComplet.trim().toLowerCase().split("\\s+");
+
+            if (keywords.length == 1) {
+                // Un seul mot : recherche simple
+                return nomCompletContains(nomComplet).toPredicate(root, query, criteriaBuilder);
+            }
+
+            // Plusieurs mots : chaque mot doit être trouvé dans nom OU prénom
+            List<Predicate> keywordPredicates = new ArrayList<>();
+
+            for (String keyword : keywords) {
+                String searchValue = "%" + keyword + "%";
+
+                Predicate nomMatch = criteriaBuilder.like(
+                        criteriaBuilder.lower(root.get("nom")), searchValue);
+                Predicate prenomMatch = criteriaBuilder.like(
+                        criteriaBuilder.lower(root.get("prenom")), searchValue);
+
+                keywordPredicates.add(criteriaBuilder.or(nomMatch, prenomMatch));
+            }
+
+            // Tous les mots-clés doivent être trouvés (AND)
+            return criteriaBuilder.and(keywordPredicates.toArray(new Predicate[0]));
+        };
+    }
+
+    // ===== SPÉCIFICATIONS INDIVIDUELLES =====
 
     /**
      * Recherche par nom (insensible à la casse, recherche partielle)
@@ -12010,20 +12527,31 @@ public class PatientSpecifications {
     }
 
     /**
-     * Recherche par téléphone (recherche partielle)
+     * Recherche par téléphone (recherche partielle avec nettoyage des caractères)
      */
     public static Specification<Patient> hasTelephone(String telephone) {
         return (root, query, criteriaBuilder) -> {
             if (telephone == null || telephone.trim().isEmpty()) {
                 return criteriaBuilder.conjunction();
             }
-            String searchTerm = "%" + telephone.trim() + "%";
-            return criteriaBuilder.like(root.get("telephone"), searchTerm);
+
+            // Nettoyer le numéro de recherche
+            String cleanSearchPhone = telephone.replaceAll("[^0-9+]", "");
+            String searchTerm = "%" + cleanSearchPhone + "%";
+
+            // Recherche dans le téléphone nettoyé
+            return criteriaBuilder.like(
+                    criteriaBuilder.function("REGEXP_REPLACE", String.class,
+                            root.get("telephone"),
+                            criteriaBuilder.literal("[^0-9+]"),
+                            criteriaBuilder.literal("")),
+                    searchTerm
+            );
         };
     }
 
     /**
-     * Recherche par ville (insensible à la casse, recherche partielle)
+     * Recherche par ville (recherche partielle, insensible à la casse)
      */
     public static Specification<Patient> hasVille(String ville) {
         return (root, query, criteriaBuilder) -> {
@@ -12087,7 +12615,7 @@ public class PatientSpecifications {
     }
 
     /**
-     * Recherche par numéro de sécurité sociale
+     * Recherche par numéro de sécurité sociale (égalité exacte)
      */
     public static Specification<Patient> hasNumeroSecu(String numeroSecu) {
         return (root, query, criteriaBuilder) -> {
@@ -12098,8 +12626,21 @@ public class PatientSpecifications {
         };
     }
 
+    // ===== SPÉCIFICATIONS COMPOSÉES =====
+
     /**
-     * Combine toutes les specifications pour la recherche multicritères
+     * Patients actifs (non supprimés + statut actif)
+     */
+    public static Specification<Patient> active() {
+        return (root, query, criteriaBuilder) ->
+                criteriaBuilder.and(
+                        criteriaBuilder.isNull(root.get("dateSuppression")),
+                        criteriaBuilder.equal(root.get("statut"), PatientStatus.ACTIF)
+                );
+    }
+
+    /**
+     * Recherche générale multi-critères (version legacy pour compatibilité)
      */
     public static Specification<Patient> searchCriteria(
             String nom,
@@ -12125,6 +12666,52 @@ public class PatientSpecifications {
                 .and(hasDateNaissance(dateNaissance))
                 .and(hasSexe(sexe))
                 .and(hasStatut(statut));
+    }
+
+    // ===== SPÉCIFICATIONS UTILITAIRES =====
+
+    /**
+     * Recherche par tranche d'âge
+     */
+    public static Specification<Patient> ageEntre(int ageMin, int ageMax) {
+        return (root, query, criteriaBuilder) -> {
+            LocalDate now = LocalDate.now();
+            LocalDate dateMaxNaissance = now.minusYears(ageMin);
+            LocalDate dateMinNaissance = now.minusYears(ageMax + 1);
+
+            return criteriaBuilder.between(
+                    root.get("dateNaissance"),
+                    dateMinNaissance,
+                    dateMaxNaissance
+            );
+        };
+    }
+
+    /**
+     * Patients créés récemment (derniers X jours)
+     */
+    public static Specification<Patient> creesDepuis(int jours) {
+        return (root, query, criteriaBuilder) -> {
+            LocalDate dateLimit = LocalDate.now().minusDays(jours);
+            return criteriaBuilder.greaterThanOrEqualTo(
+                    criteriaBuilder.function("DATE", LocalDate.class, root.get("dateCreation")),
+                    dateLimit
+            );
+        };
+    }
+
+    /**
+     * Recherche par département (basée sur le code postal)
+     */
+    public static Specification<Patient> dansLeDepartement(String codeDepartement) {
+        return (root, query, criteriaBuilder) -> {
+            if (codeDepartement == null || codeDepartement.trim().isEmpty()) {
+                return criteriaBuilder.conjunction();
+            }
+
+            String pattern = codeDepartement.trim() + "%";
+            return criteriaBuilder.like(root.get("codePostal"), pattern);
+        };
     }
 }
 ```

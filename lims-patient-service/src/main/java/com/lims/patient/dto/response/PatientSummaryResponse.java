@@ -17,6 +17,7 @@ public record PatientSummaryResponse(
         String email,
         String telephone,
         LocalDate dateNaissance,
+        String numeroSecuMasque,
         Integer age,
         GenderType sexe,
         String ville,

@@ -238,6 +238,16 @@ public class PatientSearchService {
         return searchPatients(request).patients();
     }
 
+    public List<PatientSummaryResponse> searchByPhone(String phone) {
+        log.info("Recherche par telephone: {}", phone);
+
+        PatientSearchRequest request = PatientSearchRequest.builder()
+                .telephone(phone)
+                .build();
+
+        return searchPatients(request).patients();
+    }
+
     /**
      * Recherche rapide (typeahead) - version adaptée
      */

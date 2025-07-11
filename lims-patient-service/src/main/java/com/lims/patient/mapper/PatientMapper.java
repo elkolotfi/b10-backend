@@ -43,6 +43,7 @@ public interface PatientMapper {
     @Mapping(target = "nomComplet", source = ".", qualifiedByName = "buildFullName")
     @Mapping(target = "email", source = "email")
     @Mapping(target = "telephone", source = "telephone")
+    @Mapping(target = "numeroSecuMasque", source = "numeroSecuMasque")
     @Mapping(target = "dateNaissance", source = "dateNaissance")
     @Mapping(target = "age", source = ".", qualifiedByName = "calculateAge")
     @Mapping(target = "sexe", source = "sexe")
