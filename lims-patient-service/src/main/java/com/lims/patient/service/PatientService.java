@@ -17,15 +17,19 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Period;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Service principal pour la gestion des patients - Version centralisée
+ * Service principal pour la gestion des patients
+ * Architecture séparée : CRUD dans PatientService, recherches dans PatientSearchService
  */
 @Service
 @RequiredArgsConstructor
@@ -34,7 +38,11 @@ import java.util.stream.Collectors;
 public class PatientService {
 
     private final PatientRepository patientRepository;
-    private final PatientSearchService patientSearchService;
+    private final PatientSearchService patientSearchService; // Délégation pour les recherches
+
+    // ====================================================================
+    // MÉTHODES CRUD PRINCIPALES
+    // ====================================================================
 
     /**
      * Crée un nouveau patient avec structure centralisée
@@ -61,114 +69,172 @@ public class PatientService {
         }
 
         // 5. Sauvegarde
-        patient = patientRepository.save(patient);
+        Patient savedPatient = patientRepository.save(patient);
 
-        log.info("Patient créé avec succès: ID={}", patient.getId());
-        return mapToResponse(patient);
+        log.info("Patient créé avec succès: {} (ID: {})",
+                savedPatient.getNomComplet(), savedPatient.getId());
+
+        return mapToPatientResponse(savedPatient);
+    }
+
+    /**
+     * Récupère un patient par son ID
+     */
+    @Transactional(readOnly = true)
+    public PatientResponse getPatient(UUID id) {
+        log.debug("Récupération du patient: {}", id);
+
+        Patient patient = patientRepository.findByIdAndDateSuppressionIsNull(id)
+                .orElseThrow(() -> new PatientNotFoundException("Patient non trouvé: " + id));
+
+        return mapToPatientResponse(patient);
     }
 
     /**
      * Met à jour un patient existant
      */
-    public PatientResponse updatePatient(UUID patientId, UpdatePatientRequest request) {
-        log.info("Mise à jour du patient: {}", patientId);
+    public PatientResponse updatePatient(UUID id, UpdatePatientRequest request) {
+        log.info("Mise à jour du patient: {}", id);
 
-        Patient patient = getPatientById(patientId);
+        Patient patient = patientRepository.findByIdAndDateSuppressionIsNull(id)
+                .orElseThrow(() -> new PatientNotFoundException("Patient non trouvé: " + id));
 
-        // Validation de la mise à jour
-        validateUpdateRequest(request, patient);
+        // Mettre à jour les champs modifiables
+        updatePatientFields(patient, request);
 
-        // Mise à jour des informations personnelles
-        if (request.personalInfo() != null) {
-            updatePersonalInfo(patient, request.personalInfo());
-        }
+        Patient savedPatient = patientRepository.save(patient);
 
-        // Mise à jour des informations de contact
-        if (request.contactInfo() != null) {
-            updateContactInfo(patient, request.contactInfo());
-        }
+        log.info("Patient mis à jour: {} (ID: {})", savedPatient.getNomComplet(), id);
 
-        // Mise à jour des consentements
-        if (request.consent() != null) {
-            updateConsent(patient, request.consent());
-        }
-
-        // Mise à jour des assurances
-        if (request.insurances() != null) {
-            updateInsurances(patient, request.insurances());
-        }
-
-        patient = patientRepository.save(patient);
-        log.info("Patient mis à jour avec succès: {}", patientId);
-
-        return mapToResponse(patient);
-    }
-
-    /**
-     * Recherche un patient par ID
-     */
-    @Transactional(readOnly = true)
-    public PatientResponse getPatient(UUID patientId) {
-        Patient patient = getPatientById(patientId);
-        return mapToResponse(patient);
+        return mapToPatientResponse(savedPatient);
     }
 
     /**
      * Suppression logique d'un patient
      */
-    public void deletePatient(UUID patientId) {
-        log.info("Suppression du patient: {}", patientId);
+    public void deletePatient(UUID id, String deleteReason) {
+        log.info("Suppression logique du patient: {} - Raison: {}", id, deleteReason);
 
-        Patient patient = getPatientById(patientId);
-        patient.setStatut(PatientStatus.INACTIF);
+        Patient patient = patientRepository.findByIdAndDateSuppressionIsNull(id)
+                .orElseThrow(() -> new PatientNotFoundException("Patient non trouvé: " + id));
+
         patient.setDateSuppression(LocalDateTime.now());
+        patient.setStatut(PatientStatus.INACTIF);
 
         patientRepository.save(patient);
-        log.info("Patient supprimé avec succès: {}", patientId);
+
+        log.info("Patient supprimé logiquement: {}", id);
     }
 
+    // ====================================================================
+    // MÉTHODES DE RECHERCHE - DÉLÉGATION À PatientSearchService
+    // ====================================================================
+
     /**
-     * Recherche de patients avec critères multiples
+     * Recherche multicritères - DÉLÉGUÉ au PatientSearchService
      */
     @Transactional(readOnly = true)
     public PatientSearchResponse searchPatients(PatientSearchRequest request) {
-        log.info("Recherche de patients avec les critères: {}", request);
+        log.debug("Délégation de la recherche au PatientSearchService");
         return patientSearchService.searchPatients(request);
     }
 
     /**
-     * Recherche par email
+     * Recherche rapide par nom complet - DÉLÉGUÉ
+     */
+    @Transactional(readOnly = true)
+    public List<PatientSummaryResponse> quickSearchByNomComplet(String nomComplet) {
+        return patientSearchService.quickSearchByNomComplet(nomComplet);
+    }
+
+    /**
+     * Recherche par nom et prénom - DÉLÉGUÉ
+     */
+    @Transactional(readOnly = true)
+    public List<PatientSummaryResponse> searchByNomPrenom(String nom, String prenom) {
+        return patientSearchService.searchByNomPrenom(nom, prenom);
+    }
+
+    /**
+     * Suggestions d'autocomplétion - DÉLÉGUÉ
+     */
+    @Transactional(readOnly = true)
+    public List<String> suggestNomComplet(String input) {
+        return patientSearchService.suggestNomComplet(input);
+    }
+
+    /**
+     * Recherche rapide générale - DÉLÉGUÉ
+     */
+    @Transactional(readOnly = true)
+    public List<PatientSummaryResponse> quickSearch(String query, int limit) {
+        return patientSearchService.quickSearch(query, limit);
+    }
+
+    // ====================================================================
+    // MÉTHODES DE RECHERCHE SPÉCIFIQUES (restent dans PatientService)
+    // ====================================================================
+
+    /**
+     * Recherche par email - unique et critique pour l'authentification
      */
     @Transactional(readOnly = true)
     public Optional<PatientResponse> findByEmail(String email) {
-        return patientRepository.findByEmailIgnoreCaseAndDateSuppressionIsNull(email)
-                .map(this::mapToResponse);
+        log.debug("Recherche par email: {}", email);
+
+        if (!StringUtils.hasText(email)) {
+            return Optional.empty();
+        }
+
+        Optional<Patient> patient = patientRepository.findByEmailAndDateSuppressionIsNull(email.toLowerCase().trim());
+
+        return patient.map(this::mapToPatientResponse);
     }
 
     /**
-     * Recherche par téléphone
+     * Recherche par téléphone - unique et critique
      */
     @Transactional(readOnly = true)
     public Optional<PatientResponse> findByTelephone(String telephone) {
-        return patientRepository.findByTelephoneAndDateSuppressionIsNull(telephone)
-                .map(this::mapToResponse);
+        log.debug("Recherche par téléphone: {}", telephone);
+
+        if (!StringUtils.hasText(telephone)) {
+            return Optional.empty();
+        }
+
+        Optional<Patient> patient = patientRepository.findByTelephoneAndDateSuppressionIsNull(telephone.trim());
+
+        return patient.map(this::mapToPatientResponse);
     }
 
     /**
-     * Recherche par numéro de sécurité sociale
+     * Recherche par numéro de sécurité sociale - unique et critique
      */
     @Transactional(readOnly = true)
     public Optional<PatientResponse> findByNumeroSecu(String numeroSecu) {
-        return patientRepository.findByNumeroSecuAndDateSuppressionIsNull(numeroSecu)
-                .map(this::mapToResponse);
+        log.debug("Recherche par numéro de sécurité sociale");
+
+        if (!StringUtils.hasText(numeroSecu)) {
+            return Optional.empty();
+        }
+
+        Optional<Patient> patient = patientRepository.findByNumeroSecuAndDateSuppressionIsNull(numeroSecu.trim());
+
+        return patient.map(this::mapToPatientResponse);
     }
 
+    // ====================================================================
+    // MÉTHODES UTILITAIRES ET LISTES
+    // ====================================================================
+
     /**
-     * Obtient tous les patients actifs
+     * Liste des patients actifs avec pagination
      */
     @Transactional(readOnly = true)
     public List<PatientSummaryResponse> getActivePatients(int page, int size) {
-        Pageable pageable = PageRequest.of(page, size, Sort.by("dateCreation").descending());
+        log.debug("Récupération des patients actifs - page: {}, size: {}", page, size);
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("nom", "prenom"));
         Page<Patient> patients = patientRepository.findByStatutAndDateSuppressionIsNull(
                 PatientStatus.ACTIF, pageable);
 
@@ -177,26 +243,52 @@ public class PatientService {
                 .collect(Collectors.toList());
     }
 
-    // ============================================
-    // MÉTHODES PRIVÉES
-    // ============================================
-
     /**
-     * Récupère un patient par ID ou lance une exception
+     * Compte le nombre de patients actifs
      */
-    private Patient getPatientById(UUID patientId) {
-        return patientRepository.findByIdAndDateSuppressionIsNull(patientId)
-                .orElseThrow(() -> new PatientNotFoundException("Patient non trouvé: " + patientId));
+    @Transactional(readOnly = true)
+    public long countActivePatients() {
+        return patientRepository.countByStatutAndDateSuppressionIsNull(PatientStatus.ACTIF);
     }
 
     /**
-     * Validation de la requête de création
+     * Vérifie si un patient existe par email
      */
-    private void validateCreateRequest(CreatePatientRequest request) {
-        if (request == null) {
-            throw new InvalidPatientDataException("La requête de création ne peut pas être nulle");
+    @Transactional(readOnly = true)
+    public boolean existsByEmail(String email) {
+        if (!StringUtils.hasText(email)) {
+            return false;
         }
+        return patientRepository.existsByEmailAndDateSuppressionIsNull(email.toLowerCase().trim());
+    }
 
+    /**
+     * Vérifie si un patient existe par téléphone
+     */
+    @Transactional(readOnly = true)
+    public boolean existsByTelephone(String telephone) {
+        if (!StringUtils.hasText(telephone)) {
+            return false;
+        }
+        return patientRepository.existsByTelephoneAndDateSuppressionIsNull(telephone.trim());
+    }
+
+    /**
+     * Vérifie si un patient existe par numéro de sécurité sociale
+     */
+    @Transactional(readOnly = true)
+    public boolean existsByNumeroSecu(String numeroSecu) {
+        if (!StringUtils.hasText(numeroSecu)) {
+            return false;
+        }
+        return patientRepository.existsByNumeroSecuAndDateSuppressionIsNull(numeroSecu.trim());
+    }
+
+    // ====================================================================
+    // MÉTHODES PRIVÉES DE SUPPORT
+    // ====================================================================
+
+    private void validateCreateRequest(CreatePatientRequest request) {
         if (request.personalInfo() == null) {
             throw new InvalidPatientDataException("Les informations personnelles sont obligatoires");
         }
@@ -209,223 +301,240 @@ public class PatientService {
             throw new InvalidPatientDataException("Les consentements sont obligatoires");
         }
 
-        // Validation du consentement obligatoire
-        if (!request.consent().consentementCreationCompte()) {
+        PersonalInfoRequest personalInfo = request.personalInfo();
+        ContactInfoRequest contactInfo = request.contactInfo();
+        ConsentRequest consent = request.consent();
+
+        // Validation des informations personnelles obligatoires
+        if (!StringUtils.hasText(personalInfo.nom()) || !StringUtils.hasText(personalInfo.prenom())) {
+            throw new InvalidPatientDataException("Le nom et le prénom sont obligatoires");
+        }
+
+        if (!StringUtils.hasText(personalInfo.numeroSecu())) {
+            throw new InvalidPatientDataException("Le numéro de sécurité sociale est obligatoire");
+        }
+
+        if (personalInfo.dateNaissance() == null) {
+            throw new InvalidPatientDataException("La date de naissance est obligatoire");
+        }
+
+        if (personalInfo.sexe() == null) {
+            throw new InvalidPatientDataException("Le sexe est obligatoire");
+        }
+
+        // Validation des informations de contact obligatoires
+        if (!StringUtils.hasText(contactInfo.email())) {
+            throw new InvalidPatientDataException("L'email est obligatoire");
+        }
+
+        if (!StringUtils.hasText(contactInfo.telephone())) {
+            throw new InvalidPatientDataException("Le téléphone est obligatoire");
+        }
+
+        if (!StringUtils.hasText(contactInfo.adresseLigne1()) ||
+                !StringUtils.hasText(contactInfo.codePostal()) ||
+                !StringUtils.hasText(contactInfo.ville())) {
+            throw new InvalidPatientDataException("L'adresse complète est obligatoire");
+        }
+
+        // Validation des consentements obligatoires
+        if (consent.consentementCreationCompte() == null || !consent.consentementCreationCompte()) {
             throw new InvalidPatientDataException("Le consentement de création de compte est obligatoire");
         }
     }
 
-    /**
-     * Validation de la requête de mise à jour
-     */
-    private void validateUpdateRequest(UpdatePatientRequest request, Patient patient) {
-        if (request == null) {
-            throw new InvalidPatientDataException("La requête de mise à jour ne peut pas être nulle");
-        }
-
-        // Validation que le patient peut être modifié
-        if (patient.getStatut() == PatientStatus.DECEDE) {
-            throw new InvalidPatientDataException("Impossible de modifier un patient décédé");
-        }
-    }
-
-    /**
-     * Vérification des doublons
-     */
     private void checkForDuplicates(CreatePatientRequest request) {
-        // Vérification par numéro de sécurité sociale
-        if (patientRepository.existsByNumeroSecuAndDateSuppressionIsNull(
-                request.personalInfo().numeroSecu())) {
-            throw new DuplicatePatientException("Un patient avec ce numéro de sécurité sociale existe déjà");
-        }
-
         // Vérification par email
-        if (patientRepository.existsByEmailIgnoreCaseAndDateSuppressionIsNull(
-                request.contactInfo().email())) {
+        if (existsByEmail(request.contactInfo().email())) {
             throw new DuplicatePatientException("Un patient avec cet email existe déjà");
         }
 
         // Vérification par téléphone
-        if (patientRepository.existsByTelephoneAndDateSuppressionIsNull(
-                request.contactInfo().telephone())) {
+        if (existsByTelephone(request.contactInfo().telephone())) {
             throw new DuplicatePatientException("Un patient avec ce téléphone existe déjà");
+        }
+
+        // Vérification par numéro de sécurité sociale
+        if (existsByNumeroSecu(request.personalInfo().numeroSecu())) {
+            throw new DuplicatePatientException("Un patient avec ce numéro de sécurité sociale existe déjà");
         }
     }
 
-    /**
-     * Construction de l'entité Patient depuis la requête
-     */
     private Patient buildPatientFromRequest(CreatePatientRequest request) {
         PersonalInfoRequest personalInfo = request.personalInfo();
         ContactInfoRequest contactInfo = request.contactInfo();
         ConsentRequest consent = request.consent();
 
-        return Patient.builder()
-                // Informations personnelles
-                .nom(personalInfo.nom())
-                .prenom(personalInfo.prenom())
-                .nomJeuneFille(personalInfo.nomJeuneFille())
-                .dateNaissance(personalInfo.dateNaissance())
-                .lieuNaissance(personalInfo.lieuNaissance())
-                .sexe(personalInfo.sexe())
-                .numeroSecu(personalInfo.numeroSecu())
-                .medecinTraitant(personalInfo.medecinTraitant())
-                .allergiesConnues(personalInfo.allergiesConnues())
-                .antecedentsMedicaux(personalInfo.antecedentsMedicaux())
+        Patient patient = new Patient();
+        // L'ID sera généré automatiquement par @GeneratedValue(strategy = GenerationType.UUID)
 
-                // Informations de contact centralisées
-                .email(contactInfo.email())
-                .telephone(contactInfo.telephone())
-                .adresseLigne1(contactInfo.adresseLigne1())
-                .adresseLigne2(contactInfo.adresseLigne2())
-                .codePostal(contactInfo.codePostal())
-                .ville(contactInfo.ville())
-                .departement(contactInfo.departement())
-                .region(contactInfo.region())
-                .pays(contactInfo.pays() != null ? contactInfo.pays() : "France")
-                .latitude(contactInfo.latitude())
-                .longitude(contactInfo.longitude())
+        // === INFORMATIONS PERSONNELLES ===
+        patient.setNom(personalInfo.nom().toUpperCase().trim());
+        patient.setPrenom(capitalizeFirstLetter(personalInfo.prenom().trim()));
+        patient.setNomJeuneFille(personalInfo.nomJeuneFille());
+        patient.setDateNaissance(personalInfo.dateNaissance());
+        patient.setLieuNaissance(personalInfo.lieuNaissance());
+        patient.setSexe(personalInfo.sexe());
+        patient.setNumeroSecu(personalInfo.numeroSecu());
+        patient.setMedecinTraitant(personalInfo.medecinTraitant());
+        patient.setAllergiesConnues(personalInfo.allergiesConnues());
+        patient.setAntecedentsMedicaux(personalInfo.antecedentsMedicaux());
 
-                // Préférences de communication
-                .methodeLivraisonPreferee(contactInfo.methodeLivraisonPreferee())
-                .preferenceNotification(contactInfo.preferenceNotification())
-                .languePreferee(contactInfo.languePreferee() != null ? contactInfo.languePreferee() : "fr-FR")
-                .notificationsResultats(contactInfo.notificationsResultats() != null ? contactInfo.notificationsResultats() : true)
-                .notificationsRdv(contactInfo.notificationsRdv() != null ? contactInfo.notificationsRdv() : true)
-                .notificationsRappels(contactInfo.notificationsRappels() != null ? contactInfo.notificationsRappels() : true)
+        // === INFORMATIONS DE CONTACT CENTRALISÉES ===
+        patient.setEmail(contactInfo.email().toLowerCase().trim());
+        patient.setTelephone(contactInfo.telephone());
+        patient.setAdresseLigne1(contactInfo.adresseLigne1());
+        patient.setAdresseLigne2(contactInfo.adresseLigne2());
+        patient.setCodePostal(contactInfo.codePostal());
+        patient.setVille(contactInfo.ville());
+        patient.setDepartement(contactInfo.departement());
+        patient.setRegion(contactInfo.region());
+        patient.setPays(contactInfo.pays() != null ? contactInfo.pays() : "France");
+        patient.setLatitude(contactInfo.latitude());
+        patient.setLongitude(contactInfo.longitude());
 
-                // Consentements RGPD
-                .consentementCreationCompte(consent.consentementCreationCompte())
-                .consentementSms(consent.consentementSms())
-                .consentementEmail(consent.consentementEmail())
-                .dateConsentement(consent.consentementCreationCompte() ? LocalDateTime.now() : null)
+        // === PRÉFÉRENCES DE COMMUNICATION ===
+        patient.setMethodeLivraisonPreferee(contactInfo.methodeLivraisonPreferee());
+        patient.setPreferenceNotification(contactInfo.preferenceNotification());
+        patient.setLanguePreferee(contactInfo.languePreferee() != null ? contactInfo.languePreferee() : "fr-FR");
+        patient.setNotificationsResultats(contactInfo.notificationsResultats() != null ? contactInfo.notificationsResultats() : true);
+        patient.setNotificationsRdv(contactInfo.notificationsRdv() != null ? contactInfo.notificationsRdv() : true);
+        patient.setNotificationsRappels(contactInfo.notificationsRappels() != null ? contactInfo.notificationsRappels() : true);
 
-                // Métadonnées
-                .statut(PatientStatus.ACTIF)
-                .creePar(request.createdBy())
-                .build();
+        // === CONSENTEMENTS RGPD ===
+        patient.setConsentementCreationCompte(consent.consentementCreationCompte());
+        patient.setConsentementSms(consent.consentementSms());
+        patient.setConsentementEmail(consent.consentementEmail());
+        patient.setDateConsentement(LocalDateTime.now());
+
+        // === MÉTADONNÉES ===
+        patient.setStatut(PatientStatus.ACTIF);
+        patient.setDateCreation(LocalDateTime.now());
+        patient.setCreepar(request.createdBy() != null ? request.createdBy() : "SYSTEM");
+
+        return patient;
     }
 
-    /**
-     * Construction d'une assurance depuis la requête
-     */
     private PatientAssurance buildAssuranceFromRequest(InsuranceRequest request) {
-        return PatientAssurance.builder()
-                .typeAssurance(request.typeAssurance())
-                .nomOrganisme(request.nomOrganisme())
-                .numeroAdherent(request.numeroAdherent())
-                .dateDebut(request.dateDebut())
-                .dateFin(request.dateFin())
-                .tiersPayantAutorise(request.tiersPayantAutorise() != null ? request.tiersPayantAutorise() : false)
-                .pourcentagePriseCharge(request.pourcentagePriseCharge())
-                .referenceDocument(request.referenceDocument())
-                .estActive(true)
-                .build();
+        PatientAssurance assurance = new PatientAssurance();
+        // L'ID sera généré automatiquement si l'entité a @GeneratedValue
+        assurance.setTypeAssurance(request.typeAssurance());
+        assurance.setNomOrganisme(request.nomOrganisme());
+        assurance.setNumeroAdherent(request.numeroAdherent());
+        assurance.setDateDebut(request.dateDebut());
+        assurance.setDateFin(request.dateFin());
+        assurance.setTiersPayantAutorise(request.tiersPayantAutorise());
+        assurance.setPourcentagePriseCharge(request.pourcentagePriseCharge());
+        assurance.setReferenceDocument(request.referenceDocument());
+        assurance.setEstActive(true);
+        return assurance;
     }
 
-    /**
-     * Met à jour les informations personnelles
-     */
-    private void updatePersonalInfo(Patient patient, PersonalInfoUpdateRequest personalInfo) {
-        if (personalInfo.nom() != null) patient.setNom(personalInfo.nom());
-        if (personalInfo.prenom() != null) patient.setPrenom(personalInfo.prenom());
-        if (personalInfo.nomJeuneFille() != null) patient.setNomJeuneFille(personalInfo.nomJeuneFille());
-        if (personalInfo.dateNaissance() != null) patient.setDateNaissance(personalInfo.dateNaissance());
-        if (personalInfo.lieuNaissance() != null) patient.setLieuNaissance(personalInfo.lieuNaissance());
-        if (personalInfo.sexe() != null) patient.setSexe(personalInfo.sexe());
-        if (personalInfo.medecinTraitant() != null) patient.setMedecinTraitant(personalInfo.medecinTraitant());
-        if (personalInfo.allergiesConnues() != null) patient.setAllergiesConnues(personalInfo.allergiesConnues());
-        if (personalInfo.antecedentsMedicaux() != null) patient.setAntecedentsMedicaux(personalInfo.antecedentsMedicaux());
-    }
-
-    /**
-     * Met à jour les informations de contact
-     */
-    private void updateContactInfo(Patient patient, ContactInfoUpdateRequest contactInfo) {
-        if (contactInfo.email() != null) patient.setEmail(contactInfo.email());
-        if (contactInfo.telephone() != null) patient.setTelephone(contactInfo.telephone());
-        if (contactInfo.adresseLigne1() != null) patient.setAdresseLigne1(contactInfo.adresseLigne1());
-        if (contactInfo.adresseLigne2() != null) patient.setAdresseLigne2(contactInfo.adresseLigne2());
-        if (contactInfo.codePostal() != null) patient.setCodePostal(contactInfo.codePostal());
-        if (contactInfo.ville() != null) patient.setVille(contactInfo.ville());
-        if (contactInfo.departement() != null) patient.setDepartement(contactInfo.departement());
-        if (contactInfo.region() != null) patient.setRegion(contactInfo.region());
-        if (contactInfo.pays() != null) patient.setPays(contactInfo.pays());
-        if (contactInfo.latitude() != null) patient.setLatitude(contactInfo.latitude());
-        if (contactInfo.longitude() != null) patient.setLongitude(contactInfo.longitude());
-        if (contactInfo.methodeLivraisonPreferee() != null) patient.setMethodeLivraisonPreferee(contactInfo.methodeLivraisonPreferee());
-        if (contactInfo.preferenceNotification() != null) patient.setPreferenceNotification(contactInfo.preferenceNotification());
-        if (contactInfo.languePreferee() != null) patient.setLanguePreferee(contactInfo.languePreferee());
-        if (contactInfo.notificationsResultats() != null) patient.setNotificationsResultats(contactInfo.notificationsResultats());
-        if (contactInfo.notificationsRdv() != null) patient.setNotificationsRdv(contactInfo.notificationsRdv());
-        if (contactInfo.notificationsRappels() != null) patient.setNotificationsRappels(contactInfo.notificationsRappels());
-    }
-
-    /**
-     * Met à jour les consentements
-     */
-    private void updateConsent(Patient patient, ConsentUpdateRequest consent) {
-        if (consent.consentementSms() != null) patient.setConsentementSms(consent.consentementSms());
-        if (consent.consentementEmail() != null) patient.setConsentementEmail(consent.consentementEmail());
-    }
-
-    /**
-     * Met à jour les assurances
-     */
-    private void updateInsurances(Patient patient, List<InsuranceRequest> insurances) {
-        // Suppression des anciennes assurances
-        patient.getAssurances().clear();
-
-        // Ajout des nouvelles assurances
-        for (InsuranceRequest insuranceRequest : insurances) {
-            PatientAssurance assurance = buildAssuranceFromRequest(insuranceRequest);
-            patient.addAssurance(assurance);
+    private void updatePatientFields(Patient patient, UpdatePatientRequest request) {
+        // Mise à jour des informations personnelles
+        if (request.personalInfo() != null) {
+            PersonalInfoUpdateRequest personalInfo = request.personalInfo(); // ← Correction du type
+            if (StringUtils.hasText(personalInfo.nom())) {
+                patient.setNom(personalInfo.nom().toUpperCase().trim());
+            }
+            if (StringUtils.hasText(personalInfo.prenom())) {
+                patient.setPrenom(capitalizeFirstLetter(personalInfo.prenom().trim()));
+            }
+            if (personalInfo.dateNaissance() != null) {
+                patient.setDateNaissance(personalInfo.dateNaissance());
+            }
+            if (personalInfo.sexe() != null) {
+                patient.setSexe(personalInfo.sexe());
+            }
+            if (StringUtils.hasText(personalInfo.nomJeuneFille())) {
+                patient.setNomJeuneFille(personalInfo.nomJeuneFille());
+            }
+            if (StringUtils.hasText(personalInfo.lieuNaissance())) {
+                patient.setLieuNaissance(personalInfo.lieuNaissance());
+            }
+            if (StringUtils.hasText(personalInfo.medecinTraitant())) {
+                patient.setMedecinTraitant(personalInfo.medecinTraitant());
+            }
+            if (personalInfo.allergiesConnues() != null) {
+                patient.setAllergiesConnues(personalInfo.allergiesConnues());
+            }
+            if (personalInfo.antecedentsMedicaux() != null) {
+                patient.setAntecedentsMedicaux(personalInfo.antecedentsMedicaux());
+            }
         }
+
+        // Mise à jour des informations de contact
+        if (request.contactInfo() != null) {
+            ContactInfoUpdateRequest contactInfo = request.contactInfo(); // ← Probablement aussi à corriger
+            if (StringUtils.hasText(contactInfo.email())) {
+                patient.setEmail(contactInfo.email().toLowerCase().trim());
+            }
+            if (StringUtils.hasText(contactInfo.telephone())) {
+                patient.setTelephone(contactInfo.telephone());
+            }
+            if (StringUtils.hasText(contactInfo.adresseLigne1())) {
+                patient.setAdresseLigne1(contactInfo.adresseLigne1());
+            }
+            if (contactInfo.adresseLigne2() != null) {
+                patient.setAdresseLigne2(contactInfo.adresseLigne2());
+            }
+            if (StringUtils.hasText(contactInfo.codePostal())) {
+                patient.setCodePostal(contactInfo.codePostal());
+            }
+            if (StringUtils.hasText(contactInfo.ville())) {
+                patient.setVille(contactInfo.ville());
+            }
+            if (contactInfo.departement() != null) {
+                patient.setDepartement(contactInfo.departement());
+            }
+            if (contactInfo.region() != null) {
+                patient.setRegion(contactInfo.region());
+            }
+            if (contactInfo.pays() != null) {
+                patient.setPays(contactInfo.pays());
+            }
+            if (contactInfo.preferenceNotification() != null) {
+                patient.setPreferenceNotification(contactInfo.preferenceNotification());
+            }
+            if (contactInfo.languePreferee() != null) {
+                patient.setLanguePreferee(contactInfo.languePreferee());
+            }
+        }
+
+        patient.setDateModification(LocalDateTime.now());
+        patient.setModifiePar("SYSTEM"); // À adapter selon le contexte d'authentification
+    }
+
+    private String capitalizeFirstLetter(String str) {
+        if (str == null || str.isEmpty()) {
+            return str;
+        }
+        return str.substring(0, 1).toUpperCase() + str.substring(1).toLowerCase();
     }
 
     /**
-     * Mappe un Patient vers PatientResponse
+     * Mapping complet vers PatientResponse
      */
-    private PatientResponse mapToResponse(Patient patient) {
-        return PatientResponse.builder()
-                .id(patient.getId().toString())
-                .personalInfo(mapToPersonalInfoResponse(patient))
-                .contactInfo(mapToContactInfoResponse(patient))
-                .insurances(patient.getAssurances().stream()
-                        .map(this::mapToInsuranceResponse)
-                        .collect(Collectors.toList()))
-                .consent(mapToConsentResponse(patient))
-                .metadata(mapToMetadataResponse(patient))
-                .build();
-    }
-
-    /**
-     * Mappe vers PersonalInfoResponse
-     */
-    private PersonalInfoResponse mapToPersonalInfoResponse(Patient patient) {
-        return PersonalInfoResponse.builder()
+    private PatientResponse mapToPatientResponse(Patient patient) {
+        // Construction des informations personnelles
+        PersonalInfoResponse personalInfo = PersonalInfoResponse.builder()
                 .nom(patient.getNom())
                 .prenom(patient.getPrenom())
                 .nomJeuneFille(patient.getNomJeuneFille())
                 .dateNaissance(patient.getDateNaissance())
                 .lieuNaissance(patient.getLieuNaissance())
                 .sexe(patient.getSexe())
-                .numeroSecuMasque(patient.getNumeroSecuMasque())
+                .numeroSecuMasque(maskNumeroSecu(patient.getNumeroSecu()))
                 .age(patient.getAge())
                 .medecinTraitant(patient.getMedecinTraitant())
                 .allergiesConnues(patient.getAllergiesConnues())
                 .antecedentsMedicaux(patient.getAntecedentsMedicaux())
                 .build();
-    }
 
-    /**
-     * Mappe vers ContactInfoResponse
-     */
-    private ContactInfoResponse mapToContactInfoResponse(Patient patient) {
-        return ContactInfoResponse.builder()
+        // Construction des informations de contact
+        ContactInfoResponse contactInfo = ContactInfoResponse.builder()
                 .email(patient.getEmail())
                 .telephone(patient.getTelephone())
-                .adresseComplete(patient.getAdresseComplete())
                 .adresseLigne1(patient.getAdresseLigne1())
                 .adresseLigne2(patient.getAdresseLigne2())
                 .codePostal(patient.getCodePostal())
@@ -442,67 +551,65 @@ public class PatientService {
                 .notificationsRdv(patient.getNotificationsRdv())
                 .notificationsRappels(patient.getNotificationsRappels())
                 .build();
-    }
 
-    /**
-     * Mappe vers InsuranceResponse
-     */
-    private InsuranceResponse mapToInsuranceResponse(PatientAssurance assurance) {
-        return InsuranceResponse.builder()
-                .id(assurance.getId().toString())
-                .typeAssurance(assurance.getTypeAssurance())
-                .nomOrganisme(assurance.getNomOrganisme())
-                .numeroAdherent(assurance.getNumeroAdherent())
-                .dateDebut(assurance.getDateDebut())
-                .dateFin(assurance.getDateFin())
-                .estActive(assurance.getEstActive())
-                .tiersPayantAutorise(assurance.getTiersPayantAutorise())
-                .pourcentagePriseCharge(assurance.getPourcentagePriseCharge())
-                .referenceDocument(assurance.getReferenceDocument())
-                .build();
-    }
-
-    /**
-     * Mappe vers ConsentResponse
-     */
-    private ConsentResponse mapToConsentResponse(Patient patient) {
-        return ConsentResponse.builder()
+        // Construction des consentements
+        ConsentResponse consent = ConsentResponse.builder()
                 .consentementCreationCompte(patient.getConsentementCreationCompte())
                 .consentementSms(patient.getConsentementSms())
                 .consentementEmail(patient.getConsentementEmail())
                 .dateConsentement(patient.getDateConsentement())
                 .build();
-    }
 
-    /**
-     * Mappe vers MetadataResponse
-     */
-    private MetadataResponse mapToMetadataResponse(Patient patient) {
-        return MetadataResponse.builder()
+        // Construction des métadonnées
+        MetadataResponse metadata = MetadataResponse.builder()
                 .statut(patient.getStatut())
                 .dateCreation(patient.getDateCreation())
                 .dateModification(patient.getDateModification())
                 .creePar(patient.getCreePar())
                 .modifiePar(patient.getModifiePar())
-                .actif(patient.isActive())
+                .actif(patient.getStatut() == PatientStatus.ACTIF)
+                .build();
+
+        return PatientResponse.builder()
+                .id(patient.getId().toString()) // Convertir UUID en String pour le DTO
+                .personalInfo(personalInfo)
+                .contactInfo(contactInfo)
+                .consent(consent)
+                .metadata(metadata)
                 .build();
     }
 
     /**
-     * Mappe vers PatientSummaryResponse
+     * Mapping simplifié vers PatientSummaryResponse
      */
     private PatientSummaryResponse mapToSummaryResponse(Patient patient) {
+        String nomComplet = String.format("%s %s",
+                patient.getNom() != null ? patient.getNom() : "",
+                patient.getPrenom() != null ? patient.getPrenom() : "").trim();
+
+        Integer age = null;
+        if (patient.getDateNaissance() != null) {
+            age = Period.between(patient.getDateNaissance(), LocalDate.now()).getYears();
+        }
+
         return PatientSummaryResponse.builder()
-                .id(patient.getId().toString())
-                .nomComplet(patient.getNomComplet())
+                .id(patient.getId().toString()) // Convertir UUID en String pour le DTO
+                .nomComplet(nomComplet)
                 .email(patient.getEmail())
                 .telephone(patient.getTelephone())
                 .dateNaissance(patient.getDateNaissance())
-                .age(patient.getAge())
+                .age(age)
                 .sexe(patient.getSexe())
                 .ville(patient.getVille())
                 .statut(patient.getStatut())
                 .dateCreation(patient.getDateCreation())
                 .build();
+    }
+
+    private String maskNumeroSecu(String numeroSecu) {
+        if (numeroSecu == null || numeroSecu.length() < 8) {
+            return "****";
+        }
+        return numeroSecu.substring(0, 4) + "***" + numeroSecu.substring(numeroSecu.length() - 2);
     }
 }

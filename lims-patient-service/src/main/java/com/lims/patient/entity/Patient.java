@@ -260,4 +260,8 @@ public class Patient {
             default -> false;
         };
     }
+
+    public void setCreepar(String creepar) {
+        this.creePar = creepar;
+    }
 }

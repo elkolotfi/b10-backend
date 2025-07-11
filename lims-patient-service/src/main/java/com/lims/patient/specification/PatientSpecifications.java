@@ -3,14 +3,24 @@ package com.lims.patient.specification;
 import com.lims.patient.entity.Patient;
 import com.lims.patient.enums.GenderType;
 import com.lims.patient.enums.PatientStatus;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Predicate;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Specifications pour construire dynamiquement les requêtes Patient
+ * Spécifications JPA complètes pour les requêtes de recherche de patients
+ * Version adaptée avec support du nomComplet
  */
+@Slf4j
 public class PatientSpecifications {
+
+    // ===== SPÉCIFICATIONS DE BASE =====
 
     /**
      * Specification de base : patient non supprimé
@@ -19,6 +29,82 @@ public class PatientSpecifications {
         return (root, query, criteriaBuilder) ->
                 criteriaBuilder.isNull(root.get("dateSuppression"));
     }
+
+    // ===== SPÉCIFICATIONS POUR NOM COMPLET =====
+
+    /**
+     * Recherche par nom complet - version simple
+     */
+    public static Specification<Patient> nomCompletContains(String nomComplet) {
+        return (root, query, criteriaBuilder) -> {
+            if (!StringUtils.hasText(nomComplet)) {
+                return criteriaBuilder.conjunction();
+            }
+
+            String searchValue = "%" + nomComplet.toLowerCase() + "%";
+
+            // Créer une expression concaténée : nom + " " + prenom
+            Expression<String> nomCompletExpression = criteriaBuilder.concat(
+                    criteriaBuilder.lower(root.get("nom")),
+                    criteriaBuilder.concat(" ", criteriaBuilder.lower(root.get("prenom")))
+            );
+
+            // Aussi créer l'expression inverse : prenom + " " + nom
+            Expression<String> prenomNomExpression = criteriaBuilder.concat(
+                    criteriaBuilder.lower(root.get("prenom")),
+                    criteriaBuilder.concat(" ", criteriaBuilder.lower(root.get("nom")))
+            );
+
+            // Chercher dans les deux sens
+            Predicate nomPrenomMatch = criteriaBuilder.like(nomCompletExpression, searchValue);
+            Predicate prenomNomMatch = criteriaBuilder.like(prenomNomExpression, searchValue);
+
+            // Aussi chercher dans nom seul et prénom seul
+            Predicate nomSeulMatch = criteriaBuilder.like(
+                    criteriaBuilder.lower(root.get("nom")), searchValue);
+            Predicate prenomSeulMatch = criteriaBuilder.like(
+                    criteriaBuilder.lower(root.get("prenom")), searchValue);
+
+            return criteriaBuilder.or(nomPrenomMatch, prenomNomMatch, nomSeulMatch, prenomSeulMatch);
+        };
+    }
+
+    /**
+     * Recherche avancée par nom complet avec mots-clés multiples
+     */
+    public static Specification<Patient> nomCompletAdvanced(String nomComplet) {
+        return (root, query, criteriaBuilder) -> {
+            if (!StringUtils.hasText(nomComplet)) {
+                return criteriaBuilder.conjunction();
+            }
+
+            String[] keywords = nomComplet.trim().toLowerCase().split("\\s+");
+
+            if (keywords.length == 1) {
+                // Un seul mot : recherche simple
+                return nomCompletContains(nomComplet).toPredicate(root, query, criteriaBuilder);
+            }
+
+            // Plusieurs mots : chaque mot doit être trouvé dans nom OU prénom
+            List<Predicate> keywordPredicates = new ArrayList<>();
+
+            for (String keyword : keywords) {
+                String searchValue = "%" + keyword + "%";
+
+                Predicate nomMatch = criteriaBuilder.like(
+                        criteriaBuilder.lower(root.get("nom")), searchValue);
+                Predicate prenomMatch = criteriaBuilder.like(
+                        criteriaBuilder.lower(root.get("prenom")), searchValue);
+
+                keywordPredicates.add(criteriaBuilder.or(nomMatch, prenomMatch));
+            }
+
+            // Tous les mots-clés doivent être trouvés (AND)
+            return criteriaBuilder.and(keywordPredicates.toArray(new Predicate[0]));
+        };
+    }
+
+    // ===== SPÉCIFICATIONS INDIVIDUELLES =====
 
     /**
      * Recherche par nom (insensible à la casse, recherche partielle)
@@ -84,20 +170,31 @@ public class PatientSpecifications {
     }
 
     /**
-     * Recherche par téléphone (recherche partielle)
+     * Recherche par téléphone (recherche partielle avec nettoyage des caractères)
      */
     public static Specification<Patient> hasTelephone(String telephone) {
         return (root, query, criteriaBuilder) -> {
             if (telephone == null || telephone.trim().isEmpty()) {
                 return criteriaBuilder.conjunction();
             }
-            String searchTerm = "%" + telephone.trim() + "%";
-            return criteriaBuilder.like(root.get("telephone"), searchTerm);
+
+            // Nettoyer le numéro de recherche
+            String cleanSearchPhone = telephone.replaceAll("[^0-9+]", "");
+            String searchTerm = "%" + cleanSearchPhone + "%";
+
+            // Recherche dans le téléphone nettoyé
+            return criteriaBuilder.like(
+                    criteriaBuilder.function("REGEXP_REPLACE", String.class,
+                            root.get("telephone"),
+                            criteriaBuilder.literal("[^0-9+]"),
+                            criteriaBuilder.literal("")),
+                    searchTerm
+            );
         };
     }
 
     /**
-     * Recherche par ville (insensible à la casse, recherche partielle)
+     * Recherche par ville (recherche partielle, insensible à la casse)
      */
     public static Specification<Patient> hasVille(String ville) {
         return (root, query, criteriaBuilder) -> {
@@ -161,7 +258,7 @@ public class PatientSpecifications {
     }
 
     /**
-     * Recherche par numéro de sécurité sociale
+     * Recherche par numéro de sécurité sociale (égalité exacte)
      */
     public static Specification<Patient> hasNumeroSecu(String numeroSecu) {
         return (root, query, criteriaBuilder) -> {
@@ -172,8 +269,21 @@ public class PatientSpecifications {
         };
     }
 
+    // ===== SPÉCIFICATIONS COMPOSÉES =====
+
     /**
-     * Combine toutes les specifications pour la recherche multicritères
+     * Patients actifs (non supprimés + statut actif)
+     */
+    public static Specification<Patient> active() {
+        return (root, query, criteriaBuilder) ->
+                criteriaBuilder.and(
+                        criteriaBuilder.isNull(root.get("dateSuppression")),
+                        criteriaBuilder.equal(root.get("statut"), PatientStatus.ACTIF)
+                );
+    }
+
+    /**
+     * Recherche générale multi-critères (version legacy pour compatibilité)
      */
     public static Specification<Patient> searchCriteria(
             String nom,
@@ -199,5 +309,51 @@ public class PatientSpecifications {
                 .and(hasDateNaissance(dateNaissance))
                 .and(hasSexe(sexe))
                 .and(hasStatut(statut));
+    }
+
+    // ===== SPÉCIFICATIONS UTILITAIRES =====
+
+    /**
+     * Recherche par tranche d'âge
+     */
+    public static Specification<Patient> ageEntre(int ageMin, int ageMax) {
+        return (root, query, criteriaBuilder) -> {
+            LocalDate now = LocalDate.now();
+            LocalDate dateMaxNaissance = now.minusYears(ageMin);
+            LocalDate dateMinNaissance = now.minusYears(ageMax + 1);
+
+            return criteriaBuilder.between(
+                    root.get("dateNaissance"),
+                    dateMinNaissance,
+                    dateMaxNaissance
+            );
+        };
+    }
+
+    /**
+     * Patients créés récemment (derniers X jours)
+     */
+    public static Specification<Patient> creesDepuis(int jours) {
+        return (root, query, criteriaBuilder) -> {
+            LocalDate dateLimit = LocalDate.now().minusDays(jours);
+            return criteriaBuilder.greaterThanOrEqualTo(
+                    criteriaBuilder.function("DATE", LocalDate.class, root.get("dateCreation")),
+                    dateLimit
+            );
+        };
+    }
+
+    /**
+     * Recherche par département (basée sur le code postal)
+     */
+    public static Specification<Patient> dansLeDepartement(String codeDepartement) {
+        return (root, query, criteriaBuilder) -> {
+            if (codeDepartement == null || codeDepartement.trim().isEmpty()) {
+                return criteriaBuilder.conjunction();
+            }
+
+            String pattern = codeDepartement.trim() + "%";
+            return criteriaBuilder.like(root.get("codePostal"), pattern);
+        };
     }
 }
