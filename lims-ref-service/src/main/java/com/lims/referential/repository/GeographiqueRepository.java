@@ -63,8 +63,8 @@ public interface GeographiqueRepository extends JpaRepository<Geographique, UUID
     @Query("""
         SELECT g FROM Geographique g 
         WHERE g.actif = true 
-        AND JSON_CONTAINS(g.laboratoiresZone, JSON_QUOTE(:laboratoireId))
-        """)
+        AND function('jsonb_exists', g.laboratoiresZone, cast(:laboratoireId as string)) = true
+    """)
     List<Geographique> findZonesDesserteByLaboratoire(@Param("laboratoireId") UUID laboratoireId);
 
     /**

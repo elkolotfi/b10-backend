@@ -1,7 +1,10 @@
 package com.lims.referential.entity;
 
+import com.lims.referential.enums.laboratoires.SpecialiteTechnique;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
@@ -87,20 +90,16 @@ public class Laboratoire {
     // ============================================
     // CAPACITÉS TECHNIQUES (stockées en JSON ou liste séparées par virgules)
     // ============================================
-
-    @ElementCollection
-    @CollectionTable(name = "laboratoire_analyses", joinColumns = @JoinColumn(name = "laboratoire_id"))
-    @Column(name = "analyse")
+    @Column(name = "analyses_disponibles", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
     private List<String> analysesDisponibles;
 
-    @ElementCollection
-    @CollectionTable(name = "laboratoire_specialites", joinColumns = @JoinColumn(name = "laboratoire_id"))
-    @Column(name = "specialite")
-    private List<String> specialitesTechniques;
+    @Column(name = "specialites_techniques", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private List<SpecialiteTechnique> specialitesTechniques;
 
-    @ElementCollection
-    @CollectionTable(name = "laboratoire_equipements", joinColumns = @JoinColumn(name = "laboratoire_id"))
-    @Column(name = "equipement")
+    @Column(name = "equipements_speciaux", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
     private List<String> equipementsSpeciaux;
 
     // ============================================

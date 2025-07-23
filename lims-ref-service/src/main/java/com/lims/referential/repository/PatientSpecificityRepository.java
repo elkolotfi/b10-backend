@@ -25,20 +25,59 @@ public interface PatientSpecificityRepository extends JpaRepository<PatientSpeci
     Page<PatientSpecificity> findByNiveauAlerteAndActifTrue(String niveauAlerte, Pageable pageable);
 
     /**
-     * Recherche textuelle
+     * Recherche textuelle avec mots-clés (VERSION CORRIGÉE POSTGRESQL)
      */
-    @Query("""
-        SELECT ps FROM PatientSpecificity ps 
+    @Query(value = """
+        SELECT * FROM lims_referential.patient_specificities ps 
         WHERE ps.actif = true 
-        AND (UPPER(ps.titre) LIKE UPPER(CONCAT('%', :searchTerm, '%'))
-             OR UPPER(ps.description) LIKE UPPER(CONCAT('%', :searchTerm, '%'))
-             OR JSON_SEARCH(ps.motsCles, 'one', CONCAT('%', :searchTerm, '%')) IS NOT NULL)
-        ORDER BY ps.prioritePreleveur DESC, ps.titre
-        """)
-    Page<PatientSpecificity> searchByTerm(@Param("searchTerm") String searchTerm, Pageable pageable);
+        AND ps.deleted_at IS NULL
+        AND (
+            UPPER(ps.titre) LIKE UPPER('%' || ?1 || '%')
+            OR UPPER(ps.description) LIKE UPPER('%' || ?1 || '%')
+            OR EXISTS (
+                SELECT 1 FROM jsonb_array_elements_text(ps.mots_cles) AS mot
+                WHERE UPPER(mot) LIKE UPPER('%' || ?1 || '%')
+            )
+        )
+        ORDER BY ps.priorite_preleveur DESC, ps.titre
+        """, nativeQuery = true)
+    List<PatientSpecificity> searchByTerm(String searchTerm);
 
     /**
-     * Filtrage multi-critères
+     * Version pageable pour la recherche textuelle
+     */
+    @Query(value = """
+        SELECT * FROM lims_referential.patient_specificities ps 
+        WHERE ps.actif = true 
+        AND ps.deleted_at IS NULL
+        AND (
+            UPPER(ps.titre) LIKE UPPER('%' || ?1 || '%')
+            OR UPPER(ps.description) LIKE UPPER('%' || ?1 || '%')
+            OR EXISTS (
+                SELECT 1 FROM jsonb_array_elements_text(ps.mots_cles) AS mot
+                WHERE UPPER(mot) LIKE UPPER('%' || ?1 || '%')
+            )
+        )
+        ORDER BY ps.priorite_preleveur DESC, ps.titre
+        """,
+            countQuery = """
+        SELECT COUNT(*) FROM lims_referential.patient_specificities ps 
+        WHERE ps.actif = true 
+        AND ps.deleted_at IS NULL
+        AND (
+            UPPER(ps.titre) LIKE UPPER('%' || ?1 || '%')
+            OR UPPER(ps.description) LIKE UPPER('%' || ?1 || '%')
+            OR EXISTS (
+                SELECT 1 FROM jsonb_array_elements_text(ps.mots_cles) AS mot
+                WHERE UPPER(mot) LIKE UPPER('%' || ?1 || '%')
+            )
+        )
+        """,
+            nativeQuery = true)
+    Page<PatientSpecificity> searchByTermPageable(String searchTerm, Pageable pageable);
+
+    /**
+     * Filtrage multi-critères (VERSION JPQL - PAS DE PROBLÈME)
      */
     @Query("""
         SELECT ps FROM PatientSpecificity ps 
@@ -54,15 +93,18 @@ public interface PatientSpecificityRepository extends JpaRepository<PatientSpeci
             Pageable pageable);
 
     /**
-     * Spécificités affectant une analyse donnée
+     * Spécificités affectant une analyse donnée (VERSION CORRIGÉE - Sans conflit ?)
      */
-    @Query("""
-        SELECT ps FROM PatientSpecificity ps 
+    @Query(value = """
+        SELECT * FROM lims_referential.patient_specificities ps 
         WHERE ps.actif = true 
-        AND (JSON_CONTAINS(ps.analysesContreIndiquees, JSON_QUOTE(:codeNabm))
-             OR JSON_CONTAINS(ps.analysesModifiees, JSON_QUOTE(:codeNabm)))
-        """)
-    List<PatientSpecificity> findAffectingAnalyse(@Param("codeNabm") String codeNabm);
+        AND ps.deleted_at IS NULL
+        AND (
+            jsonb_exists(ps.analyses_contre_indiquees, ?1)
+            OR jsonb_exists(ps.analyses_modifiees, ?1)
+        )
+        """, nativeQuery = true)
+    List<PatientSpecificity> findAffectingAnalyse(String codeNabm);
 
     /**
      * Spécificités par priorité préleveur
@@ -93,12 +135,59 @@ public interface PatientSpecificityRepository extends JpaRepository<PatientSpeci
     List<Object[]> getSpecificitiesByCategory();
 
     /**
-     * Recherche par mots-clés
+     * Recherche par mot-clé spécifique (VERSION CORRIGÉE - Sans conflit ?)
+     */
+    @Query(value = """
+        SELECT * FROM lims_referential.patient_specificities ps 
+        WHERE ps.actif = true 
+        AND ps.deleted_at IS NULL
+        AND jsonb_exists(ps.mots_cles, ?1)
+        """, nativeQuery = true)
+    List<PatientSpecificity> findByMotCle(String motCle);
+
+    /**
+     * Spécificités critiques (niveau d'alerte critique)
      */
     @Query("""
         SELECT ps FROM PatientSpecificity ps 
         WHERE ps.actif = true 
-        AND JSON_SEARCH(ps.motsCles, 'one', :motCle) IS NOT NULL
+        AND ps.niveauAlerte = 'CRITICAL'
+        ORDER BY ps.prioritePreleveur DESC
         """)
-    List<PatientSpecificity> findByMotCle(@Param("motCle") String motCle);
+    List<PatientSpecificity> findCriticalSpecificities();
+
+    /**
+     * Spécificités pour une catégorie donnée (version simple)
+     */
+    List<PatientSpecificity> findByCategoryIdAndActifTrueOrderByPrioritePreleveurDesc(String categoryId);
+
+    /**
+     * Compter les spécificités actives
+     */
+    @Query("SELECT COUNT(ps) FROM PatientSpecificity ps WHERE ps.actif = true")
+    long countActiveSpecificities();
+
+    /**
+     * Spécificités modifiant des analyses (VERSION CORRIGÉE POSTGRESQL)
+     */
+    @Query(value = """
+        SELECT * FROM lims_referential.patient_specificities ps 
+        WHERE ps.actif = true 
+        AND ps.deleted_at IS NULL
+        AND ps.analyses_modifiees IS NOT NULL
+        AND jsonb_array_length(ps.analyses_modifiees) > 0
+        """, nativeQuery = true)
+    List<PatientSpecificity> findWithAnalysesModifiees();
+
+    /**
+     * Spécificités contre-indiquant des analyses (VERSION CORRIGÉE POSTGRESQL)
+     */
+    @Query(value = """
+        SELECT * FROM lims_referential.patient_specificities ps 
+        WHERE ps.actif = true 
+        AND ps.deleted_at IS NULL
+        AND ps.analyses_contre_indiquees IS NOT NULL
+        AND jsonb_array_length(ps.analyses_contre_indiquees) > 0
+        """, nativeQuery = true)
+    List<PatientSpecificity> findWithAnalysesContreIndiquees();
 }

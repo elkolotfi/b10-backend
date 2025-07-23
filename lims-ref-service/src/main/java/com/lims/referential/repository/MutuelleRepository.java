@@ -47,11 +47,12 @@ public interface MutuelleRepository extends JpaRepository<Mutuelle, UUID> {
     /**
      * Mutuelles avec tiers payant
      */
-    @Query("""
-        SELECT m FROM Mutuelle m 
-        WHERE m.actif = true 
-        AND JSON_EXTRACT(m.codesFacturation, '$.tiersPayant') = true
-        """)
+    @Query(value = """
+    SELECT * FROM lims_referential.mutuelles m 
+    WHERE m.actif = true 
+    AND m.deleted_at IS NULL
+    AND m.tiers_payant = true
+    """, nativeQuery = true)
     List<Mutuelle> findWithTiersPayant();
 
     /**
@@ -67,13 +68,23 @@ public interface MutuelleRepository extends JpaRepository<Mutuelle, UUID> {
     /**
      * Mutuelles couvrant une analyse spécifique
      */
-    @Query("""
-        SELECT m FROM Mutuelle m 
-        WHERE m.actif = true 
-        AND (JSON_CONTAINS(JSON_EXTRACT(m.analysesCouvertes, '$[*].codeNabm'), JSON_QUOTE(:codeNabm))
-             OR NOT JSON_CONTAINS(m.analysesExclues, JSON_QUOTE(:codeNabm)))
-        """)
-    List<Mutuelle> findCoveringAnalyse(@Param("codeNabm") String codeNabm);
+    /**
+     * Mutuelles couvrant une analyse spécifique
+     * Correction pour PostgreSQL JSONB
+     */
+    @Query(value = """
+    SELECT * FROM lims_referential.mutuelles m 
+    WHERE m.actif = true 
+    AND m.deleted_at IS NULL
+    AND (
+        EXISTS (
+            SELECT 1 FROM jsonb_array_elements(m.analyses_couvertes) AS couverture
+            WHERE couverture->>'codeNabm' = ?1
+        )
+        OR NOT (m.analyses_exclues @> to_jsonb(?1))
+    )
+    """, nativeQuery = true)
+    List<Mutuelle> findCoveringAnalyse(String codeNabm);
 
     /**
      * Statistiques par type d'organisme

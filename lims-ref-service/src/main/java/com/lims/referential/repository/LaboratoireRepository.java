@@ -227,7 +227,12 @@ public interface LaboratoireRepository extends JpaRepository<Laboratoire, UUID> 
     /**
      * Trouve les laboratoires sans analyses disponibles
      */
-    @Query("SELECT l FROM Laboratoire l WHERE l.actif = true AND l.deletedAt IS NULL AND l.analysesDisponibles IS EMPTY")
+    @Query(value = """
+        SELECT * FROM lims_referential.laboratoires l 
+        WHERE l.actif = true 
+        AND l.deleted_at IS NULL 
+        AND (l.analyses_disponibles IS NULL OR l.analyses_disponibles = '[]'::jsonb)
+        """, nativeQuery = true)
     List<Laboratoire> findWithoutAnalyses();
 
     /**
