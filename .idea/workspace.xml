@@ -4,14 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="7aacdcd1-1ad1-4553-9a77-bce1e509ee8f" name="Changes" comment="init ref service">
+    <list default="true" id="7aacdcd1-1ad1-4553-9a77-bce1e509ee8f" name="Changes" comment="working ref service">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/codebase.md" beforeDir="false" afterPath="$PROJECT_DIR$/codebase.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-ref-service/src/main/java/com/lims/referential/entity/Laboratoire.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-ref-service/src/main/java/com/lims/referential/entity/Laboratoire.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-ref-service/src/main/java/com/lims/referential/repository/GeographiqueRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-ref-service/src/main/java/com/lims/referential/repository/GeographiqueRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-ref-service/src/main/java/com/lims/referential/repository/LaboratoireRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-ref-service/src/main/java/com/lims/referential/repository/LaboratoireRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-ref-service/src/main/java/com/lims/referential/repository/MutuelleRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-ref-service/src/main/java/com/lims/referential/repository/MutuelleRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-ref-service/src/main/java/com/lims/referential/repository/PatientSpecificityRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-ref-service/src/main/java/com/lims/referential/repository/PatientSpecificityRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-ref-service/src/main/java/com/lims/referential/service/PatientSpecificityService.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-ref-service/src/main/java/com/lims/referential/service/PatientSpecificityService.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -123,9 +119,9 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Application.ReferentialServiceApplication" />
         <item itemvalue="Application.PatientServiceApplication" />
         <item itemvalue="Application.AuthServiceApplication" />
-        <item itemvalue="Application.ReferentialServiceApplication" />
       </list>
     </recent_temporary>
   </component>
@@ -210,7 +206,15 @@
       <option name="project" value="LOCAL" />
       <updated>1753253800991</updated>
     </task>
-    <option name="localTasksCounter" value="10" />
+    <task id="LOCAL-00010" summary="working ref service">
+      <option name="closed" value="true" />
+      <created>1753259998436</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1753259998436</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -243,7 +247,8 @@
     <MESSAGE value="patient search working" />
     <MESSAGE value="first step ok" />
     <MESSAGE value="init ref service" />
-    <option name="LAST_COMMIT_MESSAGE" value="init ref service" />
+    <MESSAGE value="working ref service" />
+    <option name="LAST_COMMIT_MESSAGE" value="working ref service" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

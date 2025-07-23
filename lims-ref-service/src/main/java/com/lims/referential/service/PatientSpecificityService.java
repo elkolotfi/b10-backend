@@ -18,9 +18,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -180,22 +179,176 @@ public class PatientSpecificityService {
         log.info("Spécificité patient supprimée avec succès - ID: {}", id);
     }
 
-    @Cacheable(value = "patient-specificities", key = "'stats'")
+    // Méthodes à ajouter dans PatientSpecificityService.java
+
+    /**
+     * Récupère les spécificités groupées par catégorie
+     * Utilisé par le composant PatientSituation
+     */
+    @Cacheable(value = "patient-specificities", key = "'grouped-by-category'")
+    public Map<String, Object> getSpecificitiesGroupedByCategory() {
+        log.debug("Récupération des spécificités groupées par catégorie");
+
+        // Récupérer toutes les catégories actives
+        List<SpecificityCategory> categories = specificityCategoryRepository.findAllByActifTrueOrderByOrdreAffichage();
+
+        Map<String, Object> result = new HashMap<>();
+        List<Map<String, Object>> categoriesData = new ArrayList<>();
+
+        for (SpecificityCategory category : categories) {
+            // Récupérer les spécificités de cette catégorie
+            List<PatientSpecificity> specificities = patientSpecificityRepository
+                    .findByCategoryIdAndActifTrueOrderByPrioritePreleveurDesc(category.getId());
+
+            Map<String, Object> categoryData = new HashMap<>();
+            categoryData.put("id", category.getId());
+            categoryData.put("nom", category.getNom());
+            categoryData.put("description", category.getDescription());
+            categoryData.put("couleur", category.getCouleur());
+            categoryData.put("icone", category.getIcone());
+            categoryData.put("ordreAffichage", category.getOrdreAffichage());
+
+            // Convertir les spécificités en DTOs
+            List<PatientSpecificityResponseDTO> specificitiesDTO = specificities.stream()
+                    .map(patientSpecificityMapper::toResponseDTO)
+                    .toList();
+
+            categoryData.put("specificities", specificitiesDTO);
+            categoryData.put("count", specificitiesDTO.size());
+
+            categoriesData.add(categoryData);
+        }
+
+        result.put("categories", categoriesData);
+        result.put("totalCategories", categoriesData.size());
+        result.put("totalSpecificities", categoriesData.stream()
+                .mapToInt(cat -> (Integer) cat.get("count"))
+                .sum());
+
+        return result;
+    }
+
+    /**
+     * Récupère toutes les catégories actives (méthode de base)
+     */
+    @Cacheable(value = "patient-specificities", key = "'categories'")
+    public List<Map<String, Object>> getCategories() {
+        log.debug("Récupération de toutes les catégories actives");
+
+        List<SpecificityCategory> categories = specificityCategoryRepository.findAllByActifTrueOrderByOrdreAffichage();
+
+        return categories.stream()
+                .map(cat -> {
+                    Map<String, Object> categoryMap = new HashMap<>();
+                    categoryMap.put("id", cat.getId());
+                    categoryMap.put("nom", cat.getNom());
+                    categoryMap.put("description", cat.getDescription());
+                    categoryMap.put("couleur", cat.getCouleur());
+                    categoryMap.put("icone", cat.getIcone());
+                    categoryMap.put("ordreAffichage", cat.getOrdreAffichage());
+                    categoryMap.put("actif", cat.getActif());
+                    return categoryMap;
+                })
+                .toList();
+    }
+
+    /**
+     * Récupère les catégories avec leurs spécificités associées
+     */
+    @Cacheable(value = "patient-specificities", key = "'categories-with-specificities'")
+    public List<Map<String, Object>> getCategoriesWithSpecificities() {
+        log.debug("Récupération des catégories avec spécificités");
+
+        return getCategories().stream()
+                .map(category -> {
+                    Map<String, Object> categoryMap = new HashMap<>();
+                    categoryMap.put("id", category.get("id"));
+                    categoryMap.put("nom", category.get("nom"));
+                    categoryMap.put("description", category.get("description"));
+                    categoryMap.put("couleur", category.get("couleur"));
+                    categoryMap.put("icone", category.get("icone"));
+                    categoryMap.put("ordreAffichage", category.get("ordreAffichage"));
+
+                    // Récupérer les spécificités de cette catégorie
+                    String categoryId = (String) category.get("id");
+                    List<PatientSpecificity> specificities = patientSpecificityRepository
+                            .findByCategoryIdAndActifTrueOrderByPrioritePreleveurDesc(categoryId);
+
+                    List<PatientSpecificityResponseDTO> specificitiesDTO = specificities.stream()
+                            .map(patientSpecificityMapper::toResponseDTO)
+                            .toList();
+
+                    categoryMap.put("specificities", specificitiesDTO);
+                    return categoryMap;
+                })
+                .toList();
+    }
+
+    /**
+     * Récupère les spécificités par catégorie avec pagination
+     */
+    public PagedResponseDTO<PatientSpecificityResponseDTO> findByCategory(String categoryId, Pageable pageable) {
+        log.debug("Recherche des spécificités pour la catégorie: {}", categoryId);
+
+        Page<PatientSpecificity> specificityPage = patientSpecificityRepository
+                .findByCategoryIdAndActifTrue(categoryId, pageable);
+
+        List<PatientSpecificityResponseDTO> specificitiesDTOs = specificityPage.getContent()
+                .stream()
+                .map(patientSpecificityMapper::toResponseDTO)
+                .toList();
+
+        return PagedResponseDTO.<PatientSpecificityResponseDTO>builder()
+                .content(specificitiesDTOs)
+                .page(specificityPage.getNumber())
+                .size(specificityPage.getSize())
+                .totalElements(specificityPage.getTotalElements())
+                .totalPages(specificityPage.getTotalPages())
+                .first(specificityPage.isFirst())
+                .last(specificityPage.isLast())
+                .empty(specificityPage.isEmpty())
+                .build();
+    }
+
+    /**
+     * Récupère les statistiques sur les spécificités
+     */
+    @Cacheable(value = "patient-specificities", key = "'statistics'")
     public Map<String, Object> getStatistics() {
-        log.debug("Récupération des statistiques des spécificités patient");
+        log.debug("Génération des statistiques des spécificités");
 
-        long totalSpecificites = patientSpecificityRepository.count();
-        List<Object[]> specificitesByNiveau = patientSpecificityRepository.getSpecificitiesByNiveauAlerte();
+        Map<String, Object> stats = new HashMap<>();
 
-        Map<String, Long> niveauxCount = specificitesByNiveau.stream()
-                .collect(java.util.stream.Collectors.toMap(
-                        obj -> obj[0].toString(),
-                        obj -> (Long) obj[1]
+        // Statistiques générales
+        long totalSpecificities = patientSpecificityRepository.countActiveSpecificities();
+        stats.put("totalSpecificities", totalSpecificities);
+
+        // Statistiques par niveau d'alerte
+        List<Object[]> alerteStats = patientSpecificityRepository.getSpecificitiesByNiveauAlerte();
+        Map<String, Long> alerteMap = alerteStats.stream()
+                .collect(Collectors.toMap(
+                        arr -> (String) arr[0],
+                        arr -> (Long) arr[1]
                 ));
+        stats.put("byNiveauAlerte", alerteMap);
 
-        return Map.of(
-                "totalSpecificites", totalSpecificites,
-                "specificitesByNiveau", niveauxCount
-        );
+        // Statistiques par catégorie
+        List<Object[]> categoryStats = patientSpecificityRepository.getSpecificitiesByCategory();
+        Map<String, Long> categoryMap = categoryStats.stream()
+                .collect(Collectors.toMap(
+                        arr -> (String) arr[0],
+                        arr -> (Long) arr[1]
+                ));
+        stats.put("byCategory", categoryMap);
+
+        // Spécificités critiques
+        List<PatientSpecificity> criticalSpecificities = patientSpecificityRepository.findCriticalSpecificities();
+        stats.put("criticalCount", criticalSpecificities.size());
+
+        // Spécificités nécessitant du temps supplémentaire
+        List<PatientSpecificity> extraTimeSpecificities = patientSpecificityRepository.findRequiringExtraTime();
+        stats.put("extraTimeCount", extraTimeSpecificities.size());
+
+        return stats;
     }
 }
