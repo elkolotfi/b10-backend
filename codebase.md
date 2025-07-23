@@ -12972,6 +12972,1240 @@ springdoc:
     show-common-extensions: true
 ```
 
+# lims-ref-service/pom.xml
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.lims</groupId>
+        <artifactId>lims-system</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>lims-ref-service</artifactId>
+
+    <properties>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <spring.boot.version>3.2.1</spring.boot.version>
+        <mapstruct.version>1.6.3</mapstruct.version>
+        <testcontainers.version>1.19.3</testcontainers.version>
+        <springdoc.version>2.2.0</springdoc.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring.boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>${testcontainers.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- Spring Boot Starters -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
+
+        <!-- Base de données -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- MapStruct pour mapping DTO/Entity -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>${mapstruct.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct-processor</artifactId>
+            <version>${mapstruct.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Documentation OpenAPI/Swagger -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>${springdoc.version}</version>
+        </dependency>
+
+        <!-- JSON Processing -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <!-- Monitoring -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
+        <!-- Tests -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>0.12.6</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>0.12.6</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>0.12.6</version>
+            <scope>runtime</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+
+            <!-- Maven Compiler Plugin avec MapStruct -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>21</source>
+                    <target>21</target>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.mapstruct</groupId>
+                            <artifactId>mapstruct-processor</artifactId>
+                            <version>${mapstruct.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>1.18.30</version>
+                        </path>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok-mapstruct-binding</artifactId>
+                            <version>0.2.0</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+
+            <!-- Plugin pour les tests d'intégration -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>3.0.0-M9</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
+```
+
+# lims-ref-service/src/main/java/com/lims/config/DatabaseConfig.java
+
+```java
+package com.lims.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.domain.AuditorAware;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+
+import java.util.Optional;
+
+/**
+ * Configuration de la base de données et de l'audit JPA
+ */
+@Configuration
+@EnableJpaRepositories(basePackages = "com.lims.patient.repository")
+public class DatabaseConfig {
+
+    /**
+     * Auditor pour JPA Auditing - utilise l'utilisateur connecté
+     */
+    @Bean
+    public AuditorAware<String> auditorProvider() {
+        return () -> {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !authentication.isAuthenticated()) {
+                return Optional.of("SYSTEM");
+            }
+            return Optional.of(authentication.getName());
+        };
+    }
+}
+```
+
+# lims-ref-service/src/main/java/com/lims/config/MultiRealmJwtDecoder.java
+
+```java
+package com.lims.config;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtException;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Décodeur JWT personnalisé capable de gérer plusieurs realms Keycloak avec HMAC signing.
+ *
+ * Correction: Utilise SecretKeySpec pour HS512 au lieu de JWK Set URI qui est pour RSA.
+ */
+@Slf4j
+public class MultiRealmJwtDecoder implements JwtDecoder {
+
+    private final String keycloakBaseUrl;
+    private final Map<String, JwtDecoder> realmDecoders;
+
+    // Realms supportés
+    private static final String LIMS_ADMIN_REALM = "lims-admin";
+    private static final String LIMS_PATIENT_REALM = "lims-patient";
+    private static final String LIMS_STAFF_REALM = "lims-staff";
+
+    // Clés secrètes pour chaque realm
+    private final String adminSecret;
+    private final String patientSecret;
+    private final String staffSecret;
+
+    public MultiRealmJwtDecoder(String keycloakBaseUrl, String adminSecret, String patientSecret, String staffSecret) {
+        this.keycloakBaseUrl = keycloakBaseUrl;
+        this.adminSecret = adminSecret;
+        this.patientSecret = patientSecret;
+        this.staffSecret = staffSecret;
+        this.realmDecoders = new HashMap<>();
+        initializeRealmDecoders();
+    }
+
+    /**
+     * Initialise les décodeurs pour chaque realm avec les bonnes clés HMAC
+     */
+    private void initializeRealmDecoders() {
+        log.info("Initializing HMAC JWT decoders for multiple realms");
+
+        try {
+            // Configuration des clés secrètes pour HS512
+            SecretKeySpec adminKey = new SecretKeySpec(
+                    adminSecret.getBytes(StandardCharsets.UTF_8),
+                    "HmacSHA512"
+            );
+            JwtDecoder adminDecoder = NimbusJwtDecoder.withSecretKey(adminKey).build();
+            realmDecoders.put(LIMS_ADMIN_REALM, adminDecoder);
+            log.info("Initialized HMAC JWT decoder for realm: {}", LIMS_ADMIN_REALM);
+
+            SecretKeySpec patientKey = new SecretKeySpec(
+                    patientSecret.getBytes(StandardCharsets.UTF_8),
+                    "HmacSHA512"
+            );
+            JwtDecoder patientDecoder = NimbusJwtDecoder.withSecretKey(patientKey).build();
+            realmDecoders.put(LIMS_PATIENT_REALM, patientDecoder);
+            log.info("Initialized HMAC JWT decoder for realm: {}", LIMS_PATIENT_REALM);
+
+            SecretKeySpec staffKey = new SecretKeySpec(
+                    staffSecret.getBytes(StandardCharsets.UTF_8),
+                    "HmacSHA512"
+            );
+            JwtDecoder staffDecoder = NimbusJwtDecoder.withSecretKey(staffKey).build();
+            realmDecoders.put(LIMS_STAFF_REALM, staffDecoder);
+            log.info("Initialized HMAC JWT decoder for realm: {}", LIMS_STAFF_REALM);
+
+        } catch (Exception e) {
+            log.error("Failed to initialize HMAC JWT decoders for realms: {}", e.getMessage(), e);
+            throw new IllegalStateException("Cannot initialize multi-realm JWT decoder", e);
+        }
+    }
+
+    /**
+     * Décode le JWT en déterminant automatiquement le realm approprié
+     */
+    @Override
+    public Jwt decode(String token) throws JwtException {
+        log.debug("Attempting to decode JWT token");
+
+        // Essayer de décoder avec chaque realm jusqu'à ce qu'un fonctionne
+        JwtException lastException = null;
+
+        // Ordre de priorité des realms pour l'optimisation
+        String[] realmOrder = {LIMS_ADMIN_REALM, LIMS_PATIENT_REALM, LIMS_STAFF_REALM};
+
+        for (String realm : realmOrder) {
+            try {
+                JwtDecoder decoder = realmDecoders.get(realm);
+                if (decoder != null) {
+                    log.debug("Trying to decode JWT with realm: {}", realm);
+                    Jwt jwt = decoder.decode(token);
+
+                    // Vérifier que le realm dans le token correspond
+                    String jwtRealm = jwt.getClaimAsString("realm");
+                    if (realm.equals(jwtRealm)) {
+                        log.debug("Successfully decoded JWT from realm: {} for subject: {}", realm, jwt.getSubject());
+                        return jwt;
+                    } else {
+                        log.debug("JWT realm claim '{}' doesn't match expected realm '{}'", jwtRealm, realm);
+                    }
+                }
+            } catch (JwtException e) {
+                log.debug("Failed to decode JWT with realm {}: {}", realm, e.getMessage());
+                lastException = e;
+            }
+        }
+
+        // Si aucun décodeur n'a fonctionné, lancer la dernière exception
+        String errorMessage = "Failed to decode JWT with any supported realm. Last error: " +
+                (lastException != null ? lastException.getMessage() : "Unknown error");
+        log.error(errorMessage);
+        throw new JwtException(errorMessage, lastException);
+    }
+
+    /**
+     * Méthode utilitaire pour obtenir les realms supportés
+     */
+    public String[] getSupportedRealms() {
+        return realmDecoders.keySet().toArray(new String[0]);
+    }
+
+    /**
+     * Méthode pour vérifier si un realm est supporté
+     */
+    public boolean isRealmSupported(String realm) {
+        return realmDecoders.containsKey(realm);
+    }
+}
+```
+
+# lims-ref-service/src/main/java/com/lims/config/OpenApiConfig.java
+
+```java
+package com.lims.config;
+
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Contact;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.info.License;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
+import io.swagger.v3.oas.models.servers.Server;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import java.util.List;
+
+/**
+ * Configuration OpenAPI/Swagger pour la documentation de l'API
+ */
+@Configuration
+public class OpenApiConfig {
+
+    @Bean
+    public OpenAPI patientServiceOpenAPI() {
+        return new OpenAPI()
+                .info(new Info()
+                        .title("LIMS Patient Service API")
+                        .description("API de gestion des patients pour le système LIMS de laboratoire de biologie médicale")
+                        .version("1.0.0")
+                        .contact(new Contact()
+                                .name("Équipe LIMS")
+                                .email("support@lims.com")
+                                .url("https://lims.com"))
+                        .license(new License()
+                                .name("Propriétaire")
+                                .url("https://lims.com/license")))
+                .servers(List.of(
+                        new Server()
+                                .url("http://localhost:8093")
+                                .description("Serveur de développement"),
+                        new Server()
+                                .url("https://api.lims.com/patient")
+                                .description("Serveur de production")))
+                .addSecurityItem(new SecurityRequirement().addList("Bearer Authentication"))
+                .components(new io.swagger.v3.oas.models.Components()
+                        .addSecuritySchemes("Bearer Authentication",
+                                new SecurityScheme()
+                                        .type(SecurityScheme.Type.HTTP)
+                                        .scheme("bearer")
+                                        .bearerFormat("JWT")
+                                        .description("Token JWT obtenu via Keycloak")));
+    }
+}
+```
+
+# lims-ref-service/src/main/java/com/lims/config/PatientJwtAuthenticationConverter.java
+
+```java
+package com.lims.config;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+/**
+ * Convertisseur d'authentification JWT personnalisé pour le service Patient.
+ *
+ * Gère les tokens provenant de trois realms différents :
+ * - lims-admin : Admins système (accès complet)
+ * - lims-patient : Patients (accès à leurs propres données)
+ * - lims-staff : Personnel laboratoire (accès selon laboratoire)
+ */
+@Slf4j
+public class PatientJwtAuthenticationConverter extends JwtAuthenticationConverter {
+
+    private final JwtGrantedAuthoritiesConverter defaultGrantedAuthoritiesConverter;
+
+    public PatientJwtAuthenticationConverter() {
+        this.defaultGrantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
+        // Configurer le converter pour extraire les authorities customisées
+        this.setJwtGrantedAuthoritiesConverter(this::extractAuthorities);
+    }
+
+    /**
+     * Extrait les autorités depuis le JWT selon le realm d'origine
+     */
+    private Collection<GrantedAuthority> extractAuthorities(Jwt jwt) {
+        try {
+            // Extraire les informations de base du JWT
+            String realm = jwt.getClaimAsString("realm");
+            String userType = jwt.getClaimAsString("user_type");
+            String subject = jwt.getSubject();
+
+            log.debug("Processing JWT from realm: {} for subject: {} with user_type: {}",
+                    realm, subject, userType);
+
+            // Traitement selon le realm
+            return switch (realm) {
+                case "lims-admin" -> extractAdminAuthorities(jwt);
+                case "lims-patient" -> extractPatientAuthorities(jwt);
+                case "lims-staff" -> extractStaffAuthorities(jwt);
+                default -> {
+                    log.warn("Unknown or unsupported realm in JWT: {}", realm);
+                    yield Collections.emptyList();
+                }
+            };
+
+        } catch (Exception e) {
+            log.error("Error processing JWT authorities: {}", e.getMessage(), e);
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Extrait les autorités pour un token admin (realm lims-admin)
+     */
+    private Collection<GrantedAuthority> extractAdminAuthorities(Jwt jwt) {
+        String userType = jwt.getClaimAsString("user_type");
+        if (!"ADMIN".equals(userType)) {
+            log.warn("Invalid user_type for admin realm: {}", userType);
+            return Collections.emptyList();
+        }
+
+        List<GrantedAuthority> authorities = new ArrayList<>();
+
+        // Ajouter le rôle de base ADMIN
+        authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+
+        // Extraire le rôle spécifique depuis le JWT
+        String role = jwt.getClaimAsString("role");
+        if (role != null) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_" + role));
+            log.debug("Added admin role: ROLE_{}", role);
+        }
+
+        // Extraire les permissions spécifiques
+        List<String> permissions = jwt.getClaimAsStringList("permissions");
+        if (permissions != null) {
+            for (String permission : permissions) {
+                authorities.add(new SimpleGrantedAuthority("PERMISSION_" + permission));
+                log.debug("Added admin permission: PERMISSION_{}", permission);
+            }
+        }
+
+        // Extraire les rôles Keycloak du realm
+        Collection<GrantedAuthority> realmAuthorities = extractKeycloakRealmRoles(jwt);
+        authorities.addAll(realmAuthorities);
+
+        log.debug("Admin authorities granted: {}", authorities.size());
+        return authorities;
+    }
+
+    /**
+     * Extrait les autorités pour un token patient (realm lims-patient)
+     */
+    private Collection<GrantedAuthority> extractPatientAuthorities(Jwt jwt) {
+        String userType = jwt.getClaimAsString("user_type");
+        if (!"PATIENT".equals(userType)) {
+            log.warn("Invalid user_type for patient realm: {}", userType);
+            return Collections.emptyList();
+        }
+
+        List<GrantedAuthority> authorities = new ArrayList<>();
+
+        // Les patients ont uniquement le rôle PATIENT
+        authorities.add(new SimpleGrantedAuthority("ROLE_PATIENT"));
+
+        // Ajouter des permissions spécifiques aux patients
+        authorities.add(new SimpleGrantedAuthority("PERMISSION_READ_OWN_DATA"));
+        authorities.add(new SimpleGrantedAuthority("PERMISSION_UPDATE_OWN_CONTACT"));
+
+        // Extraire les rôles Keycloak du realm
+        Collection<GrantedAuthority> realmAuthorities = extractKeycloakRealmRoles(jwt);
+        authorities.addAll(realmAuthorities);
+
+        log.debug("Patient authorities granted for subject {}: {}", jwt.getSubject(), authorities.size());
+        return authorities;
+    }
+
+    /**
+     * Extrait les autorités pour un token staff (realm lims-staff)
+     */
+    private Collection<GrantedAuthority> extractStaffAuthorities(Jwt jwt) {
+        String userType = jwt.getClaimAsString("user_type");
+        if (!"STAFF".equals(userType)) {
+            log.warn("Invalid user_type for staff realm: {}", userType);
+            return Collections.emptyList();
+        }
+
+        List<GrantedAuthority> authorities = new ArrayList<>();
+
+        // Ajouter le rôle de base STAFF
+        authorities.add(new SimpleGrantedAuthority("ROLE_STAFF"));
+
+        // Extraire le rôle spécifique du staff
+        String role = jwt.getClaimAsString("role");
+        if (role != null) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_" + role));
+            log.debug("Added staff role: ROLE_{}", role);
+        }
+
+        // Ajouter des permissions spécifiques selon le rôle
+        if (role != null) {
+            switch (role) {
+                case "ADMIN_LAB":
+                    authorities.add(new SimpleGrantedAuthority("PERMISSION_READ_ALL_PATIENTS_IN_LAB"));
+                    authorities.add(new SimpleGrantedAuthority("PERMISSION_WRITE_ALL_PATIENTS_IN_LAB"));
+                    authorities.add(new SimpleGrantedAuthority("PERMISSION_MANAGE_APPOINTMENTS"));
+                    break;
+                case "SECRETAIRE":
+                    authorities.add(new SimpleGrantedAuthority("PERMISSION_READ_PATIENTS_IN_LAB"));
+                    authorities.add(new SimpleGrantedAuthority("PERMISSION_SCHEDULE_APPOINTMENTS"));
+                    authorities.add(new SimpleGrantedAuthority("PERMISSION_UPDATE_PATIENT_CONTACT"));
+                    break;
+                case "PRELEVEUR", "TECHNICIEN":
+                    authorities.add(new SimpleGrantedAuthority("PERMISSION_READ_PATIENTS_IN_LAB"));
+                    authorities.add(new SimpleGrantedAuthority("PERMISSION_VIEW_APPOINTMENTS"));
+                    break;
+                default:
+                    authorities.add(new SimpleGrantedAuthority("PERMISSION_READ_PATIENTS_IN_LAB"));
+            }
+        }
+
+        // Extraire les rôles Keycloak du realm
+        Collection<GrantedAuthority> realmAuthorities = extractKeycloakRealmRoles(jwt);
+        authorities.addAll(realmAuthorities);
+
+        log.debug("Staff authorities granted for subject {}: {}", jwt.getSubject(), authorities.size());
+        return authorities;
+    }
+
+    /**
+     * Extrait les rôles Keycloak du realm depuis le token
+     */
+    private Collection<GrantedAuthority> extractKeycloakRealmRoles(Jwt jwt) {
+        try {
+            Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");
+            if (realmAccess != null) {
+                @SuppressWarnings("unchecked")
+                List<String> roles = (List<String>) realmAccess.get("roles");
+                if (roles != null) {
+                    return roles.stream()
+                            .filter(role -> !role.startsWith("default-") && !role.equals("offline_access"))
+                            .map(role -> new SimpleGrantedAuthority("KEYCLOAK_ROLE_" + role.toUpperCase()))
+                            .collect(Collectors.toList());
+                }
+            }
+        } catch (Exception e) {
+            log.debug("Could not extract Keycloak realm roles: {}", e.getMessage());
+        }
+        return Collections.emptyList();
+    }
+
+    /**
+     * Extrait le nom du realm depuis l'issuer URI
+     * Format attendu: http://localhost:8080/realms/lims-admin
+     */
+    private String extractRealmFromIssuer(String issuer) {
+        if (issuer == null || issuer.isEmpty()) {
+            return "unknown";
+        }
+
+        if (issuer.contains("/realms/")) {
+            String[] parts = issuer.split("/realms/");
+            if (parts.length > 1) {
+                return parts[1];
+            }
+        }
+
+        return "unknown";
+    }
+}
+```
+
+# lims-ref-service/src/main/java/com/lims/config/RedisConfig.java
+
+```java
+package com.lims.config;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.cache.CacheManager;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.cache.RedisCacheConfiguration;
+import org.springframework.data.redis.cache.RedisCacheManager;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
+
+import java.time.Duration;
+
+/**
+ * Configuration Redis pour le cache des données patients
+ */
+@Configuration
+@RequiredArgsConstructor
+public class RedisConfig {
+
+    /**
+     * Template Redis pour les opérations manuelles
+     */
+    @Bean
+    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
+        RedisTemplate<String, Object> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
+
+        // Utiliser String pour les clés
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setHashKeySerializer(new StringRedisSerializer());
+
+        // Utiliser JSON pour les valeurs
+        template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
+        template.setHashValueSerializer(new GenericJackson2JsonRedisSerializer());
+
+        template.afterPropertiesSet();
+        return template;
+    }
+
+    /**
+     * Cache Manager pour Spring Cache
+     */
+    @Bean
+    public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
+        RedisCacheConfiguration cacheConfig = RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(Duration.ofMinutes(30)) // TTL par défaut 30 minutes
+                .serializeKeysWith(org.springframework.data.redis.serializer.RedisSerializationContext.SerializationPair
+                        .fromSerializer(new StringRedisSerializer()))
+                .serializeValuesWith(org.springframework.data.redis.serializer.RedisSerializationContext.SerializationPair
+                        .fromSerializer(new GenericJackson2JsonRedisSerializer()));
+
+        return RedisCacheManager.builder(connectionFactory)
+                .cacheDefaults(cacheConfig)
+                .transactionAware()
+                .build();
+    }
+}
+```
+
+# lims-ref-service/src/main/java/com/lims/config/SecurityConfig.java
+
+```java
+package com.lims.config;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
+import java.util.List;
+
+/**
+ * Configuration de sécurité pour le service Patient avec support multi-realm JWT HMAC
+ */
+@Slf4j
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity(prePostEnabled = true)
+public class SecurityConfig {
+
+    @Value("${security.oauth2.resourceserver.jwt.keycloak.base-url}")
+    private String keycloakBaseUrl;
+
+    @Value("${lims.jwt.secrets.admin}")
+    private String adminSecret;
+
+    @Value("${lims.jwt.secrets.patient}")
+    private String patientSecret;
+
+    @Value("${lims.jwt.secrets.staff}")
+    private String staffSecret;
+
+    /**
+     * Configuration de la chaîne de filtres de sécurité
+     */
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http, JwtDecoder jwtDecoder) throws Exception {
+        log.info("Configuring security filter chain for Patient Service with multi-realm HMAC support");
+
+        http
+                // Désactiver CSRF pour les APIs REST
+                .csrf(csrf -> csrf.disable())
+
+                // Configuration CORS
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+                // Politique de session stateless
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+                // Configuration des autorisations
+                .authorizeHttpRequests(authz -> authz
+                        // Endpoints publics
+                        .requestMatchers(
+                                "/actuator/**",
+                                "/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**"
+                        ).permitAll()
+
+                        // Endpoints API - nécessitent une authentification
+                        .requestMatchers("/api/v1/**").permitAll()
+                        // .authenticated()
+
+                        // Tout le reste nécessite une authentification
+                        .anyRequest().authenticated()
+                )
+
+                // Configuration OAuth2 Resource Server avec JWT
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> jwt
+                                .decoder(jwtDecoder)
+                                .jwtAuthenticationConverter(jwtAuthenticationConverter())
+                        )
+                );
+
+        return http.build();
+    }
+
+    /**
+     * Décodeur JWT configuré pour supporter plusieurs realms Keycloak avec HMAC
+     */
+    @Bean
+    public JwtDecoder jwtDecoder() {
+        log.info("Using simple JJWT decoder that works in debug");
+        return new SimpleHmacJwtDecoder(adminSecret);
+    }
+
+    /**
+     * Convertisseur d'authentification JWT personnalisé pour multi-realms
+     */
+    @Bean
+    public JwtAuthenticationConverter jwtAuthenticationConverter() {
+        return new PatientJwtAuthenticationConverter();
+    }
+
+    /**
+     * Configuration CORS
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        // Origines autorisées (en développement, ajuster pour la production)
+        configuration.setAllowedOriginPatterns(List.of("*"));
+
+        // Méthodes HTTP autorisées
+        configuration.setAllowedMethods(Arrays.asList(
+                "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"
+        ));
+
+        // Headers autorisés
+        configuration.setAllowedHeaders(Arrays.asList(
+                "Authorization", "Content-Type", "Accept", "X-Requested-With",
+                "Cache-Control", "X-Laboratory-Id", "X-Patient-Id"
+        ));
+
+        // Headers exposés dans la réponse
+        configuration.setExposedHeaders(Arrays.asList(
+                "X-Total-Count", "X-Page-Number", "X-Page-Size"
+        ));
+
+        // Autoriser les credentials
+        configuration.setAllowCredentials(true);
+
+        // Durée de cache pour les requêtes preflight
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+
+        return source;
+    }
+}
+```
+
+# lims-ref-service/src/main/java/com/lims/config/SimpleHmacJwtDecoder.java
+
+```java
+package com.lims.config;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtException;
+
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Décodeur JWT simple utilisant directement JJWT (même lib que le service auth)
+ */
+@Slf4j
+public class SimpleHmacJwtDecoder implements JwtDecoder {
+
+    private final String jwtSecret;
+
+    public SimpleHmacJwtDecoder(String jwtSecret) {
+        this.jwtSecret = jwtSecret;
+    }
+
+    @Override
+    public Jwt decode(String token) throws JwtException {
+        try {
+            log.debug("Decoding JWT token with JJWT library");
+
+            // Utiliser directement la clé brute (comme dans le debug qui marche)
+            SecretKeySpec secretKey = new SecretKeySpec(
+                    jwtSecret.getBytes(StandardCharsets.UTF_8),
+                    "HmacSHA512"
+            );
+            log.debug("Using raw string secret key");
+
+            // Décoder avec JJWT
+            Claims claims = Jwts.parser()
+                    .verifyWith(secretKey)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+
+            log.debug("Successfully decoded JWT for subject: {}", claims.getSubject());
+
+            // Vérifier que c'est un token admin pour ce service
+            String realm = (String) claims.get("realm");
+            if (!"lims-admin".equals(realm)) {
+                log.debug("Token is not for admin realm: {}", realm);
+                // Pour l'instant on accepte tous les realms, mais on pourrait filtrer ici
+            }
+
+            // Convertir en Spring Security Jwt
+            return createSpringJwt(token, claims);
+
+        } catch (Exception e) {
+            log.error("Failed to decode JWT: {}", e.getMessage());
+            throw new JwtException("Failed to decode JWT", e);
+        }
+    }
+
+    private Jwt createSpringJwt(String token, Claims claims) {
+        Map<String, Object> headers = new HashMap<>();
+        headers.put("alg", "HS512");
+        headers.put("typ", "JWT");
+
+        Map<String, Object> claimsMap = new HashMap<>(claims);
+
+        Instant issuedAt = claims.getIssuedAt() != null ? claims.getIssuedAt().toInstant() : Instant.now();
+        Instant expiresAt = claims.getExpiration() != null ? claims.getExpiration().toInstant() : Instant.now().plusSeconds(3600);
+
+        return new Jwt(
+                token,
+                issuedAt,
+                expiresAt,
+                headers,
+                claimsMap
+        );
+    }
+}
+```
+
+# lims-ref-service/src/main/java/com/lims/config/ValidationConfig.java
+
+```java
+package com.lims.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
+import org.springframework.validation.beanvalidation.MethodValidationPostProcessor;
+
+/**
+ * Configuration pour la validation des données
+ */
+@Configuration
+public class ValidationConfig {
+
+    @Bean
+    public LocalValidatorFactoryBean validator() {
+        return new LocalValidatorFactoryBean();
+    }
+
+    @Bean
+    public MethodValidationPostProcessor methodValidationPostProcessor() {
+        MethodValidationPostProcessor processor = new MethodValidationPostProcessor();
+        processor.setValidator(validator());
+        return processor;
+    }
+}
+```
+
+# lims-ref-service/src/main/java/com/lims/ReferentialServiceApplication.java
+
+```java
+package com.lims;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class ReferentialServiceApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(ReferentialServiceApplication.class, args);
+    }
+}
+```
+
+# lims-ref-service/src/main/resources/application.yml
+
+```yml
+server:
+  port: 8093
+
+spring:
+  application:
+    name: lims-patient-service
+  profiles:
+    active: development
+
+  # Database configuration
+  datasource:
+    url: jdbc:postgresql://localhost:5432/lims_db
+    username: lims_user
+    password: dev_password_123
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      pool-name: LIMS-Patient-Pool
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate  # En production: validate
+      default_schema: lims_referential
+    show-sql: false  # true en développement
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        default_schema: lims_referential
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+        batch_versioned_data: true
+        generate_statistics: false
+
+  # Redis configuration pour le cache
+  redis:
+    host: localhost
+    port: 6379
+    password:
+    timeout: 2000ms
+    jedis:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+        max-wait: -1ms
+
+  # Cache configuration
+  cache:
+    type: redis
+    redis:
+      time-to-live: 300000 # 5 minutes
+
+# Configuration de sécurité - Support multi-realms
+security:
+  oauth2:
+    resourceserver:
+      jwt:
+        # Configuration pour les vérifications JWT multi-realms
+        # Le décodeur sera configuré programmatiquement pour supporter plusieurs realms
+        keycloak:
+          base-url: http://auth.lims.local
+          realms:
+            - name: lims-admin
+              issuer-uri: http://auth.lims.local/realms/lims-admin
+              jwk-set-uri: http://auth.lims.local/realms/lims-admin/protocol/openid-connect/certs
+            - name: lims-patient
+              issuer-uri: http://auth.lims.local/realms/lims-patient
+              jwk-set-uri: http://auth.lims.local/realms/lims-patient/protocol/openid-connect/certs
+            - name: lims-staff
+              issuer-uri: http://auth.lims.local/realms/lims-staff
+              jwk-set-uri: http://auth.lims.local/realms/lims-staff/protocol/openid-connect/certs
+
+# Configuration métier du service patient
+lims:
+  jwt:
+    secrets:
+      # IMPORTANT: Utiliser la MÊME clé que dans lims-auth-service
+      # Cette clé doit être identique à celle utilisée pour signer les JWT
+      admin: "G9/BrPDMezKO3cxercRPm7OtvRjWGOeONQCk7AjB6s+pttEuco8xcUEE6dT2IHNHix9aNk4i+c1N8CaTTp84WxCfZMCC/UVJABajwU4ToymMJ/9gT3uxMK5PqrJcCHNi2cUo3P9k+ZaBCqvqwcDZv6kY7mdaz6G5VmcWAU8+4OgZVZEssNvY2kTInV2Sz4JZzp4/N8aWGf6ml3C+q4I8l0Yk9qImvqnAeMX83Rxp3R+yLk2LvCuaYx1lEkSbkM2NbsN1W8ebtZwxMC0CpeLY57V7DocrjvK7v/pjHHUu27qad1JgLBhmoNy4LZX1rqLSKdYvjGQqQd8SU4vP311d9fY8rv47DLKjSPKkee4XTtrfTfH1fh3mnPjYl2NoZjCzr7KAHB3lKpk56rUlmXYbqqExOlDGmnXOrnCL5JRj3LWgwvw6sR73/CGsigxkZvks00QF48cSfJPgFT+TdZ4FyAxc9vC+MG5FDdSjG+wCgmJ/UYQ9MOdLhNGs2itMpf3mN/z81/JYbbDxrNWPah56Ybr8Y4DUykgfJLMgiK/nwME5/qwjzkfRpjEMBRaZbIJPy7N+NfdgIolVjdNj6eBNUHLlrerV2G5FcEkHTsYrTIFrhxxAI3gE3KI92pBPBXxKohXrvVt4nupaj9onnzfP/y5s5kQkNUomVQYMIbyUKGU="
+      staff: "G9/BrPDMezKO3cxercRPm7OtvRjWGOeONQCk7AjB6s+pttEuco8xcUEE6dT2IHNHix9aNk4i+c1N8CaTTp84WxCfZMCC/UVJABajwU4ToymMJ/9gT3uxMK5PqrJcCHNi2cUo3P9k+ZaBCqvqwcDZv6kY7mdaz6G5VmcWAU8+4OgZVZEssNvY2kTInV2Sz4JZzp4/N8aWGf6ml3C+q4I8l0Yk9qImvqnAeMX83Rxp3R+yLk2LvCuaYx1lEkSbkM2NbsN1W8ebtZwxMC0CpeLY57V7DocrjvK7v/pjHHUu27qad1JgLBhmoNy4LZX1rqLSKdYvjGQqQd8SU4vP311d9fY8rv47DLKjSPKkee4XTtrfTfH1fh3mnPjYl2NoZjCzr7KAHB3lKpk56rUlmXYbqqExOlDGmnXOrnCL5JRj3LWgwvw6sR73/CGsigxkZvks00QF48cSfJPgFT+TdZ4FyAxc9vC+MG5FDdSjG+wCgmJ/UYQ9MOdLhNGs2itMpf3mN/z81/JYbbDxrNWPah56Ybr8Y4DUykgfJLMgiK/nwME5/qwjzkfRpjEMBRaZbIJPy7N+NfdgIolVjdNj6eBNUHLlrerV2G5FcEkHTsYrTIFrhxxAI3gE3KI92pBPBXxKohXrvVt4nupaj9onnzfP/y5s5kQkNUomVQYMIbyUKGU="
+  patient:
+    # Règles métier
+    business-rules:
+      max-contacts-par-type: 3
+      max-adresses-par-type: 2
+      max-assurances-par-patient: 5
+      validation-email-obligatoire: true
+      validation-telephone-obligatoire: false
+      duree-conservation-audit-jours: 2555
+      soft-delete-uniquement: true
+
+    # Configuration audit
+    audit:
+      enabled: true
+      log-all-access: true
+      retention-days: 2555
+      include-ip-address: true
+      include-user-agent: true
+
+    # Configuration sécurité spécifique
+    security:
+      # Définir quels types d'utilisateurs peuvent accéder aux données patients
+      allowed-user-types:
+        - ADMIN    # Admins système (realm lims-admin)
+        - STAFF    # Personnel laboratoire (realm lims-staff)
+
+      # Permissions par type d'utilisateur
+      permissions:
+        ADMIN:
+          - READ_ALL_PATIENTS
+          - WRITE_ALL_PATIENTS
+          - DELETE_PATIENTS
+          - ADMIN_OPERATIONS
+        PATIENT:
+          - READ_OWN_DATA
+          - UPDATE_OWN_CONTACT
+        STAFF:
+          - READ_PATIENTS_IN_LAB
+          - WRITE_PATIENTS_IN_LAB
+          - SCHEDULE_APPOINTMENTS
+
+# Logging
+logging:
+  level:
+    com.lims.patient: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.security.oauth2: DEBUG
+    org.springframework.web.filter.CommonsRequestLoggingFilter: DEBUG
+    root: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# Monitoring et management
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+  info:
+    env:
+      enabled: true
+
+# Configuration Swagger/OpenAPI
+springdoc:
+  api-docs:
+    enabled: true
+    path: /api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    config-url: /api-docs/swagger-config
+    urls-primary-name: "Patient Service API"
+    display-request-duration: true
+    show-extensions: true
+    show-common-extensions: true
+```
+
 # logs/lims-patient-service.log
 
 ```log
@@ -13039,6 +14273,7 @@ This is a binary file of the type: Binary
         <module>lims-auth-service</module>
         <module>lims-laboratory-service</module>
         <module>lims-patient-service</module>
+        <module>lims-ref-service</module>
     </modules>
 
     <dependencyManagement>
@@ -13264,5 +14499,20 @@ This is a binary file of the type: Binary
         </profile>
     </profiles>
 </project>
+```
+
+# TODO.md
+
+```md
+TODO:
+
+- [ ] Rajouter un ref de situation 
+- [ ] Créer un patient (prendre en compte la situation du patient)
+- [ ] Mettre à jour un patient (json patch) (prendre en compte la situation du patient)
+- [ ] Mettre à jour la situation du patient
+- [ ] initier service référentiel (avec analyses)
+- [ ] initier service document avec minio (pour upload des mutuelles et ordonnances)
+- [ ] initier service parcours/dossier (pour y rajouter les ordonnances, analyses, réponses aux conditions pré-analytics)
+
 ```
 

@@ -4,14 +4,15 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="7aacdcd1-1ad1-4553-9a77-bce1e509ee8f" name="Changes" comment="patient search working">
+    <list default="true" id="7aacdcd1-1ad1-4553-9a77-bce1e509ee8f" name="Changes" comment="first step ok">
+      <change afterPath="$PROJECT_DIR$/lims-ref-service/pom.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/lims-ref-service/src/main/java/com/lims/referential/config/SecurityConfig.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/lims-ref-service/src/main/java/com/lims/referential/config/ValidationConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/encodings.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/encodings.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/codebase.md" beforeDir="false" afterPath="$PROJECT_DIR$/codebase.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/controller/PatientController.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/controller/PatientController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/response/PatientSummaryResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/response/PatientSummaryResponse.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/mapper/PatientMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/mapper/PatientMapper.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientSearchService.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientSearchService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientService.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/Main.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -44,9 +45,10 @@
   &quot;associatedIndex&quot;: 0
 }</component>
   <component name="ProjectId" id="2zOyt1wV2eje4HmevYmWpJXqeZo" />
-  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true">
+    <ConfirmationsSetting value="1" id="Add" />
+  </component>
   <component name="ProjectViewState">
-    <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showExcludedFiles" value="false" />
     <option name="showLibraryContents" value="true" />
   </component>
@@ -54,16 +56,31 @@
   "keyToString": {
     "Application.AuthServiceApplication.executor": "Debug",
     "Application.PatientServiceApplication.executor": "Debug",
+    "Application.ReferentialServiceApplication.executor": "Debug",
     "Maven.lims-patient-service [clean].executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "git-widget-placeholder": "main",
     "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "/Users/elkolotfi/Desktop/NEW_START/PROJECTS/b10/backend/lims-system",
+    "last_opened_file_path": "/Users/elkolotfi/Desktop/NEW_START/PROJECTS/b10/backend/lims-system/lims-ref-service/src/main/java/com/lims",
     "settings.editor.selected.configurable": "settings.qodana"
+  },
+  "keyToStringList": {
+    "com.intellij.ide.scratch.ScratchImplUtil$2/New Scratch File": [
+      "HTML"
+    ]
   }
 }]]></component>
-  <component name="RunManager" selected="Application.AuthServiceApplication">
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/lims-ref-service/src/main/java/com/lims" />
+      <recent name="$PROJECT_DIR$/lims-ref-service/src/main/resources" />
+    </key>
+    <key name="CopyClassDialog.RECENTS_KEY">
+      <recent name="com.lims" />
+    </key>
+  </component>
+  <component name="RunManager" selected="Application.ReferentialServiceApplication">
     <configuration name="AuthServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="ALTERNATIVE_JRE_PATH" value="corretto-21" />
       <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
@@ -92,10 +109,24 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
+    <configuration name="ReferentialServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+      <option name="MAIN_CLASS_NAME" value="com.lims.ReferentialServiceApplication" />
+      <module name="lims-ref-service" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="com.lims.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Application.PatientServiceApplication" />
+        <item itemvalue="Application.ReferentialServiceApplication" />
         <item itemvalue="Application.AuthServiceApplication" />
+        <item itemvalue="Application.PatientServiceApplication" />
       </list>
     </recent_temporary>
   </component>
@@ -164,7 +195,15 @@
       <option name="project" value="LOCAL" />
       <updated>1752226824760</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="first step ok">
+      <option name="closed" value="true" />
+      <created>1752258069062</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1752258069062</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -184,7 +223,8 @@
     <MESSAGE value="patient service running" />
     <MESSAGE value="patient admin auth working" />
     <MESSAGE value="patient search working" />
-    <option name="LAST_COMMIT_MESSAGE" value="patient search working" />
+    <MESSAGE value="first step ok" />
+    <option name="LAST_COMMIT_MESSAGE" value="first step ok" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -293,6 +333,11 @@
           <url>file://$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/repository/impl/PatientSearchRepositoryImpl.java</url>
           <line>53</line>
           <option name="timeStamp" value="76" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-ref-service/src/main/java/com/lims/referential/controller/AnalyseController.java</url>
+          <line>30</line>
+          <option name="timeStamp" value="78" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
