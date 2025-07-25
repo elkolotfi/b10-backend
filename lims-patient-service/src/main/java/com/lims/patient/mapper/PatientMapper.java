@@ -33,7 +33,6 @@ public interface PatientMapper {
     @Mapping(target = "contactInfo", source = ".", qualifiedByName = "toContactInfoResponse")
     @Mapping(target = "insurances", source = "assurances")
     @Mapping(target = "consent", source = ".", qualifiedByName = "toConsentResponse")
-    @Mapping(target = "metadata", source = ".", qualifiedByName = "toMetadataResponse")
     PatientResponse toPatientResponse(Patient patient);
 
     /**
@@ -115,9 +114,9 @@ public interface PatientMapper {
         if (patient == null) return null;
 
         return ConsentResponse.builder()
-                .consentementCreationCompte(patient.getConsentementCreationCompte())
-                .consentementSms(patient.getConsentementSms())
-                .consentementEmail(patient.getConsentementEmail())
+                .createAccount(patient.getConsentementCreationCompte())
+                .sms(patient.getConsentementSms())
+                .email(patient.getConsentementEmail())
                 .dateConsentement(patient.getDateConsentement())
                 .build();
     }

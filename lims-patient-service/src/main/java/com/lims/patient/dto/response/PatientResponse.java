@@ -13,6 +13,7 @@ public record PatientResponse(
         PersonalInfoResponse personalInfo,
         ContactInfoResponse contactInfo,
         List<InsuranceResponse> insurances,
+        PatientSpecificitiesResponse specificities,
         ConsentResponse consent,
-        MetadataResponse metadata
+        String commentairePatient
 ) {}

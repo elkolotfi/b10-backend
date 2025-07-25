@@ -9,11 +9,11 @@ import lombok.Builder;
 @Builder
 public record ConsentRequest(
         @NotNull
-        Boolean consentementCreationCompte,
+        Boolean createAccount,
 
         @NotNull
-        Boolean consentementSms,
+        Boolean sms,
 
         @NotNull
-        Boolean consentementEmail
+        Boolean email
 ) {}

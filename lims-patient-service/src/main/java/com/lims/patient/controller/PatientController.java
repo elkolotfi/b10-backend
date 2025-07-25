@@ -1,6 +1,7 @@
 package com.lims.patient.controller;
 
 import com.lims.patient.dto.error.ErrorResponse;
+import com.lims.patient.dto.request.CreatePatientRequest;
 import com.lims.patient.dto.request.PatientSearchRequest;
 import com.lims.patient.dto.response.PatientResponse;
 import com.lims.patient.dto.response.PatientSearchResponse;
@@ -21,6 +22,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -41,6 +43,45 @@ public class PatientController {
     private final PatientAuditService auditService;
     private final PatientService patientService;
     private final PatientSearchService patientSearchService;
+
+    /**
+     * Crée un nouveau patient avec toutes ses informations
+     */
+    @PostMapping
+    @Operation(summary = "Créer un nouveau patient",
+            description = "Crée un patient complet avec données personnelles, contact, assurances, spécificités et commentaire")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Patient créé avec succès",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = PatientResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Données invalides",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "409", description = "Patient déjà existant (NIR/email/téléphone)",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
+    public ResponseEntity<PatientResponse> createPatient(
+            @Valid @RequestBody CreatePatientRequest request,
+            Authentication authentication) {
+
+        log.info("Création d'un nouveau patient: {} {} par {}",
+                request.personalInfo().prenom(),
+                request.personalInfo().nom(),
+                authentication.getName());
+
+        // Passer directement la requête + créateur séparément
+        PatientResponse response = patientService.createPatient(request, authentication.getName());
+
+        // Audit simple
+        auditService.logPatientCreation(
+                response,
+                authentication.getName()
+        );
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
 
     /**
      * Recherche multicritères de patients (POST recommandé)

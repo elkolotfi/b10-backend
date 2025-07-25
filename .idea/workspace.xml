@@ -6,8 +6,17 @@
   <component name="ChangeListManager">
     <list default="true" id="7aacdcd1-1ad1-4553-9a77-bce1e509ee8f" name="Changes" comment="working ref service">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/codebase.md" beforeDir="false" afterPath="$PROJECT_DIR$/codebase.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-ref-service/src/main/java/com/lims/referential/service/PatientSpecificityService.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-ref-service/src/main/java/com/lims/referential/service/PatientSpecificityService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/controller/PatientController.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/controller/PatientController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/request/ConsentRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/request/ConsentRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/request/CreatePatientRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/request/CreatePatientRequest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/response/ConsentResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/response/ConsentResponse.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/response/PatientResponse.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/response/PatientResponse.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/entity/Patient.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/entity/Patient.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/mapper/PatientMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/mapper/PatientMapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/repository/PatientRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/repository/PatientRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientAuditService.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientAuditService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientService.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientValidationService.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientValidationService.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -119,8 +128,8 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Application.ReferentialServiceApplication" />
         <item itemvalue="Application.PatientServiceApplication" />
+        <item itemvalue="Application.ReferentialServiceApplication" />
         <item itemvalue="Application.AuthServiceApplication" />
       </list>
     </recent_temporary>
@@ -214,7 +223,15 @@
       <option name="project" value="LOCAL" />
       <updated>1753259998436</updated>
     </task>
-    <option name="localTasksCounter" value="11" />
+    <task id="LOCAL-00011" summary="working ref service">
+      <option name="closed" value="true" />
+      <created>1753282596072</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1753282596072</updated>
+    </task>
+    <option name="localTasksCounter" value="12" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -362,6 +379,31 @@
           <url>file://$PROJECT_DIR$/lims-ref-service/src/main/java/com/lims/referential/controller/AnalyseController.java</url>
           <line>30</line>
           <option name="timeStamp" value="78" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientService.java</url>
+          <line>100</line>
+          <option name="timeStamp" value="84" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientService.java</url>
+          <line>106</line>
+          <option name="timeStamp" value="85" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientService.java</url>
+          <line>574</line>
+          <option name="timeStamp" value="86" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientService.java</url>
+          <line>559</line>
+          <option name="timeStamp" value="87" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientService.java</url>
+          <line>92</line>
+          <option name="timeStamp" value="88" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

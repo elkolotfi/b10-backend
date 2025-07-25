@@ -239,14 +239,14 @@ public class PatientValidationService {
         }
 
         // Consentement de création de compte obligatoire
-        if (consent.consentementCreationCompte() == null || !consent.consentementCreationCompte()) {
+        if (consent.createAccount() == null || !consent.createAccount()) {
             throw new ConsentValidationException(
                     "CREATION_COMPTE",
                     "Le consentement pour la création de compte est obligatoire");
         }
 
         // Validation cohérence consentements
-        if (consent.consentementEmail() != null && consent.consentementEmail()) {
+        if (consent.email() != null && consent.email()) {
             // Si consentement email, vérifier que l'email est valide
             if (!StringUtils.hasText(request.contactInfo().email())) {
                 throw new ConsentValidationException(
@@ -255,7 +255,7 @@ public class PatientValidationService {
             }
         }
 
-        if (consent.consentementSms() != null && consent.consentementSms()) {
+        if (consent.sms() != null && consent.sms()) {
             // Si consentement SMS, vérifier que le téléphone est valide
             if (!StringUtils.hasText(request.contactInfo().telephone())) {
                 throw new ConsentValidationException(

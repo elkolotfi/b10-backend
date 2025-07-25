@@ -6643,6 +6643,7 @@ public class InfoController {
 package com.lims.patient.controller;
 
 import com.lims.patient.dto.error.ErrorResponse;
+import com.lims.patient.dto.request.CreatePatientRequest;
 import com.lims.patient.dto.request.PatientSearchRequest;
 import com.lims.patient.dto.response.PatientResponse;
 import com.lims.patient.dto.response.PatientSearchResponse;
@@ -6663,6 +6664,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -6683,6 +6685,45 @@ public class PatientController {
     private final PatientAuditService auditService;
     private final PatientService patientService;
     private final PatientSearchService patientSearchService;
+
+    /**
+     * Crée un nouveau patient avec toutes ses informations
+     */
+    @PostMapping
+    @Operation(summary = "Créer un nouveau patient",
+            description = "Crée un patient complet avec données personnelles, contact, assurances, spécificités et commentaire")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "Patient créé avec succès",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = PatientResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Données invalides",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "409", description = "Patient déjà existant (NIR/email/téléphone)",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
+    public ResponseEntity<PatientResponse> createPatient(
+            @Valid @RequestBody CreatePatientRequest request,
+            Authentication authentication) {
+
+        log.info("Création d'un nouveau patient: {} {} par {}",
+                request.personalInfo().prenom(),
+                request.personalInfo().nom(),
+                authentication.getName());
+
+        // Passer directement la requête + créateur séparément
+        PatientResponse response = patientService.createPatient(request, authentication.getName());
+
+        // Audit simple
+        auditService.logPatientCreation(
+                response,
+                authentication.getName()
+        );
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
 
     /**
      * Recherche multicritères de patients (POST recommandé)
@@ -6887,6 +6928,47 @@ public class PatientController {
         log.info("Patient {} consulté avec succès", id);
 
         return ResponseEntity.ok(patient);
+    }
+}
+```
+
+# lims-patient-service/src/main/java/com/lims/patient/converter/DeliveryMethodConverter.java
+
+```java
+package com.lims.patient.converter;
+
+import com.lims.patient.enums.DeliveryMethod;
+import jakarta.persistence.AttributeConverter;
+import jakarta.persistence.Converter;
+import lombok.extern.slf4j.Slf4j;
+
+@Converter(autoApply = false)
+@Slf4j
+public class DeliveryMethodConverter implements AttributeConverter<DeliveryMethod, String> {
+
+    @Override
+    public String convertToDatabaseColumn(DeliveryMethod attribute) {
+        if (attribute == null) {
+            return null;
+        }
+        log.debug("Converting DeliveryMethod {} to database column", attribute.name());
+        return attribute.name();
+    }
+
+    @Override
+    public DeliveryMethod convertToEntityAttribute(String dbData) {
+        if (dbData == null || dbData.trim().isEmpty()) {
+            return null;
+        }
+
+        try {
+            DeliveryMethod result = DeliveryMethod.valueOf(dbData.toUpperCase());
+            log.debug("Converting database value '{}' to DeliveryMethod {}", dbData, result);
+            return result;
+        } catch (IllegalArgumentException e) {
+            log.warn("Valeur DeliveryMethod inconnue dans la BDD : '{}', utilisation par défaut : EMAIL", dbData);
+            return DeliveryMethod.EMAIL;
+        }
     }
 }
 ```
@@ -7136,13 +7218,13 @@ import lombok.Builder;
 @Builder
 public record ConsentRequest(
         @NotNull
-        Boolean consentementCreationCompte,
+        Boolean createAccount,
 
         @NotNull
-        Boolean consentementSms,
+        Boolean sms,
 
         @NotNull
-        Boolean consentementEmail
+        Boolean email
 ) {}
 
 ```
@@ -7310,6 +7392,7 @@ package com.lims.patient.dto.request;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Builder;
 
 import java.util.List;
@@ -7328,10 +7411,16 @@ public record CreatePatientRequest(
         @Valid
         List<InsuranceRequest> insurances,
 
+        @Valid
+        PatientSpecificitiesRequest specificities, // Liste d'IDs seulement
+
         @Valid @NotNull
         ConsentRequest consent,
 
-        String createdBy // ID du staff qui crée le patient
+        @Size(max = 2000, message = "Le commentaire ne peut pas dépasser 2000 caractères")
+        String commentairePatient,
+
+        String createdBy
 ) {}
 ```
 
@@ -7500,6 +7589,23 @@ public record PatientSearchRequest(
                 .replaceAll("\\s+", " "); // Remplace les espaces multiples par un seul
     }
 }
+```
+
+# lims-patient-service/src/main/java/com/lims/patient/dto/request/PatientSpecificitiesRequest.java
+
+```java
+package com.lims.patient.dto.request;
+
+import lombok.Builder;
+import java.util.List;
+
+/**
+ * DTO pour les spécificités du patient - Version minimaliste selon accords
+ */
+@Builder
+public record PatientSpecificitiesRequest(
+        List<String> specificityIds // UNIQUEMENT les IDs, pas plus
+) {}
 ```
 
 # lims-patient-service/src/main/java/com/lims/patient/dto/request/PersonalInfoRequest.java
@@ -7732,9 +7838,9 @@ import java.time.LocalDateTime;
  */
 @Builder
 public record ConsentResponse(
-        Boolean consentementCreationCompte,
-        Boolean consentementSms,
-        Boolean consentementEmail,
+        Boolean createAccount,
+        Boolean sms,
+        Boolean email,
         LocalDateTime dateConsentement
 ) {}
 
@@ -7876,8 +7982,9 @@ public record PatientResponse(
         PersonalInfoResponse personalInfo,
         ContactInfoResponse contactInfo,
         List<InsuranceResponse> insurances,
+        PatientSpecificitiesResponse specificities,
         ConsentResponse consent,
-        MetadataResponse metadata
+        String commentairePatient
 ) {}
 
 ```
@@ -7901,6 +8008,20 @@ public record PatientSearchResponse(
         int totalPages,
         long totalElements,
         int pageSize
+) {}
+```
+
+# lims-patient-service/src/main/java/com/lims/patient/dto/response/PatientSpecificitiesResponse.java
+
+```java
+package com.lims.patient.dto.response;
+
+import lombok.Builder;
+import java.util.List;
+
+@Builder
+public record PatientSpecificitiesResponse(
+        List<String> specificityIds
 ) {}
 ```
 
@@ -8243,6 +8364,8 @@ import com.lims.patient.enums.NotificationPreference;
 import com.lims.patient.enums.PatientStatus;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.annotation.CreatedBy;
@@ -8328,13 +8451,21 @@ public class Patient {
     @Column(name = "longitude", columnDefinition = "DECIMAL(11,8)")
     private BigDecimal longitude;
 
+    @Column(name = "specificity_ids", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Builder.Default
+    private List<String> specificityIds = new ArrayList<>();
+
+    @Column(name = "commentaire_patient", columnDefinition = "TEXT")
+    private String commentairePatient;
+
     // ===== PRÉFÉRENCES COMMUNICATION =====
     @Enumerated(EnumType.STRING)
-    @Column(name = "methode_livraison_preferee")
+    @Column(name = "methode_livraison_preferee", columnDefinition = "lims_patient.delivery_method")
     private DeliveryMethod methodeLivraisonPreferee = DeliveryMethod.EMAIL;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "preference_notification")
+    @Column(name = "preference_notification", columnDefinition = "lims_patient.notification_preference")
     private NotificationPreference preferenceNotification = NotificationPreference.TOUS;
 
     @Column(name = "langue_preferee", length = 5)
@@ -8500,6 +8631,30 @@ public class Patient {
 
     public void setCreepar(String creepar) {
         this.creePar = creepar;
+    }
+
+    // Méthodes helper pour les spécificités
+    public void addSpecificity(String specificityId) {
+        if (this.specificityIds == null) {
+            this.specificityIds = new ArrayList<>();
+        }
+        if (!this.specificityIds.contains(specificityId)) {
+            this.specificityIds.add(specificityId);
+        }
+    }
+
+    public void removeSpecificity(String specificityId) {
+        if (this.specificityIds != null) {
+            this.specificityIds.remove(specificityId);
+        }
+    }
+
+    public boolean hasSpecificities() {
+        return this.specificityIds != null && !this.specificityIds.isEmpty();
+    }
+
+    public int getSpecificitiesCount() {
+        return this.specificityIds != null ? this.specificityIds.size() : 0;
     }
 }
 ```
@@ -9457,7 +9612,6 @@ public interface PatientMapper {
     @Mapping(target = "contactInfo", source = ".", qualifiedByName = "toContactInfoResponse")
     @Mapping(target = "insurances", source = "assurances")
     @Mapping(target = "consent", source = ".", qualifiedByName = "toConsentResponse")
-    @Mapping(target = "metadata", source = ".", qualifiedByName = "toMetadataResponse")
     PatientResponse toPatientResponse(Patient patient);
 
     /**
@@ -9539,9 +9693,9 @@ public interface PatientMapper {
         if (patient == null) return null;
 
         return ConsentResponse.builder()
-                .consentementCreationCompte(patient.getConsentementCreationCompte())
-                .consentementSms(patient.getConsentementSms())
-                .consentementEmail(patient.getConsentementEmail())
+                .createAccount(patient.getConsentementCreationCompte())
+                .sms(patient.getConsentementSms())
+                .email(patient.getConsentementEmail())
                 .dateConsentement(patient.getDateConsentement())
                 .build();
     }
@@ -9841,6 +9995,37 @@ public interface PatientMapper {
         };
     }
 }
+```
+
+# lims-patient-service/src/main/java/com/lims/patient/mapper/PatientSpecificitiesMapper.java
+
+```java
+package com.lims.patient.mapper;
+
+import com.lims.patient.dto.response.PatientResponse;
+import com.lims.patient.dto.response.PatientSpecificitiesResponse;
+import com.lims.patient.entity.Patient;
+import org.mapstruct.Mapping;
+import org.mapstruct.Named;
+
+import java.util.List;
+
+public interface PatientSpecificitiesMapper {
+    @Named("toSpecificitiesResponse")
+    default PatientSpecificitiesResponse toSpecificitiesResponse(Patient patient) {
+        if (patient == null) return null;
+
+        return PatientSpecificitiesResponse.builder()
+                .specificityIds(patient.getSpecificityIds() != null ? patient.getSpecificityIds() : List.of())
+                .build();
+    }
+
+    // Mapping principal
+    @Mapping(target = "specificities", source = ".", qualifiedByName = "toSpecificitiesResponse")
+    @Mapping(target = "commentairePatient", source = "commentairePatient") // DIRECTEMENT depuis patient
+    PatientResponse toPatientResponse(Patient patient);
+}
+
 ```
 
 # lims-patient-service/src/main/java/com/lims/patient/PatientServiceApplication.java
@@ -10265,7 +10450,7 @@ public interface PatientRepository extends JpaRepository<Patient, UUID>, JpaSpec
     @Query("SELECT p FROM Patient p WHERE " +
             "p.dateSuppression IS NULL AND " +
             "p.statut = :statut AND " +
-            "(p.consentementEmail = true OR p.consentementSms = true)")
+            "(p.consentementSms = true OR p.consentementEmail = true)")
     List<Patient> findPatientsWithNotificationsEnabled(@Param("statut") PatientStatus statut);
 
     /**
@@ -10715,6 +10900,7 @@ public class PatientSecurityContext {
 ```java
 package com.lims.patient.service;
 
+import com.lims.patient.dto.response.PatientResponse;
 import com.lims.patient.entity.Patient;
 import com.lims.patient.entity.PatientAuditLog;
 import com.lims.patient.repository.PatientAuditLogRepository;
@@ -10770,11 +10956,11 @@ public class PatientAuditService {
     /**
      * Log la création d'un patient
      */
-    public void logPatientCreation(Patient patient, String createdBy) {
+    public void logPatientCreation(PatientResponse patient, String createdBy) {
         logPatientAccess(
-                patient.getId(),
+                UUID.fromString(patient.id()),
                 "PATIENT_CREATED",
-                String.format("Nouveau patient créé: %s %s", patient.getPrenom(), patient.getNom()),
+                String.format("Nouveau patient créé: %s %s", patient.personalInfo().prenom(), patient.personalInfo().nom()),
                 createdBy,
                 "STAFF"
         );
@@ -11257,6 +11443,8 @@ import com.lims.patient.dto.request.*;
 import com.lims.patient.dto.response.*;
 import com.lims.patient.entity.Patient;
 import com.lims.patient.entity.PatientAssurance;
+import com.lims.patient.enums.DeliveryMethod;
+import com.lims.patient.enums.NotificationPreference;
 import com.lims.patient.enums.PatientStatus;
 import com.lims.patient.exception.DuplicatePatientException;
 import com.lims.patient.exception.InvalidPatientDataException;
@@ -11275,6 +11463,7 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -11300,20 +11489,36 @@ public class PatientService {
     /**
      * Crée un nouveau patient avec structure centralisée
      */
-    public PatientResponse createPatient(CreatePatientRequest request) {
-        log.info("Création d'un nouveau patient: {} {}",
-                request.personalInfo().prenom(), request.personalInfo().nom());
+    public PatientResponse createPatient(CreatePatientRequest request, String createdBy) {
+        log.debug("Création d'un nouveau patient: {} {} avec {} spécificités par {}",
+                request.personalInfo().prenom(),
+                request.personalInfo().nom(),
+                request.specificities() != null && request.specificities().specificityIds() != null
+                        ? request.specificities().specificityIds().size() : 0,
+                createdBy);
 
-        // 1. Validation des données
+        // 1. Validation des données (existante)
         validateCreateRequest(request);
 
-        // 2. Vérification des doublons
+        // 2. Vérification des doublons (existante)
         checkForDuplicates(request);
 
-        // 3. Construction de l'entité Patient
-        Patient patient = buildPatientFromRequest(request);
+        // 3. Construction de l'entité Patient avec createdBy
+        Patient patient = buildPatientFromRequest(request, createdBy);
 
-        // 4. Ajout des assurances
+        // 4. AJOUT SPÉCIFICITÉS - UNIQUEMENT LES IDs
+        if (request.specificities() != null && request.specificities().specificityIds() != null) {
+            patient.setSpecificityIds(new ArrayList<>(request.specificities().specificityIds()));
+            log.debug("Spécificités ajoutées au patient: {}", request.specificities().specificityIds());
+        }
+
+        // 5. AJOUT COMMENTAIRE PATIENT - DIRECTEMENT SUR PATIENT
+        if (StringUtils.hasText(request.commentairePatient())) {
+            patient.setCommentairePatient(request.commentairePatient());
+            log.debug("Commentaire patient ajouté");
+        }
+
+        // 6. Ajout des assurances (existant)
         if (request.insurances() != null) {
             for (InsuranceRequest insuranceRequest : request.insurances()) {
                 PatientAssurance assurance = buildAssuranceFromRequest(insuranceRequest);
@@ -11321,11 +11526,22 @@ public class PatientService {
             }
         }
 
-        // 5. Sauvegarde
-        Patient savedPatient = patientRepository.save(patient);
+        // 7. Sauvegarde
+        Patient savedPatient;
+        try {
+            savedPatient = patientRepository.saveAndFlush(patient); // ✅ Force l'SQL immédiatement
+            log.info("Patient sauvegardé en BDD avec succès: {} (ID: {})",
+                    savedPatient.getNomComplet(), savedPatient.getId());
+        } catch (Exception e) {
+            log.error("ERREUR SQL lors de la sauvegarde du patient: {}", e.getMessage());
+            throw e; // L'erreur apparaîtra ici, pas plus tard
+        }
 
-        log.info("Patient créé avec succès: {} (ID: {})",
-                savedPatient.getNomComplet(), savedPatient.getId());
+        log.info("Patient créé avec succès: {} (ID: {}), {} spécificité(s), commentaire: {}",
+                savedPatient.getNomComplet(),
+                savedPatient.getId(),
+                savedPatient.getSpecificitiesCount(),
+                savedPatient.getCommentairePatient() != null ? "oui" : "non");
 
         return mapToPatientResponse(savedPatient);
     }
@@ -11599,7 +11815,7 @@ public class PatientService {
         }
 
         // Validation des consentements obligatoires
-        if (consent.consentementCreationCompte() == null || !consent.consentementCreationCompte()) {
+        if (consent.createAccount() == null || !consent.createAccount()) {
             throw new InvalidPatientDataException("Le consentement de création de compte est obligatoire");
         }
     }
@@ -11621,7 +11837,7 @@ public class PatientService {
         }
     }
 
-    private Patient buildPatientFromRequest(CreatePatientRequest request) {
+    private Patient buildPatientFromRequest(CreatePatientRequest request, String createdBy) {
         PersonalInfoRequest personalInfo = request.personalInfo();
         ContactInfoRequest contactInfo = request.contactInfo();
         ConsentRequest consent = request.consent();
@@ -11655,23 +11871,25 @@ public class PatientService {
         patient.setLongitude(contactInfo.longitude());
 
         // === PRÉFÉRENCES DE COMMUNICATION ===
-        patient.setMethodeLivraisonPreferee(contactInfo.methodeLivraisonPreferee());
-        patient.setPreferenceNotification(contactInfo.preferenceNotification());
+        patient.setMethodeLivraisonPreferee(DeliveryMethod.EMAIL);
+        patient.setPreferenceNotification(NotificationPreference.TOUS);
         patient.setLanguePreferee(contactInfo.languePreferee() != null ? contactInfo.languePreferee() : "fr-FR");
         patient.setNotificationsResultats(contactInfo.notificationsResultats() != null ? contactInfo.notificationsResultats() : true);
         patient.setNotificationsRdv(contactInfo.notificationsRdv() != null ? contactInfo.notificationsRdv() : true);
         patient.setNotificationsRappels(contactInfo.notificationsRappels() != null ? contactInfo.notificationsRappels() : true);
 
         // === CONSENTEMENTS RGPD ===
-        patient.setConsentementCreationCompte(consent.consentementCreationCompte());
-        patient.setConsentementSms(consent.consentementSms());
-        patient.setConsentementEmail(consent.consentementEmail());
+        patient.setConsentementCreationCompte(consent.createAccount());
+        patient.setConsentementSms(consent.sms());
+        patient.setConsentementEmail(consent.email());
         patient.setDateConsentement(LocalDateTime.now());
 
         // === MÉTADONNÉES ===
         patient.setStatut(PatientStatus.ACTIF);
         patient.setDateCreation(LocalDateTime.now());
         patient.setCreepar(request.createdBy() != null ? request.createdBy() : "SYSTEM");
+
+        patient.setCreepar(createdBy);
 
         return patient;
     }
@@ -11805,8 +12023,10 @@ public class PatientService {
                 .pays(patient.getPays())
                 .latitude(patient.getLatitude())
                 .longitude(patient.getLongitude())
-                .methodeLivraisonPreferee(patient.getMethodeLivraisonPreferee())
-                .preferenceNotification(patient.getPreferenceNotification())
+                // .methodeLivraisonPreferee(patient.getMethodeLivraisonPreferee())
+                .methodeLivraisonPreferee(DeliveryMethod.EMAIL)
+//                .preferenceNotification(patient.getPreferenceNotification())
+                .preferenceNotification(NotificationPreference.TOUS)
                 .languePreferee(patient.getLanguePreferee())
                 .notificationsResultats(patient.getNotificationsResultats())
                 .notificationsRdv(patient.getNotificationsRdv())
@@ -11815,9 +12035,9 @@ public class PatientService {
 
         // Construction des consentements
         ConsentResponse consent = ConsentResponse.builder()
-                .consentementCreationCompte(patient.getConsentementCreationCompte())
-                .consentementSms(patient.getConsentementSms())
-                .consentementEmail(patient.getConsentementEmail())
+                .createAccount(patient.getConsentementCreationCompte())
+                .sms(patient.getConsentementSms())
+                .email(patient.getConsentementEmail())
                 .dateConsentement(patient.getDateConsentement())
                 .build();
 
@@ -11836,7 +12056,6 @@ public class PatientService {
                 .personalInfo(personalInfo)
                 .contactInfo(contactInfo)
                 .consent(consent)
-                .metadata(metadata)
                 .build();
     }
 
@@ -12120,14 +12339,14 @@ public class PatientValidationService {
         }
 
         // Consentement de création de compte obligatoire
-        if (consent.consentementCreationCompte() == null || !consent.consentementCreationCompte()) {
+        if (consent.createAccount() == null || !consent.createAccount()) {
             throw new ConsentValidationException(
                     "CREATION_COMPTE",
                     "Le consentement pour la création de compte est obligatoire");
         }
 
         // Validation cohérence consentements
-        if (consent.consentementEmail() != null && consent.consentementEmail()) {
+        if (consent.email() != null && consent.email()) {
             // Si consentement email, vérifier que l'email est valide
             if (!StringUtils.hasText(request.contactInfo().email())) {
                 throw new ConsentValidationException(
@@ -12136,7 +12355,7 @@ public class PatientValidationService {
             }
         }
 
-        if (consent.consentementSms() != null && consent.consentementSms()) {
+        if (consent.sms() != null && consent.sms()) {
             // Si consentement SMS, vérifier que le téléphone est valide
             if (!StringUtils.hasText(request.contactInfo().telephone())) {
                 throw new ConsentValidationException(

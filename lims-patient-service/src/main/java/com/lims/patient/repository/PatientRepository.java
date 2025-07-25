@@ -174,7 +174,7 @@ public interface PatientRepository extends JpaRepository<Patient, UUID>, JpaSpec
     @Query("SELECT p FROM Patient p WHERE " +
             "p.dateSuppression IS NULL AND " +
             "p.statut = :statut AND " +
-            "(p.consentementEmail = true OR p.consentementSms = true)")
+            "(p.consentementSms = true OR p.consentementEmail = true)")
     List<Patient> findPatientsWithNotificationsEnabled(@Param("statut") PatientStatus statut);
 
     /**

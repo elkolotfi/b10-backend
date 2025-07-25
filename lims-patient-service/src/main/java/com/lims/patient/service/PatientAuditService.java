@@ -1,5 +1,6 @@
 package com.lims.patient.service;
 
+import com.lims.patient.dto.response.PatientResponse;
 import com.lims.patient.entity.Patient;
 import com.lims.patient.entity.PatientAuditLog;
 import com.lims.patient.repository.PatientAuditLogRepository;
@@ -55,11 +56,11 @@ public class PatientAuditService {
     /**
      * Log la création d'un patient
      */
-    public void logPatientCreation(Patient patient, String createdBy) {
+    public void logPatientCreation(PatientResponse patient, String createdBy) {
         logPatientAccess(
-                patient.getId(),
+                UUID.fromString(patient.id()),
                 "PATIENT_CREATED",
-                String.format("Nouveau patient créé: %s %s", patient.getPrenom(), patient.getNom()),
+                String.format("Nouveau patient créé: %s %s", patient.personalInfo().prenom(), patient.personalInfo().nom()),
                 createdBy,
                 "STAFF"
         );

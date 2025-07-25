@@ -4,6 +4,8 @@ import com.lims.patient.dto.request.*;
 import com.lims.patient.dto.response.*;
 import com.lims.patient.entity.Patient;
 import com.lims.patient.entity.PatientAssurance;
+import com.lims.patient.enums.DeliveryMethod;
+import com.lims.patient.enums.NotificationPreference;
 import com.lims.patient.enums.PatientStatus;
 import com.lims.patient.exception.DuplicatePatientException;
 import com.lims.patient.exception.InvalidPatientDataException;
@@ -22,6 +24,7 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -47,20 +50,36 @@ public class PatientService {
     /**
      * Crée un nouveau patient avec structure centralisée
      */
-    public PatientResponse createPatient(CreatePatientRequest request) {
-        log.info("Création d'un nouveau patient: {} {}",
-                request.personalInfo().prenom(), request.personalInfo().nom());
+    public PatientResponse createPatient(CreatePatientRequest request, String createdBy) {
+        log.debug("Création d'un nouveau patient: {} {} avec {} spécificités par {}",
+                request.personalInfo().prenom(),
+                request.personalInfo().nom(),
+                request.specificities() != null && request.specificities().specificityIds() != null
+                        ? request.specificities().specificityIds().size() : 0,
+                createdBy);
 
-        // 1. Validation des données
+        // 1. Validation des données (existante)
         validateCreateRequest(request);
 
-        // 2. Vérification des doublons
+        // 2. Vérification des doublons (existante)
         checkForDuplicates(request);
 
-        // 3. Construction de l'entité Patient
-        Patient patient = buildPatientFromRequest(request);
+        // 3. Construction de l'entité Patient avec createdBy
+        Patient patient = buildPatientFromRequest(request, createdBy);
 
-        // 4. Ajout des assurances
+        // 4. AJOUT SPÉCIFICITÉS - UNIQUEMENT LES IDs
+        if (request.specificities() != null && request.specificities().specificityIds() != null) {
+            patient.setSpecificityIds(new ArrayList<>(request.specificities().specificityIds()));
+            log.debug("Spécificités ajoutées au patient: {}", request.specificities().specificityIds());
+        }
+
+        // 5. AJOUT COMMENTAIRE PATIENT - DIRECTEMENT SUR PATIENT
+        if (StringUtils.hasText(request.commentairePatient())) {
+            patient.setCommentairePatient(request.commentairePatient());
+            log.debug("Commentaire patient ajouté");
+        }
+
+        // 6. Ajout des assurances (existant)
         if (request.insurances() != null) {
             for (InsuranceRequest insuranceRequest : request.insurances()) {
                 PatientAssurance assurance = buildAssuranceFromRequest(insuranceRequest);
@@ -68,11 +87,22 @@ public class PatientService {
             }
         }
 
-        // 5. Sauvegarde
-        Patient savedPatient = patientRepository.save(patient);
+        // 7. Sauvegarde
+        Patient savedPatient;
+        try {
+            savedPatient = patientRepository.saveAndFlush(patient); // ✅ Force l'SQL immédiatement
+            log.info("Patient sauvegardé en BDD avec succès: {} (ID: {})",
+                    savedPatient.getNomComplet(), savedPatient.getId());
+        } catch (Exception e) {
+            log.error("ERREUR SQL lors de la sauvegarde du patient: {}", e.getMessage());
+            throw e; // L'erreur apparaîtra ici, pas plus tard
+        }
 
-        log.info("Patient créé avec succès: {} (ID: {})",
-                savedPatient.getNomComplet(), savedPatient.getId());
+        log.info("Patient créé avec succès: {} (ID: {}), {} spécificité(s), commentaire: {}",
+                savedPatient.getNomComplet(),
+                savedPatient.getId(),
+                savedPatient.getSpecificitiesCount(),
+                savedPatient.getCommentairePatient() != null ? "oui" : "non");
 
         return mapToPatientResponse(savedPatient);
     }
@@ -346,7 +376,7 @@ public class PatientService {
         }
 
         // Validation des consentements obligatoires
-        if (consent.consentementCreationCompte() == null || !consent.consentementCreationCompte()) {
+        if (consent.createAccount() == null || !consent.createAccount()) {
             throw new InvalidPatientDataException("Le consentement de création de compte est obligatoire");
         }
     }
@@ -368,7 +398,7 @@ public class PatientService {
         }
     }
 
-    private Patient buildPatientFromRequest(CreatePatientRequest request) {
+    private Patient buildPatientFromRequest(CreatePatientRequest request, String createdBy) {
         PersonalInfoRequest personalInfo = request.personalInfo();
         ContactInfoRequest contactInfo = request.contactInfo();
         ConsentRequest consent = request.consent();
@@ -402,23 +432,25 @@ public class PatientService {
         patient.setLongitude(contactInfo.longitude());
 
         // === PRÉFÉRENCES DE COMMUNICATION ===
-        patient.setMethodeLivraisonPreferee(contactInfo.methodeLivraisonPreferee());
-        patient.setPreferenceNotification(contactInfo.preferenceNotification());
+        patient.setMethodeLivraisonPreferee(DeliveryMethod.EMAIL);
+        patient.setPreferenceNotification(NotificationPreference.TOUS);
         patient.setLanguePreferee(contactInfo.languePreferee() != null ? contactInfo.languePreferee() : "fr-FR");
         patient.setNotificationsResultats(contactInfo.notificationsResultats() != null ? contactInfo.notificationsResultats() : true);
         patient.setNotificationsRdv(contactInfo.notificationsRdv() != null ? contactInfo.notificationsRdv() : true);
         patient.setNotificationsRappels(contactInfo.notificationsRappels() != null ? contactInfo.notificationsRappels() : true);
 
         // === CONSENTEMENTS RGPD ===
-        patient.setConsentementCreationCompte(consent.consentementCreationCompte());
-        patient.setConsentementSms(consent.consentementSms());
-        patient.setConsentementEmail(consent.consentementEmail());
+        patient.setConsentementCreationCompte(consent.createAccount());
+        patient.setConsentementSms(consent.sms());
+        patient.setConsentementEmail(consent.email());
         patient.setDateConsentement(LocalDateTime.now());
 
         // === MÉTADONNÉES ===
         patient.setStatut(PatientStatus.ACTIF);
         patient.setDateCreation(LocalDateTime.now());
         patient.setCreepar(request.createdBy() != null ? request.createdBy() : "SYSTEM");
+
+        patient.setCreepar(createdBy);
 
         return patient;
     }
@@ -552,8 +584,10 @@ public class PatientService {
                 .pays(patient.getPays())
                 .latitude(patient.getLatitude())
                 .longitude(patient.getLongitude())
-                .methodeLivraisonPreferee(patient.getMethodeLivraisonPreferee())
-                .preferenceNotification(patient.getPreferenceNotification())
+                // .methodeLivraisonPreferee(patient.getMethodeLivraisonPreferee())
+                .methodeLivraisonPreferee(DeliveryMethod.EMAIL)
+//                .preferenceNotification(patient.getPreferenceNotification())
+                .preferenceNotification(NotificationPreference.TOUS)
                 .languePreferee(patient.getLanguePreferee())
                 .notificationsResultats(patient.getNotificationsResultats())
                 .notificationsRdv(patient.getNotificationsRdv())
@@ -562,9 +596,9 @@ public class PatientService {
 
         // Construction des consentements
         ConsentResponse consent = ConsentResponse.builder()
-                .consentementCreationCompte(patient.getConsentementCreationCompte())
-                .consentementSms(patient.getConsentementSms())
-                .consentementEmail(patient.getConsentementEmail())
+                .createAccount(patient.getConsentementCreationCompte())
+                .sms(patient.getConsentementSms())
+                .email(patient.getConsentementEmail())
                 .dateConsentement(patient.getDateConsentement())
                 .build();
 
@@ -583,7 +617,6 @@ public class PatientService {
                 .personalInfo(personalInfo)
                 .contactInfo(contactInfo)
                 .consent(consent)
-                .metadata(metadata)
                 .build();
     }
 

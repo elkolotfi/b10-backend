@@ -6,6 +6,8 @@ import com.lims.patient.enums.NotificationPreference;
 import com.lims.patient.enums.PatientStatus;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.annotation.CreatedBy;
@@ -91,13 +93,21 @@ public class Patient {
     @Column(name = "longitude", columnDefinition = "DECIMAL(11,8)")
     private BigDecimal longitude;
 
+    @Column(name = "specificity_ids", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Builder.Default
+    private List<String> specificityIds = new ArrayList<>();
+
+    @Column(name = "commentaire_patient", columnDefinition = "TEXT")
+    private String commentairePatient;
+
     // ===== PRÉFÉRENCES COMMUNICATION =====
     @Enumerated(EnumType.STRING)
-    @Column(name = "methode_livraison_preferee")
+    @Column(name = "methode_livraison_preferee", columnDefinition = "lims_patient.delivery_method")
     private DeliveryMethod methodeLivraisonPreferee = DeliveryMethod.EMAIL;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "preference_notification")
+    @Column(name = "preference_notification", columnDefinition = "lims_patient.notification_preference")
     private NotificationPreference preferenceNotification = NotificationPreference.TOUS;
 
     @Column(name = "langue_preferee", length = 5)
@@ -263,5 +273,29 @@ public class Patient {
 
     public void setCreepar(String creepar) {
         this.creePar = creepar;
+    }
+
+    // Méthodes helper pour les spécificités
+    public void addSpecificity(String specificityId) {
+        if (this.specificityIds == null) {
+            this.specificityIds = new ArrayList<>();
+        }
+        if (!this.specificityIds.contains(specificityId)) {
+            this.specificityIds.add(specificityId);
+        }
+    }
+
+    public void removeSpecificity(String specificityId) {
+        if (this.specificityIds != null) {
+            this.specificityIds.remove(specificityId);
+        }
+    }
+
+    public boolean hasSpecificities() {
+        return this.specificityIds != null && !this.specificityIds.isEmpty();
+    }
+
+    public int getSpecificitiesCount() {
+        return this.specificityIds != null ? this.specificityIds.size() : 0;
     }
 }
