@@ -67,18 +67,18 @@ public class PatientController {
             Authentication authentication) {
 
         log.info("Création d'un nouveau patient: {} {} par {}",
-                request.personalInfo().prenom(),
-                request.personalInfo().nom(),
+                request.personalInfo().firstName(),
+                request.personalInfo().lastName(),
                 authentication.getName());
 
         // Passer directement la requête + créateur séparément
         PatientResponse response = patientService.createPatient(request, authentication.getName());
 
         // Audit simple
-        auditService.logPatientCreation(
+        /*auditService.logPatientCreation(
                 response,
                 authentication.getName()
-        );
+        );*/
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -88,7 +88,7 @@ public class PatientController {
      */
     @PostMapping("/search")
     @Operation(summary = "Recherche multicritères de patients",
-            description = "Recherche avancée avec support du nom complet ou nom/prénom séparés")
+            description = "Recherche avancée avec support du lastName complet ou lastName/prénom séparés")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Résultats de recherche"),
             @ApiResponse(responseCode = "400", description = "Critères de recherche invalides")
@@ -105,10 +105,10 @@ public class PatientController {
     }
 
     /**
-     * Recherche rapide par nom complet (GET)
+     * Recherche rapide par lastName complet (GET)
      */
     @GetMapping("/search/quick")
-    @Operation(summary = "Recherche rapide par nom complet",
+    @Operation(summary = "Recherche rapide par lastName complet",
             description = "Recherche rapide limitée à 10 résultats pour autocomplétion")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Résultats de recherche rapide"),
@@ -116,11 +116,11 @@ public class PatientController {
     })
     @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
     public ResponseEntity<List<PatientSummaryResponse>> quickSearch(
-            @Parameter(description = "Nom complet à rechercher (nom et/ou prénom)")
-            @RequestParam @Size(min = 2, max = 100, message = "Le nom complet doit contenir entre 2 et 100 caractères")
+            @Parameter(description = "Nom complet à rechercher (lastName et/ou prénom)")
+            @RequestParam @Size(min = 2, max = 100, message = "Le lastName complet doit contenir entre 2 et 100 caractères")
             String nomComplet) {
 
-        log.info("Recherche rapide par nom complet: {}", nomComplet);
+        log.info("Recherche rapide par lastName complet: {}", nomComplet);
 
         List<PatientSummaryResponse> results = patientService.quickSearchByNomComplet(nomComplet);
 
@@ -128,11 +128,11 @@ public class PatientController {
     }
 
     /**
-     * Recherche par nom complet avec pagination (GET)
+     * Recherche par lastName complet avec pagination (GET)
      */
-    @GetMapping("/search/nom-complet")
-    @Operation(summary = "Recherche par nom complet avec pagination",
-            description = "Recherche par nom complet avec support de la pagination")
+    @GetMapping("/search/lastName-complet")
+    @Operation(summary = "Recherche par lastName complet avec pagination",
+            description = "Recherche par lastName complet avec support de la pagination")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Résultats de recherche paginés"),
             @ApiResponse(responseCode = "400", description = "Paramètres invalides")
@@ -148,7 +148,7 @@ public class PatientController {
             @Parameter(description = "Taille de page")
             @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
 
-        log.info("Recherche par nom complet avec pagination: {} (page: {}, size: {})",
+        log.info("Recherche par lastName complet avec pagination: {} (page: {}, size: {})",
                 nomComplet, page, size);
 
         PatientSearchResponse response = patientSearchService.searchByNomComplet(nomComplet, page, size);
@@ -157,7 +157,7 @@ public class PatientController {
     }
 
     /**
-     * Autocomplétion pour le nom complet
+     * Autocomplétion pour le lastName complet
      */
     @GetMapping("/search/suggest")
     @Operation(summary = "Suggestions pour autocomplétion",
@@ -168,7 +168,7 @@ public class PatientController {
     })
     @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
     public ResponseEntity<List<String>> suggestNomComplet(
-            @Parameter(description = "Début du nom à rechercher (minimum 2 caractères)")
+            @Parameter(description = "Début du lastName à rechercher (minimum 2 caractères)")
             @RequestParam @Size(min = 2, max = 50) String input) {
 
         log.info("Suggestion d'autocomplétion pour: {}", input);
@@ -179,11 +179,11 @@ public class PatientController {
     }
 
     /**
-     * Recherche par nom et prénom séparés (rétrocompatibilité)
+     * Recherche par lastName et prénom séparés (rétrocompatibilité)
      */
-    @GetMapping("/search/nom-prenom")
-    @Operation(summary = "Recherche par nom et prénom séparés",
-            description = "Méthode legacy pour la recherche par nom et prénom séparés")
+    @GetMapping("/search/lastName-firstName")
+    @Operation(summary = "Recherche par lastName et prénom séparés",
+            description = "Méthode legacy pour la recherche par lastName et prénom séparés")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Liste des patients trouvés"),
             @ApiResponse(responseCode = "400", description = "Paramètres invalides")
@@ -197,7 +197,7 @@ public class PatientController {
             @Parameter(description = "Prénom du patient")
             @RequestParam(required = false) @Size(max = 100) String prenom) {
 
-        log.info("Recherche legacy par nom: {} et prénom: {}", nom, prenom);
+        log.info("Recherche legacy par lastName: {} et prénom: {}", nom, prenom);
 
         List<PatientSummaryResponse> results = patientService.searchByNomPrenom(nom, prenom);
 
@@ -205,7 +205,7 @@ public class PatientController {
     }
 
     /**
-     * Recherche par nom et prénom séparés (rétrocompatibilité)
+     * Recherche par lastName et prénom séparés (rétrocompatibilité)
      */
     @GetMapping("/search/telephone")
     @Operation(summary = "Recherche par telephone",

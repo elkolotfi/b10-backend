@@ -1,7 +1,9 @@
 package com.lims.patient.exception;
 
+import lombok.Builder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
@@ -138,6 +140,39 @@ public class PatientExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(error);
     }
 
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> handleValidationErrors(
+            MethodArgumentNotValidException ex, WebRequest request) {
+
+        log.warn("Erreurs de validation détectées: {}", ex.getMessage());
+
+        Map<String, Object> validationErrors = new HashMap<>();
+
+        // Extraction des erreurs de validation par champ
+        ex.getBindingResult().getFieldErrors().forEach(error -> {
+            String fieldName = error.getField();
+            String errorMessage = error.getDefaultMessage();
+            validationErrors.put(fieldName, errorMessage);
+        });
+
+        // Gestion des erreurs globales (non liées à un champ spécifique)
+        ex.getBindingResult().getGlobalErrors().forEach(error -> {
+            String errorMessage = error.getDefaultMessage();
+            validationErrors.put("global", errorMessage);
+        });
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Validation Failed")
+                .message("Les données fournies ne respectent pas les contraintes de validation")
+                .path(request.getDescription(false))
+                .details(validationErrors)  // Utilise le champ details existant
+                .build();
+
+        return ResponseEntity.badRequest().body(error);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex, WebRequest request) {
         log.error("Erreur inattendue: {}", ex.getMessage(), ex);
@@ -156,6 +191,7 @@ public class PatientExceptionHandler {
     /**
      * Classe pour les réponses d'erreur
      */
+    @Builder
     public static class ErrorResponse {
         private LocalDateTime timestamp;
         private int status;

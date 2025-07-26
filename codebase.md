@@ -6717,10 +6717,10 @@ public class PatientController {
         PatientResponse response = patientService.createPatient(request, authentication.getName());
 
         // Audit simple
-        auditService.logPatientCreation(
+        /*auditService.logPatientCreation(
                 response,
                 authentication.getName()
-        );
+        );*/
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -10942,7 +10942,7 @@ public class PatientAuditService {
                 .performedByType(userType)
                 .clientIp(getClientIpAddress())
                 .userAgent(getUserAgent())
-                .result("SUCCES")
+                .result("SUCCESS")
                 .dateAction(LocalDateTime.now())
                 .correlationId(UUID.randomUUID())
                 .build();
@@ -12023,10 +12023,8 @@ public class PatientService {
                 .pays(patient.getPays())
                 .latitude(patient.getLatitude())
                 .longitude(patient.getLongitude())
-                // .methodeLivraisonPreferee(patient.getMethodeLivraisonPreferee())
-                .methodeLivraisonPreferee(DeliveryMethod.EMAIL)
-//                .preferenceNotification(patient.getPreferenceNotification())
-                .preferenceNotification(NotificationPreference.TOUS)
+                .methodeLivraisonPreferee(patient.getMethodeLivraisonPreferee())
+                .preferenceNotification(patient.getPreferenceNotification())
                 .languePreferee(patient.getLanguePreferee())
                 .notificationsResultats(patient.getNotificationsResultats())
                 .notificationsRdv(patient.getNotificationsRdv())

@@ -42,7 +42,7 @@ public class PatientAuditService {
                 .performedByType(userType)
                 .clientIp(getClientIpAddress())
                 .userAgent(getUserAgent())
-                .result("SUCCES")
+                .result("SUCCESS")
                 .dateAction(LocalDateTime.now())
                 .correlationId(UUID.randomUUID())
                 .build();
@@ -73,7 +73,7 @@ public class PatientAuditService {
         logPatientAccess(
                 patient.getId(),
                 "PATIENT_UPDATED",
-                String.format("Patient modifié: %s %s", patient.getPrenom(), patient.getNom()),
+                String.format("Patient modifié: %s %s", patient.getFirstName(), patient.getLastName()),
                 modifiedBy,
                 "STAFF"
         );
@@ -86,7 +86,7 @@ public class PatientAuditService {
         logPatientAccess(
                 patient.getId(),
                 "PATIENT_DELETED",
-                String.format("Patient supprimé (soft delete): %s %s", patient.getPrenom(), patient.getNom()),
+                String.format("Patient supprimé (soft delete): %s %s", patient.getFirstName(), patient.getLastName()),
                 deletedBy,
                 "STAFF"
         );
