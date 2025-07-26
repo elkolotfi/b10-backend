@@ -73,7 +73,7 @@ public class PatientAuditService {
         logPatientAccess(
                 patient.getId(),
                 "PATIENT_UPDATED",
-                String.format("Patient modifié: %s %s", patient.getFirstName(), patient.getLastName()),
+                String.format("Patient modifié: %s", patient.getNomComplet()),
                 modifiedBy,
                 "STAFF"
         );
@@ -86,7 +86,7 @@ public class PatientAuditService {
         logPatientAccess(
                 patient.getId(),
                 "PATIENT_DELETED",
-                String.format("Patient supprimé (soft delete): %s %s", patient.getFirstName(), patient.getLastName()),
+                String.format("Patient supprimé (soft delete): %s", patient.getNomComplet()),
                 deletedBy,
                 "STAFF"
         );

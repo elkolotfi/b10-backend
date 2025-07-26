@@ -67,8 +67,8 @@ public class PatientController {
             Authentication authentication) {
 
         log.info("Création d'un nouveau patient: {} {} par {}",
-                request.personalInfo().firstName(),
-                request.personalInfo().lastName(),
+                request.personalInfo().prenom(),
+                request.personalInfo().nom(),
                 authentication.getName());
 
         // Passer directement la requête + créateur séparément
