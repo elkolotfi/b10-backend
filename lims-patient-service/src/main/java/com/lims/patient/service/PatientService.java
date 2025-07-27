@@ -1,5 +1,9 @@
 package com.lims.patient.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.fge.jsonpatch.JsonPatch;
+import com.github.fge.jsonpatch.JsonPatchException;
 import com.lims.patient.dto.request.*;
 import com.lims.patient.dto.response.*;
 import com.lims.patient.entity.Patient;
@@ -10,6 +14,7 @@ import com.lims.patient.enums.PatientStatus;
 import com.lims.patient.exception.DuplicatePatientException;
 import com.lims.patient.exception.InvalidPatientDataException;
 import com.lims.patient.exception.PatientNotFoundException;
+import com.lims.patient.mapper.PatientMapper;
 import com.lims.patient.repository.PatientRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,6 +47,8 @@ public class PatientService {
 
     private final PatientRepository patientRepository;
     private final PatientSearchService patientSearchService; // Délégation pour les recherches
+    private final PatientMapper patientMapper;
+    private final ObjectMapper objectMapper;
 
     // ====================================================================
     // MÉTHODES CRUD PRINCIPALES
@@ -108,6 +115,50 @@ public class PatientService {
     }
 
     /**
+     * Met à jour un patient avec JSON Patch (RFC 6902)
+     */
+    public PatientResponse updatePatient(UUID id, JsonNode patchNode, String updatedBy) {
+        log.debug("Mise à jour du patient {} avec JSON Patch par {}", id, updatedBy);
+
+        try {
+            // 1. Récupérer le patient existant
+            Patient existingPatient = patientRepository.findByIdAndDateSuppressionIsNull(id)
+                    .orElseThrow(() -> new PatientNotFoundException(
+                            String.format("Patient non trouvé avec l'ID: %s", id)));
+
+            // 2. Convertir le patient en JSON
+            JsonNode patientNode = objectMapper.valueToTree(existingPatient);
+
+            // 3. Appliquer le patch JSON
+            JsonPatch patch = JsonPatch.fromJson(patchNode);
+            JsonNode patchedNode = patch.apply(patientNode);
+
+            // 4. Convertir le résultat en entité Patient
+            Patient patchedPatient = objectMapper.treeToValue(patchedNode, Patient.class);
+
+            // 5. Valider les données après patch
+            validatePatchedPatient(patchedPatient, existingPatient);
+
+            // 6. Mettre à jour les métadonnées
+            patchedPatient.setModifiePar(updatedBy);
+            patchedPatient.setDateModification(LocalDateTime.now());
+
+            // 7. Sauvegarder
+            Patient savedPatient = patientRepository.save(patchedPatient);
+
+            log.info("Patient {} mis à jour avec succès par {}", id, updatedBy);
+            return patientMapper.toPatientResponse(savedPatient);
+
+        } catch (JsonPatchException e) {
+            log.error("Erreur lors de l'application du patch JSON pour le patient {}: {}", id, e.getMessage());
+            throw new InvalidPatientDataException("Opérations patch invalides: " + e.getMessage());
+        } catch (Exception e) {
+            log.error("Erreur lors de la mise à jour du patient {}: {}", id, e.getMessage());
+            throw new InvalidPatientDataException("Erreur lors de la mise à jour: " + e.getMessage());
+        }
+    }
+
+    /**
      * Récupère un patient par son ID
      */
     @Transactional(readOnly = true)
@@ -118,25 +169,6 @@ public class PatientService {
                 .orElseThrow(() -> new PatientNotFoundException("Patient non trouvé: " + id));
 
         return mapToPatientResponse(patient);
-    }
-
-    /**
-     * Met à jour un patient existant
-     */
-    public PatientResponse updatePatient(UUID id, UpdatePatientRequest request) {
-        log.info("Mise à jour du patient: {}", id);
-
-        Patient patient = patientRepository.findByIdAndDateSuppressionIsNull(id)
-                .orElseThrow(() -> new PatientNotFoundException("Patient non trouvé: " + id));
-
-        // Mettre à jour les champs modifiables
-        updatePatientFields(patient, request);
-
-        Patient savedPatient = patientRepository.save(patient);
-
-        log.info("Patient mis à jour: {} (ID: {})", savedPatient.getNomComplet(), id);
-
-        return mapToPatientResponse(savedPatient);
     }
 
     /**
@@ -470,80 +502,6 @@ public class PatientService {
         return assurance;
     }
 
-    private void updatePatientFields(Patient patient, UpdatePatientRequest request) {
-        // Mise à jour des informations personnelles
-        if (request.personalInfo() != null) {
-            PersonalInfoUpdateRequest personalInfo = request.personalInfo(); // ← Correction du type
-            if (StringUtils.hasText(personalInfo.nom())) {
-                patient.setNom(personalInfo.nom().toUpperCase().trim());
-            }
-            if (StringUtils.hasText(personalInfo.prenom())) {
-                patient.setPrenom(capitalizeFirstLetter(personalInfo.prenom().trim()));
-            }
-            if (personalInfo.dateNaissance() != null) {
-                patient.setDateNaissance(personalInfo.dateNaissance());
-            }
-            if (personalInfo.sexe() != null) {
-                patient.setSexe(personalInfo.sexe());
-            }
-            if (StringUtils.hasText(personalInfo.nomJeuneFille())) {
-                patient.setNomJeuneFille(personalInfo.nomJeuneFille());
-            }
-            if (StringUtils.hasText(personalInfo.lieuNaissance())) {
-                patient.setLieuNaissance(personalInfo.lieuNaissance());
-            }
-            if (StringUtils.hasText(personalInfo.medecinTraitant())) {
-                patient.setMedecinTraitant(personalInfo.medecinTraitant());
-            }
-            if (personalInfo.allergiesConnues() != null) {
-                patient.setAllergiesConnues(personalInfo.allergiesConnues());
-            }
-            if (personalInfo.antecedentsMedicaux() != null) {
-                patient.setAntecedentsMedicaux(personalInfo.antecedentsMedicaux());
-            }
-        }
-
-        // Mise à jour des informations de contact
-        if (request.contactInfo() != null) {
-            ContactInfoUpdateRequest contactInfo = request.contactInfo(); // ← Probablement aussi à corriger
-            if (StringUtils.hasText(contactInfo.email())) {
-                patient.setEmail(contactInfo.email().toLowerCase().trim());
-            }
-            if (StringUtils.hasText(contactInfo.telephone())) {
-                patient.setTelephone(contactInfo.telephone());
-            }
-            if (StringUtils.hasText(contactInfo.adresseLigne1())) {
-                patient.setAdresseLigne1(contactInfo.adresseLigne1());
-            }
-            if (contactInfo.adresseLigne2() != null) {
-                patient.setAdresseLigne2(contactInfo.adresseLigne2());
-            }
-            if (StringUtils.hasText(contactInfo.codePostal())) {
-                patient.setCodePostal(contactInfo.codePostal());
-            }
-            if (StringUtils.hasText(contactInfo.ville())) {
-                patient.setVille(contactInfo.ville());
-            }
-            if (contactInfo.departement() != null) {
-                patient.setDepartement(contactInfo.departement());
-            }
-            if (contactInfo.region() != null) {
-                patient.setRegion(contactInfo.region());
-            }
-            if (contactInfo.pays() != null) {
-                patient.setPays(contactInfo.pays());
-            }
-            if (contactInfo.preferenceNotification() != null) {
-                patient.setPreferenceNotification(contactInfo.preferenceNotification());
-            }
-            if (contactInfo.languePreferee() != null) {
-                patient.setLanguePreferee(contactInfo.languePreferee());
-            }
-        }
-
-        patient.setDateModification(LocalDateTime.now());
-        patient.setModifiePar("SYSTEM"); // À adapter selon le contexte d'authentification
-    }
 
     private String capitalizeFirstLetter(String str) {
         if (str == null || str.isEmpty()) {
@@ -657,4 +615,76 @@ public class PatientService {
         }
         return numeroSecu.substring(0, 4) + "***" + numeroSecu.substring(numeroSecu.length() - 2);
     }
+
+    /**
+     * Valide le patient après application du patch
+     */
+    private void validatePatchedPatient(Patient patchedPatient, Patient originalPatient) {
+        // Préserver l'ID original (ne doit pas être modifié)
+        patchedPatient.setId(originalPatient.getId());
+
+        // Préserver les métadonnées de création
+        patchedPatient.setCreepar(originalPatient.getCreePar());
+        patchedPatient.setDateCreation(originalPatient.getDateCreation());
+
+        // Préserver la date de suppression si elle existe
+        patchedPatient.setDateSuppression(originalPatient.getDateSuppression());
+
+        // Vérifier l'unicité de l'email si modifié
+        if (StringUtils.hasText(patchedPatient.getEmail()) &&
+                !patchedPatient.getEmail().equals(originalPatient.getEmail())) {
+
+            Optional<Patient> existingWithEmail = patientRepository
+                    .findByEmailAndDateSuppressionIsNull(patchedPatient.getEmail());
+
+            if (existingWithEmail.isPresent()) {
+                throw new DuplicatePatientException(
+                        "Un patient existe déjà avec cet email: " + patchedPatient.getEmail());
+            }
+        }
+
+        // Vérifier l'unicité du numéro de sécurité sociale si modifié
+        if (StringUtils.hasText(patchedPatient.getNumeroSecu()) &&
+                !patchedPatient.getNumeroSecu().equals(originalPatient.getNumeroSecu())) {
+
+            Optional<Patient> existingWithSecu = patientRepository
+                    .findByNumeroSecuAndDateSuppressionIsNull(patchedPatient.getNumeroSecu());
+
+            if (existingWithSecu.isPresent()) {
+                throw new DuplicatePatientException(
+                        "Un patient existe déjà avec ce numéro de sécurité sociale");
+            }
+        }
+
+        // Validation de la date de naissance si modifiée
+        if (patchedPatient.getDateNaissance() != null) {
+            LocalDate now = LocalDate.now();
+            if (patchedPatient.getDateNaissance().isAfter(now)) {
+                throw new InvalidPatientDataException("La date de naissance ne peut pas être dans le futur");
+            }
+
+            int age = Period.between(patchedPatient.getDateNaissance(), now).getYears();
+            if (age > 150) {
+                throw new InvalidPatientDataException("Âge invalide (plus de 150 ans)");
+            }
+        }
+
+        // Validation des champs obligatoires
+        if (!StringUtils.hasText(patchedPatient.getNom())) {
+            throw new InvalidPatientDataException("Le nom est obligatoire");
+        }
+        if (!StringUtils.hasText(patchedPatient.getPrenom())) {
+            throw new InvalidPatientDataException("Le prénom est obligatoire");
+        }
+        if (!StringUtils.hasText(patchedPatient.getEmail())) {
+            throw new InvalidPatientDataException("L'email est obligatoire");
+        }
+        if (patchedPatient.getDateNaissance() == null) {
+            throw new InvalidPatientDataException("La date de naissance est obligatoire");
+        }
+        if (!StringUtils.hasText(patchedPatient.getNumeroSecu())) {
+            throw new InvalidPatientDataException("Le numéro de sécurité sociale est obligatoire");
+        }
+    }
+
 }

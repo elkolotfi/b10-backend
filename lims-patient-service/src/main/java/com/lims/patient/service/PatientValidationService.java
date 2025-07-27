@@ -1,15 +1,13 @@
 package com.lims.patient.service;
 
 import com.lims.patient.dto.request.CreatePatientRequest;
-import com.lims.patient.dto.request.UpdatePatientRequest;
 import com.lims.patient.entity.Patient;
 import com.lims.patient.enums.GenderType;
 import com.lims.patient.enums.PrescriptionStatus;
-import com.lims.patient.exception.InvalidPatientDataException;
 import com.lims.patient.exception.ConsentValidationException;
+import com.lims.patient.exception.InvalidPatientDataException;
 import com.lims.patient.exception.PatientBusinessRuleException;
 import com.lims.patient.repository.PatientRepository;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -45,65 +43,6 @@ public class PatientValidationService {
     private static final Pattern NIR_PATTERN = Pattern.compile(
             "^[12][0-9]{12}[0-9]{2}$"
     );
-
-    /**
-     * Valide les données d'un nouveau patient avec structure centralisée
-     */
-    public void validateNewPatient(CreatePatientRequest request) {
-        log.debug("Validation des données du nouveau patient");
-
-        if (request == null) {
-            throw new InvalidPatientDataException("La requête de création ne peut pas être nulle");
-        }
-
-        // Validation des informations personnelles
-        validatePersonalInfo(request);
-
-        // Validation des informations de contact centralisées
-        validateContactInfo(request);
-
-        // Validation des consentements RGPD
-        validateConsents(request);
-
-        // Validation des assurances si présentes
-        if (request.insurances() != null && !request.insurances().isEmpty()) {
-            validateInsurances(request);
-        }
-
-        log.debug("Validation du nouveau patient terminée avec succès");
-    }
-
-    /**
-     * Valide les modifications d'un patient existant
-     */
-    public void validatePatientUpdate(Patient existingPatient, UpdatePatientRequest request) {
-        log.debug("Validation des modifications du patient {}", existingPatient.getId());
-
-        if (existingPatient == null) {
-            throw new InvalidPatientDataException("Le patient existant ne peut pas être nul");
-        }
-
-        if (request == null) {
-            throw new InvalidPatientDataException("La requête de mise à jour ne peut pas être nulle");
-        }
-
-        // Validation des informations personnelles si modifiées
-        if (request.personalInfo() != null) {
-            validatePersonalInfoUpdate(request.personalInfo(), existingPatient);
-        }
-
-        // Validation des informations de contact si modifiées
-        if (request.contactInfo() != null) {
-            validateContactInfoUpdate(request.contactInfo());
-        }
-
-        // Validation des consentements si modifiés
-        if (request.consent() != null) {
-            validateConsentUpdate(request.consent(), existingPatient);
-        }
-
-        log.debug("Validation des modifications terminée avec succès");
-    }
 
     /**
      * Valide la suppression d'un patient

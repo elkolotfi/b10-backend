@@ -1,8 +1,10 @@
 package com.lims.patient.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.lims.patient.dto.error.ErrorResponse;
 import com.lims.patient.dto.request.CreatePatientRequest;
 import com.lims.patient.dto.request.PatientSearchRequest;
+import com.lims.patient.dto.request.UpdatePatientRequest;
 import com.lims.patient.dto.response.PatientResponse;
 import com.lims.patient.dto.response.PatientSearchResponse;
 import com.lims.patient.dto.response.PatientSummaryResponse;
@@ -81,6 +83,31 @@ public class PatientController {
         );*/
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    // Méthode à ajouter dans la classe PatientController
+    @PatchMapping("/{id}")
+    @Operation(summary = "Mettre à jour partiellement un patient",
+            description = "Met à jour les données d'un patient avec JSON Patch (RFC 6902)")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Patient mis à jour avec succès",
+                    content = @Content(schema = @Schema(implementation = PatientResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Patient non trouvé",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Opérations patch invalides",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    @PreAuthorize("hasRole('STAFF') or hasRole('ADMIN')")
+    public ResponseEntity<PatientResponse> updatePatient(
+            @Parameter(description = "ID du patient à mettre à jour")
+            @PathVariable(name = "id") UUID id,
+            @RequestBody JsonNode patchNode,
+            Authentication authentication) {
+
+        String updatedBy = authentication.getName();
+        PatientResponse updatedPatient = patientService.updatePatient(id, patchNode, updatedBy);
+
+        return ResponseEntity.ok(updatedPatient);
     }
 
     /**

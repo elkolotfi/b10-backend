@@ -84,6 +84,25 @@
             <artifactId>spring-boot-starter-cache</artifactId>
         </dependency>
 
+        <!-- JSON Patch Support (RFC 6902) -->
+        <dependency>
+            <groupId>com.github.java-json-tools</groupId>
+            <artifactId>json-patch</artifactId>
+            <version>1.13</version>
+        </dependency>
+
+        <!-- Jackson Core pour JSON Patch (si pas déjà présent) -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+        </dependency>
+
+        <!-- Jackson JSR310 pour les types Java 8 Date/Time -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+
         <!-- Base de données -->
         <dependency>
             <groupId>org.postgresql</groupId>

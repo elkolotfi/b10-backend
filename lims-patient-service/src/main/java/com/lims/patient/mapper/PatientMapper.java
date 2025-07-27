@@ -32,6 +32,7 @@ public interface PatientMapper {
     @Mapping(target = "personalInfo", source = ".", qualifiedByName = "toPersonalInfoResponse")
     @Mapping(target = "contactInfo", source = ".", qualifiedByName = "toContactInfoResponse")
     @Mapping(target = "insurances", source = "assurances")
+    @Mapping(target = "specificities", source = ".", qualifiedByName = "toSpecificitiesResponse")
     @Mapping(target = "consent", source = ".", qualifiedByName = "toConsentResponse")
     PatientResponse toPatientResponse(Patient patient);
 
@@ -135,6 +136,18 @@ public interface PatientMapper {
                 .creePar(patient.getCreePar())
                 .modifiePar(patient.getModifiePar())
                 .actif(patient.isActive())
+                .build();
+    }
+
+    /**
+     * Convertit les spécificités du patient
+     */
+    @Named("toSpecificitiesResponse")
+    default PatientSpecificitiesResponse toSpecificitiesResponse(Patient patient) {
+        if (patient == null) return null;
+
+        return PatientSpecificitiesResponse.builder()
+                .specificityIds(patient.getSpecificityIds() != null ? patient.getSpecificityIds() : List.of())
                 .build();
     }
 
