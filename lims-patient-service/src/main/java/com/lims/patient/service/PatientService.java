@@ -584,10 +584,8 @@ public class PatientService {
                 .pays(patient.getPays())
                 .latitude(patient.getLatitude())
                 .longitude(patient.getLongitude())
-                // .methodeLivraisonPreferee(patient.getMethodeLivraisonPreferee())
-                .methodeLivraisonPreferee(DeliveryMethod.EMAIL)
-//                .preferenceNotification(patient.getPreferenceNotification())
-                .preferenceNotification(NotificationPreference.TOUS)
+                 .methodeLivraisonPreferee(patient.getMethodeLivraisonPreferee())
+                .preferenceNotification(patient.getPreferenceNotification())
                 .languePreferee(patient.getLanguePreferee())
                 .notificationsResultats(patient.getNotificationsResultats())
                 .notificationsRdv(patient.getNotificationsRdv())
@@ -600,6 +598,10 @@ public class PatientService {
                 .sms(patient.getConsentementSms())
                 .email(patient.getConsentementEmail())
                 .dateConsentement(patient.getDateConsentement())
+                .build();
+
+        PatientSpecificitiesResponse specificitiesResponse = PatientSpecificitiesResponse.builder()
+                .specificityIds(patient.getSpecificityIds())
                 .build();
 
         // Construction des métadonnées
@@ -615,6 +617,8 @@ public class PatientService {
         return PatientResponse.builder()
                 .id(patient.getId().toString()) // Convertir UUID en String pour le DTO
                 .personalInfo(personalInfo)
+                .commentairePatient(patient.getCommentairePatient())
+                .specificities(specificitiesResponse)
                 .contactInfo(contactInfo)
                 .consent(consent)
                 .build();

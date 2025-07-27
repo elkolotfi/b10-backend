@@ -1,10 +1,9 @@
 package com.lims.patient.enums;
 
 public enum GenderType {
-    M("Masculin"),
-    F("Féminin"),
-    NON_BINAIRE("Non binaire"),
-    NON_PRECISE("Non précisé");
+    M("M"),
+    F("F"),
+    NON_PRECISE("O");
 
     private final String label;
 

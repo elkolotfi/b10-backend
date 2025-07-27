@@ -6,7 +6,9 @@
   <component name="ChangeListManager">
     <list default="true" id="7aacdcd1-1ad1-4553-9a77-bce1e509ee8f" name="Changes" comment="working patient add">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientAuditService.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientAuditService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TODO.md" beforeDir="false" afterPath="$PROJECT_DIR$/TODO.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/enums/GenderType.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/enums/GenderType.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientService.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientService.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -46,25 +48,26 @@
     <option name="showExcludedFiles" value="false" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Application.AuthServiceApplication.executor&quot;: &quot;Debug&quot;,
-    &quot;Application.PatientServiceApplication.executor&quot;: &quot;Debug&quot;,
-    &quot;Application.ReferentialServiceApplication.executor&quot;: &quot;Debug&quot;,
-    &quot;Maven.lims-patient-service [clean].executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/Users/elkolotfi/Desktop/NEW_START/PROJECTS/b10/backend/lims-system/lims-ref-service/src/main/java/com/lims&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;settings.qodana&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Application.AuthServiceApplication.executor": "Debug",
+    "Application.PatientServiceApplication.executor": "Debug",
+    "Application.ReferentialServiceApplication.executor": "Debug",
+    "Maven.lims-auth-service [clean].executor": "Run",
+    "Maven.lims-patient-service [clean].executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "git-widget-placeholder": "main",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "/Users/elkolotfi/Desktop/NEW_START/PROJECTS/b10/backend/lims-system/lims-ref-service/src/main/java/com/lims",
+    "settings.editor.selected.configurable": "settings.qodana"
   },
-  &quot;keyToStringList&quot;: {
-    &quot;com.intellij.ide.scratch.ScratchImplUtil$2/New Scratch File&quot;: [
-      &quot;HTML&quot;
+  "keyToStringList": {
+    "com.intellij.ide.scratch.ScratchImplUtil$2/New Scratch File": [
+      "HTML"
     ]
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/lims-ref-service/src/main/java/com/lims" />
@@ -237,7 +240,15 @@
       <option name="project" value="LOCAL" />
       <updated>1753519708634</updated>
     </task>
-    <option name="localTasksCounter" value="14" />
+    <task id="LOCAL-00014" summary="working patient add">
+      <option name="closed" value="true" />
+      <created>1753519795126</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1753519795126</updated>
+    </task>
+    <option name="localTasksCounter" value="15" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -397,6 +408,11 @@
           <url>file://$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/controller/PatientController.java</url>
           <line>77</line>
           <option name="timeStamp" value="93" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientService.java</url>
+          <line>119</line>
+          <option name="timeStamp" value="96" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
