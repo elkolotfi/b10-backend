@@ -54,28 +54,6 @@ public class PatientValidationService {
             throw new InvalidPatientDataException("Le patient à supprimer ne peut pas être nul");
         }
 
-        // Vérifier s'il y a des ordonnances actives
-        boolean hasActivePrescriptions = patient.getOrdonnances().stream()
-                .anyMatch(ordonnance -> ordonnance.getDateSuppression() == null &&
-                        (ordonnance.getStatut() == PrescriptionStatus.EN_ATTENTE ||
-                                ordonnance.getStatut() == PrescriptionStatus.VALIDEE));
-
-        if (hasActivePrescriptions) {
-            throw new PatientBusinessRuleException(
-                    "SUPPRESSION_INTERDITE",
-                    "Impossible de supprimer le patient : il a des ordonnances actives");
-        }
-
-        // Vérification des assurances actives
-        boolean hasActiveInsurance = patient.getAssurances().stream()
-                .anyMatch(assurance -> assurance.getEstActive() != null &&
-                        assurance.getEstActive() &&
-                        (assurance.getDateFin() == null || assurance.getDateFin().isAfter(LocalDate.now())));
-
-        if (hasActiveInsurance) {
-            log.warn("Suppression d'un patient avec assurance active: {}", patient.getId());
-        }
-
         log.debug("Validation de suppression terminée avec succès");
     }
 

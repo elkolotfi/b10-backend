@@ -31,7 +31,6 @@ public interface PatientMapper {
     @Mapping(target = "id", source = "id", qualifiedByName = "uuidToString")
     @Mapping(target = "personalInfo", source = ".", qualifiedByName = "toPersonalInfoResponse")
     @Mapping(target = "contactInfo", source = ".", qualifiedByName = "toContactInfoResponse")
-    @Mapping(target = "insurances", source = "assurances")
     @Mapping(target = "specificities", source = ".", qualifiedByName = "toSpecificitiesResponse")
     @Mapping(target = "consent", source = ".", qualifiedByName = "toConsentResponse")
     PatientResponse toPatientResponse(Patient patient);
@@ -218,31 +217,6 @@ public interface PatientMapper {
         }
 
         return sb.toString();
-    }
-
-    /**
-     * Vérifie si le patient a une assurance active
-     */
-    @Named("hasActiveInsurance")
-    default Boolean hasActiveInsurance(Patient patient) {
-        if (patient == null || patient.getAssurances() == null) return false;
-
-        return patient.getAssurances().stream()
-                .anyMatch(assurance -> assurance.getEstActive() != null && assurance.getEstActive() &&
-                        (assurance.getDateFin() == null || assurance.getDateFin().isAfter(LocalDate.now())));
-    }
-
-    /**
-     * Vérifie si le patient a une ordonnance en cours
-     */
-    @Named("hasActivePrescription")
-    default Boolean hasActivePrescription(Patient patient) {
-        if (patient == null || patient.getOrdonnances() == null) return false;
-
-        return patient.getOrdonnances().stream()
-                .anyMatch(o -> o.getDateSuppression() == null &&
-                        (o.getStatut() == PrescriptionStatus.EN_ATTENTE ||
-                                o.getStatut() == PrescriptionStatus.VALIDEE));
     }
 
     /**

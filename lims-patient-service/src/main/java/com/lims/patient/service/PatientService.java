@@ -86,14 +86,6 @@ public class PatientService {
             log.debug("Commentaire patient ajouté");
         }
 
-        // 6. Ajout des assurances (existant)
-        if (request.insurances() != null) {
-            for (InsuranceRequest insuranceRequest : request.insurances()) {
-                PatientAssurance assurance = buildAssuranceFromRequest(insuranceRequest);
-                patient.addAssurance(assurance);
-            }
-        }
-
         // 7. Sauvegarde
         Patient savedPatient;
         try {

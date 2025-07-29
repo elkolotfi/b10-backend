@@ -6821,7 +6821,7 @@ security:
 
 # MinIO configuration
 minio:
-  endpoint: http://localhost:9001
+  endpoint: http://localhost:9000
   access-key: lims_minio_admin
   secret-key: minio_dev_password_123
 
@@ -8647,6 +8647,175 @@ public class PatientController {
 }
 ```
 
+# lims-patient-service/src/main/java/com/lims/patient/controller/PatientInsuranceController.java
+
+```java
+package com.lims.patient.controller;
+
+import com.lims.patient.dto.request.InsuranceRequest;
+import com.lims.patient.dto.response.PatientInsuranceResponse;
+import com.lims.patient.service.PatientInsuranceService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * Contrôleur REST pour la gestion des assurances/mutuelles des patients.
+ * Utilisé par le composant InsuranceManagement du frontend.
+ */
+@RestController
+@RequestMapping("/api/v1/patients") // PAS de {patientId} ici
+@Tag(name = "Patient Insurances", description = "API de gestion des assurances/mutuelles des patients")
+@SecurityRequirement(name = "Bearer Authentication")
+@RequiredArgsConstructor
+@Slf4j
+public class PatientInsuranceController {
+
+    private final PatientInsuranceService insuranceService;
+
+
+    @GetMapping("/{patientId}/insurances") // Path variable ICI
+    @Operation(summary = "Lister les assurances du patient")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('SECRETAIRE') or hasRole('PRELEVEUR')")
+    public ResponseEntity<List<PatientInsuranceResponse>> getPatientInsurances(
+            @PathVariable(name = "patientId") UUID patientId,
+            @RequestParam(name= "show-all", defaultValue = "false") boolean includeInactive) {
+
+        log.debug("Récupération des assurances pour le patient {} (includeInactive: {})", patientId, includeInactive);
+
+        List<PatientInsuranceResponse> insurances = insuranceService.getPatientInsurances(
+                patientId, includeInactive);
+
+        return ResponseEntity.ok(insurances);
+    }
+
+    @PostMapping("/{patientId}/insurances") // Path variable ICI
+    @Operation(summary = "Ajouter une assurance/mutuelle")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('SECRETAIRE')")
+    public ResponseEntity<PatientInsuranceResponse> addInsurance(
+            @PathVariable(name = "patientId") UUID patientId,
+            @Valid @RequestBody InsuranceRequest request,
+            Authentication authentication) {
+
+        log.info("Ajout d'une assurance pour le patient {} par {}", patientId, authentication.getName());
+
+        PatientInsuranceResponse response = insuranceService.addInsurance(
+                patientId, request, authentication.getName());
+
+        log.info("Assurance {} créée avec succès pour le patient {}", response.id(), patientId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping("/{patientId}/insurances/{insuranceId}") // Path variables ICI
+    @Operation(summary = "Détails d'une assurance")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('SECRETAIRE') or hasRole('PRELEVEUR')")
+    public ResponseEntity<PatientInsuranceResponse> getInsuranceDetails(
+            @PathVariable(name = "patientId") UUID patientId,
+            @PathVariable(name = "insuranceId") UUID insuranceId) {
+
+        log.debug("Récupération des détails de l'assurance {} pour le patient {}", insuranceId, patientId);
+
+        PatientInsuranceResponse insurance = insuranceService.getInsuranceById(patientId, insuranceId);
+        return ResponseEntity.ok(insurance);
+    }
+
+    @PutMapping("/{patientId}/insurances/{insuranceId}") // Path variables ICI
+    @Operation(summary = "Modifier une assurance")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('SECRETAIRE')")
+    public ResponseEntity<PatientInsuranceResponse> updateInsurance(
+            @PathVariable(name = "patientId") UUID patientId,
+            @PathVariable(name = "insuranceId") UUID insuranceId,
+            @Valid @RequestBody InsuranceRequest request,
+            Authentication authentication) {
+
+        log.info("Modification de l'assurance {} pour le patient {} par {}",
+                insuranceId, patientId, authentication.getName());
+
+        PatientInsuranceResponse response = insuranceService.updateInsurance(
+                patientId, insuranceId, request, authentication.getName());
+
+        log.info("Assurance {} mise à jour avec succès", insuranceId);
+        return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/{patientId}/insurances/{insuranceId}/status") // Path variables ICI
+    @Operation(summary = "Modifier le statut d'une assurance")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('SECRETAIRE')")
+    public ResponseEntity<PatientInsuranceResponse> updateInsuranceStatus(
+            @PathVariable(name = "patientId") UUID patientId,
+            @PathVariable(name = "insuranceId") UUID insuranceId,
+            @RequestParam boolean active,
+            Authentication authentication) {
+
+        log.info("Modification du statut de l'assurance {} à {} par {}",
+                insuranceId, active, authentication.getName());
+
+        PatientInsuranceResponse response = insuranceService.updateInsuranceStatus(
+                patientId, insuranceId, active, authentication.getName());
+
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{patientId}/insurances/{insuranceId}") // Path variables ICI
+    @Operation(summary = "Supprimer une assurance")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteInsurance(
+            @PathVariable UUID patientId,
+            @PathVariable UUID insuranceId,
+            @RequestParam String reason,
+            Authentication authentication) {
+
+        log.warn("Suppression de l'assurance {} pour le patient {} par {} - Motif: {}",
+                insuranceId, patientId, authentication.getName(), reason);
+
+        insuranceService.deleteInsurance(patientId, insuranceId, reason, authentication.getName());
+
+        log.info("Assurance {} supprimée définitivement", insuranceId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{patientId}/insurances/active") // Path variable ICI
+    @Operation(summary = "Assurances actives du patient")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('SECRETAIRE') or hasRole('PRELEVEUR')")
+    public ResponseEntity<List<PatientInsuranceResponse>> getActiveInsurances(
+            @PathVariable UUID patientId) {
+
+        log.debug("Récupération des assurances actives pour le patient {}", patientId);
+
+        List<PatientInsuranceResponse> activeInsurances = insuranceService.getActiveInsurances(patientId);
+        return ResponseEntity.ok(activeInsurances);
+    }
+
+    @PostMapping("/{patientId}/insurances/{insuranceId}/validate-document") // Path variables ICI
+    @Operation(summary = "Valider le document d'assurance")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('SECRETAIRE')")
+    public ResponseEntity<PatientInsuranceResponse> validateInsuranceDocument(
+            @PathVariable UUID patientId,
+            @PathVariable UUID insuranceId,
+            @RequestParam(required = false) String validationComment,
+            Authentication authentication) {
+
+        log.info("Validation du document de l'assurance {} par {}", insuranceId, authentication.getName());
+
+        PatientInsuranceResponse response = insuranceService.validateInsuranceDocument(
+                patientId, insuranceId, validationComment, authentication.getName());
+
+        return ResponseEntity.ok(response);
+    }
+}
+```
+
 # lims-patient-service/src/main/java/com/lims/patient/converter/DeliveryMethodConverter.java
 
 ```java
@@ -9174,40 +9343,72 @@ public record EmailContactRequest(
 package com.lims.patient.dto.request;
 
 import com.lims.patient.enums.InsuranceType;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
-import lombok.Builder;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
- * DTO pour une assurance
+ * DTO pour la création/modification d'une assurance patient.
+ * RÈGLE MÉTIER : Le document justificatif est OBLIGATOIRE.
  */
-@Builder
+@Schema(description = "Données pour créer ou modifier une assurance/mutuelle patient")
 public record InsuranceRequest(
-        @NotNull
+
+        @NotNull(message = "Le type d'assurance est obligatoire")
+        @Schema(description = "Type d'assurance", example = "COMPLEMENTAIRE", required = true)
         InsuranceType typeAssurance,
 
-        @NotBlank @Size(max = 255)
+        @NotBlank(message = "Le nom de l'organisme est obligatoire")
+        @Size(max = 255, message = "Le nom de l'organisme ne peut pas dépasser 255 caractères")
+        @Schema(description = "Nom de l'organisme d'assurance", example = "Harmonie Mutuelle", required = true)
         String nomOrganisme,
 
-        @NotBlank @Size(max = 100)
+        @NotBlank(message = "Le numéro d'adhérent est obligatoire")
+        @Size(min = 5, max = 100, message = "Le numéro d'adhérent doit contenir entre 5 et 100 caractères")
+        @Schema(description = "Numéro d'adhérent ou de contrat", example = "MUT123456789", required = true)
         String numeroAdherent,
 
-        @NotNull
+        @NotNull(message = "La date de début est obligatoire")
+        @Schema(description = "Date de début de validité", example = "2024-01-01", required = true)
         LocalDate dateDebut,
 
+        @Schema(description = "Date de fin de validité (optionnelle)", example = "2024-12-31")
         LocalDate dateFin,
 
+        @Schema(description = "Tiers payant autorisé", example = "true", defaultValue = "false")
         Boolean tiersPayantAutorise,
 
-        @DecimalMin("0.00") @DecimalMax("100.00")
+        @DecimalMin(value = "0.00", message = "Le pourcentage doit être positif")
+        @DecimalMax(value = "100.00", message = "Le pourcentage ne peut pas dépasser 100%")
+        @Digits(integer = 3, fraction = 2, message = "Format invalide pour le pourcentage")
+        @Schema(description = "Pourcentage de prise en charge", example = "70.00")
         BigDecimal pourcentagePriseCharge,
 
-        @Size(max = 500)
+        @NotBlank(message = "Le document justificatif est obligatoire - Veuillez uploader la carte de mutuelle")
+        @Size(max = 500, message = "La référence du document ne peut pas dépasser 500 caractères")
+        @Schema(description = "Référence du document justificatif sur MinIO (OBLIGATOIRE)",
+                example = "insurance-docs/patient-123/carte-mutuelle-2024.pdf", required = true)
         String referenceDocument
-) {}
 
+) {
+
+        /**
+         * Validation personnalisée des dates.
+         */
+        public boolean isDateRangeValid() {
+                return dateFin == null || !dateFin.isBefore(dateDebut);
+        }
+
+        /**
+         * Vérifie si l'assurance est actuellement valide.
+         */
+        public boolean isCurrentlyValid() {
+                LocalDate now = LocalDate.now();
+                return !dateDebut.isAfter(now) && (dateFin == null || !dateFin.isBefore(now));
+        }
+}
 ```
 
 # lims-patient-service/src/main/java/com/lims/patient/dto/request/PatientSearchRequest.java
@@ -9692,6 +9893,122 @@ public record MetadataResponse(
 ) {}
 
 
+```
+
+# lims-patient-service/src/main/java/com/lims/patient/dto/response/PatientInsuranceResponse.java
+
+```java
+package com.lims.patient.dto.response;
+
+import com.lims.patient.enums.InsuranceType;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Builder;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+/**
+ * DTO de réponse pour les assurances patients.
+ */
+@Builder
+@Schema(description = "Informations complètes d'une assurance/mutuelle patient")
+public record PatientInsuranceResponse(
+
+        @Schema(description = "Identifiant unique de l'assurance", example = "123e4567-e89b-12d3-a456-426614174000")
+        UUID id,
+
+        @Schema(description = "Identifiant du patient", example = "456e7890-e89b-12d3-a456-426614174001")
+        UUID patientId,
+
+        @Schema(description = "Type d'assurance", example = "COMPLEMENTAIRE")
+        InsuranceType typeAssurance,
+
+        @Schema(description = "Libellé du type d'assurance", example = "Assurance complémentaire (Mutuelle)")
+        String typeAssuranceLibelle,
+
+        @Schema(description = "Nom de l'organisme d'assurance", example = "Harmonie Mutuelle")
+        String nomOrganisme,
+
+        @Schema(description = "Numéro d'adhérent", example = "MUT123456789")
+        String numeroAdherent,
+
+        @Schema(description = "Date de début de validité", example = "2024-01-01")
+        LocalDate dateDebut,
+
+        @Schema(description = "Date de fin de validité", example = "2024-12-31")
+        LocalDate dateFin,
+
+        @Schema(description = "Assurance actuellement active", example = "true")
+        Boolean estActive,
+
+        @Schema(description = "Tiers payant autorisé", example = "true")
+        Boolean tiersPayantAutorise,
+
+        @Schema(description = "Pourcentage de prise en charge", example = "70.00")
+        BigDecimal pourcentagePriseCharge,
+
+        @Schema(description = "Référence du document justificatif sur MinIO")
+        String referenceDocument,
+
+        @Schema(description = "Date d'upload du document", example = "2024-07-29T10:30:00")
+        LocalDateTime dateUploadDocument,
+
+        @Schema(description = "Date de création de l'assurance", example = "2024-07-29T10:30:00")
+        LocalDateTime dateCreation,
+
+        @Schema(description = "Date de dernière modification", example = "2024-07-29T10:30:00")
+        LocalDateTime dateModification,
+
+        @Schema(description = "Assurance actuellement valide (selon les dates)", example = "true")
+        boolean currentlyValid,
+
+        @Schema(description = "Nombre de jours avant expiration (-1 si pas d'expiration)")
+        Long daysUntilExpiration
+
+) {
+
+    /**
+     * Factory method pour créer une réponse avec calculs automatiques.
+     */
+    public static PatientInsuranceResponse of(UUID id, UUID patientId, InsuranceType typeAssurance,
+                                              String nomOrganisme, String numeroAdherent,
+                                              LocalDate dateDebut, LocalDate dateFin,
+                                              Boolean estActive, Boolean tiersPayantAutorise,
+                                              BigDecimal pourcentagePriseCharge, String referenceDocument,
+                                              LocalDateTime dateUploadDocument, LocalDateTime dateCreation,
+                                              LocalDateTime dateModification) {
+
+        LocalDate now = LocalDate.now();
+        boolean currentlyValid = estActive &&
+                !dateDebut.isAfter(now) &&
+                (dateFin == null || !dateFin.isBefore(now));
+
+        Long daysUntilExpiration = dateFin != null ?
+                java.time.temporal.ChronoUnit.DAYS.between(now, dateFin) : -1L;
+
+        return PatientInsuranceResponse.builder()
+                .id(id)
+                .patientId(patientId)
+                .typeAssurance(typeAssurance)
+                .typeAssuranceLibelle(typeAssurance.getLabel())
+                .nomOrganisme(nomOrganisme)
+                .numeroAdherent(numeroAdherent)
+                .dateDebut(dateDebut)
+                .dateFin(dateFin)
+                .estActive(estActive)
+                .tiersPayantAutorise(tiersPayantAutorise)
+                .pourcentagePriseCharge(pourcentagePriseCharge)
+                .referenceDocument(referenceDocument)
+                .dateUploadDocument(dateUploadDocument)
+                .dateCreation(dateCreation)
+                .dateModification(dateModification)
+                .currentlyValid(currentlyValid)
+                .daysUntilExpiration(daysUntilExpiration)
+                .build();
+    }
+}
 ```
 
 # lims-patient-service/src/main/java/com/lims/patient/dto/response/PatientResponse.java
@@ -10806,6 +11123,123 @@ public class DuplicatePatientException extends RuntimeException {
 
 ```
 
+# lims-patient-service/src/main/java/com/lims/patient/exception/InsuranceConflictException.java
+
+```java
+package com.lims.patient.exception;
+
+/**
+ * Exception lancée en cas de conflit d'assurance (ex: même type déjà actif).
+ */
+public class InsuranceConflictException extends RuntimeException {
+
+    public InsuranceConflictException(String message) {
+        super(message);
+    }
+
+    public InsuranceConflictException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
+    public InsuranceConflictException(String insuranceType, String patientId) {
+        super(String.format("Conflit d'assurance: Le patient %s possède déjà une assurance active de type %s",
+                patientId, insuranceType));
+    }
+}
+```
+
+# lims-patient-service/src/main/java/com/lims/patient/exception/InsuranceInUseException.java
+
+```java
+package com.lims.patient.exception;
+
+/**
+ * Exception lancée quand on tente de supprimer une assurance en cours d'utilisation.
+ */
+public class InsuranceInUseException extends RuntimeException {
+
+    public InsuranceInUseException(String message) {
+        super(message);
+    }
+
+    public InsuranceInUseException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
+    public static InsuranceInUseException cannotDelete(String insuranceId, String reason) {
+        return new InsuranceInUseException(
+                String.format("Impossible de supprimer l'assurance %s: %s", insuranceId, reason)
+        );
+    }
+}
+```
+
+# lims-patient-service/src/main/java/com/lims/patient/exception/InsuranceNotFoundException.java
+
+```java
+package com.lims.patient.exception;
+
+import java.util.UUID;
+
+/**
+ * Exception lancée quand une assurance n'est pas trouvée.
+ */
+public class InsuranceNotFoundException extends RuntimeException {
+
+    public InsuranceNotFoundException(String message) {
+        super(message);
+    }
+
+    public InsuranceNotFoundException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
+    public InsuranceNotFoundException(UUID insuranceId, UUID patientId) {
+        super(String.format("Assurance non trouvée: %s pour le patient: %s", insuranceId, patientId));
+    }
+}
+```
+
+# lims-patient-service/src/main/java/com/lims/patient/exception/InvalidInsuranceDataException.java
+
+```java
+package com.lims.patient.exception;
+
+/**
+ * Exception lancée pour les données d'assurance invalides.
+ * Notamment utilisée pour valider le document justificatif obligatoire.
+ */
+public class InvalidInsuranceDataException extends RuntimeException {
+
+    public InvalidInsuranceDataException(String message) {
+        super(message);
+    }
+
+    public InvalidInsuranceDataException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
+    /**
+     * Exception spécifique pour document manquant.
+     */
+    public static InvalidInsuranceDataException missingDocument() {
+        return new InvalidInsuranceDataException(
+                "Le document justificatif est obligatoire pour créer une assurance. " +
+                        "Veuillez scanner ou uploader la carte de mutuelle du patient."
+        );
+    }
+
+    /**
+     * Exception spécifique pour données invalides avec détail.
+     */
+    public static InvalidInsuranceDataException invalidField(String field, String reason) {
+        return new InvalidInsuranceDataException(
+                String.format("Donnée invalide pour le champ '%s': %s", field, reason)
+        );
+    }
+}
+```
+
 # lims-patient-service/src/main/java/com/lims/patient/exception/InvalidPatientDataException.java
 
 ```java
@@ -11336,6 +11770,49 @@ public interface PatientConfigMapper {
             Integer dureeConservationAuditJours,
             Boolean softDeleteUniquement
     );
+}
+```
+
+# lims-patient-service/src/main/java/com/lims/patient/mapper/PatientInsuranceMapper.java
+
+```java
+package com.lims.patient.mapper;
+
+import com.lims.patient.dto.response.PatientInsuranceResponse;
+import com.lims.patient.entity.PatientAssurance;
+import org.springframework.stereotype.Component;
+
+/**
+ * Mapper pour convertir les entités PatientAssurance en DTOs.
+ */
+@Component
+public class PatientInsuranceMapper {
+
+    /**
+     * Convertit une entité PatientAssurance en PatientInsuranceResponse.
+     */
+    public PatientInsuranceResponse toResponse(PatientAssurance assurance) {
+        if (assurance == null) {
+            return null;
+        }
+
+        return PatientInsuranceResponse.of(
+                assurance.getId(),
+                assurance.getPatient().getId(),
+                assurance.getTypeAssurance(),
+                assurance.getNomOrganisme(),
+                assurance.getNumeroAdherent(),
+                assurance.getDateDebut(),
+                assurance.getDateFin(),
+                assurance.getEstActive(),
+                assurance.getTiersPayantAutorise(),
+                assurance.getPourcentagePriseCharge(),
+                assurance.getReferenceDocument(),
+                assurance.getDateUploadDocument(),
+                assurance.getDateCreation(),
+                assurance.getDateModification()
+        );
+    }
 }
 ```
 
@@ -11941,59 +12418,185 @@ public interface OrdonnanceRepository extends JpaRepository<Ordonnance, UUID> {
 # lims-patient-service/src/main/java/com/lims/patient/repository/PatientAssuranceRepository.java
 
 ```java
+// lims-patient-service/src/main/java/com/lims/patient/repository/PatientAssuranceRepository.java
 package com.lims.patient.repository;
 
+import com.lims.patient.entity.Patient;
 import com.lims.patient.entity.PatientAssurance;
+import com.lims.patient.enums.InsuranceType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Repository pour les assurances
+ * Repository pour les assurances patients.
+ * Optimisé pour les requêtes métier courantes.
  */
 @Repository
 public interface PatientAssuranceRepository extends JpaRepository<PatientAssurance, UUID> {
 
-    /**
-     * Trouve toutes les assurances d'un patient
-     */
-    List<PatientAssurance> findByPatientIdOrderByDateDebutDescTypeAssuranceAsc(UUID patientId);
+    // ===============================================================
+    // RECHERCHES DE BASE CRITIQUES
+    // ===============================================================
 
     /**
-     * Trouve les assurances actives d'un patient
+     * Trouve une assurance par ID et patient ID.
+     * Utilisé par: PatientInsuranceService.findInsuranceById()
      */
-    @Query("SELECT pa FROM PatientAssurance pa WHERE " +
-            "pa.patient.id = :patientId AND " +
-            "pa.estActive = true AND " +
-            "(pa.dateFin IS NULL OR pa.dateFin >= CURRENT_DATE) AND " +
-            "pa.patient.dateSuppression IS NULL")
-    List<PatientAssurance> findActiveByPatientId(@Param("patientId") UUID patientId);
+    Optional<PatientAssurance> findByIdAndPatientId(UUID id, UUID patientId);
 
     /**
-     * Trouve l'assurance primaire active d'un patient
+     * Trouve toutes les assurances d'un patient triées par date de création DESC.
+     * Utilisé par: PatientInsuranceService.getPatientInsurances()
      */
-    @Query("SELECT pa FROM PatientAssurance pa WHERE " +
-            "pa.patient.id = :patientId AND " +
-            "pa.typeAssurance = 'PRIMAIRE' AND " +
-            "pa.estActive = true AND " +
-            "(pa.dateFin IS NULL OR pa.dateFin >= CURRENT_DATE)")
-    Optional<PatientAssurance> findActivePrimaryInsurance(@Param("patientId") UUID patientId);
+    List<PatientAssurance> findByPatientIdOrderByDateCreationDesc(UUID patientId);
 
     /**
-     * Compte les patients avec assurance active
+     * Trouve les assurances actives d'un patient.
+     * Utilisé par: PatientInsuranceService.getPatientInsurances()
      */
-    @Query("SELECT COUNT(DISTINCT pa.patient.id) FROM PatientAssurance pa WHERE " +
-            "pa.estActive = true AND " +
-            "(pa.dateFin IS NULL OR pa.dateFin >= CURRENT_DATE) AND " +
-            "pa.patient.dateSuppression IS NULL")
-    long countPatientsWithActiveInsurance();
+    List<PatientAssurance> findByPatientIdAndEstActiveTrue(UUID patientId);
+
+    /**
+     * Trouve les assurances actives et valides d'un patient (requête complexe).
+     * Utilisé par: PatientInsuranceService.getActiveInsurances()
+     */
+    @Query("SELECT pa FROM PatientAssurance pa WHERE pa.patient.id = :patientId " +
+            "AND pa.estActive = true " +
+            "AND pa.dateDebut <= :currentDate " +
+            "AND (pa.dateFin IS NULL OR pa.dateFin >= :currentDate)")
+    List<PatientAssurance> findByPatientIdAndEstActiveTrueAndDateDebutLessThanEqualAndDateFinGreaterThanEqualOrDateFinIsNull(
+            @Param("patientId") UUID patientId,
+            @Param("currentDate") LocalDate currentDate1,
+            @Param("currentDate") LocalDate currentDate2);
+
+    // ===============================================================
+    // VÉRIFICATIONS DE CONFLITS MÉTIER
+    // ===============================================================
+
+    /**
+     * Vérifie si un patient a déjà une assurance active du même type.
+     * Utilisé par: PatientInsuranceService.checkInsuranceConflicts()
+     */
+    boolean existsByPatientAndTypeAssuranceAndEstActiveTrue(Patient patient, InsuranceType typeAssurance);
+
+    /**
+     * Vérifie les conflits en excluant une assurance spécifique (pour les mises à jour).
+     * Utilisé par: PatientInsuranceService.checkInsuranceConflicts()
+     */
+    boolean existsByPatientAndTypeAssuranceAndEstActiveTrueAndIdNot(
+            Patient patient, InsuranceType typeAssurance, UUID excludeId);
+
+    /**
+     * Compte les assurances actives d'un patient par type.
+     * Utile pour les validations métier.
+     */
+    @Query("SELECT COUNT(pa) FROM PatientAssurance pa WHERE pa.patient.id = :patientId " +
+            "AND pa.typeAssurance = :typeAssurance AND pa.estActive = true")
+    long countByPatientIdAndTypeAssuranceAndEstActiveTrue(
+            @Param("patientId") UUID patientId,
+            @Param("typeAssurance") InsuranceType typeAssurance);
+
+    // ===============================================================
+    // RECHERCHES PAR DOCUMENT
+    // ===============================================================
+
+    /**
+     * Trouve les assurances par référence de document.
+     * Utile pour éviter les doublons de documents.
+     */
+    List<PatientAssurance> findByReferenceDocument(String referenceDocument);
+
+    /**
+     * Vérifie si un document est déjà utilisé par une autre assurance.
+     */
+    boolean existsByReferenceDocumentAndIdNot(String referenceDocument, UUID excludeId);
+
+    // ===============================================================
+    // RECHERCHES PAR ORGANISME
+    // ===============================================================
+
+    /**
+     * Trouve les assurances d'un patient pour un organisme donné.
+     * Utile pour détecter les duplicatas.
+     */
+    List<PatientAssurance> findByPatientIdAndNomOrganismeIgnoreCase(UUID patientId, String nomOrganisme);
+
+    /**
+     * Trouve les assurances par numéro d'adhérent.
+     * Utile pour détecter les duplicatas.
+     */
+    List<PatientAssurance> findByNumeroAdherent(String numeroAdherent);
+
+    // ===============================================================
+    // RECHERCHES PAR DATE
+    // ===============================================================
+
+    /**
+     * Trouve les assurances qui expirent bientôt.
+     * Utile pour les alertes.
+     */
+    @Query("SELECT pa FROM PatientAssurance pa WHERE pa.estActive = true " +
+            "AND pa.dateFin IS NOT NULL " +
+            "AND pa.dateFin BETWEEN :startDate AND :endDate")
+    List<PatientAssurance> findExpiringInsurances(
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    /**
+     * Trouve les assurances expirées qui sont encore marquées comme actives.
+     * Utile pour le nettoyage automatique.
+     */
+    @Query("SELECT pa FROM PatientAssurance pa WHERE pa.estActive = true " +
+            "AND pa.dateFin IS NOT NULL " +
+            "AND pa.dateFin < :currentDate")
+    List<PatientAssurance> findExpiredActiveInsurances(@Param("currentDate") LocalDate currentDate);
+
+    // ===============================================================
+    // REQUÊTES DE STATISTIQUES
+    // ===============================================================
+
+    /**
+     * Compte le nombre total d'assurances actives.
+     */
+    long countByEstActiveTrue();
+
+    /**
+     * Compte les assurances par type.
+     */
+    long countByTypeAssurance(InsuranceType typeAssurance);
+
+    /**
+     * Trouve les organismes les plus utilisés.
+     */
+    @Query("SELECT pa.nomOrganisme, COUNT(pa) as count FROM PatientAssurance pa " +
+            "WHERE pa.estActive = true " +
+            "GROUP BY pa.nomOrganisme " +
+            "ORDER BY count DESC")
+    List<Object[]> findMostUsedOrganismes();
+
+    // ===============================================================
+    // REQUÊTES POUR AUDIT ET CONTRÔLE
+    // ===============================================================
+
+    /**
+     * Trouve les assurances sans document (ne devrait plus arriver après la contrainte).
+     */
+    @Query("SELECT pa FROM PatientAssurance pa WHERE pa.referenceDocument IS NULL OR pa.referenceDocument = ''")
+    List<PatientAssurance> findInsurancesWithoutDocument();
+
+    /**
+     * Trouve les assurances modifiées récemment.
+     */
+    @Query("SELECT pa FROM PatientAssurance pa WHERE pa.dateModification >= :since")
+    List<PatientAssurance> findRecentlyModified(@Param("since") java.time.LocalDateTime since);
 }
-
 ```
 
 # lims-patient-service/src/main/java/com/lims/patient/repository/PatientAuditLogRepository.java
@@ -12809,6 +13412,325 @@ public class PatientAuditService {
         } catch (Exception e) {
             log.warn("Impossible de récupérer le User-Agent", e);
             return "UNKNOWN";
+        }
+    }
+}
+```
+
+# lims-patient-service/src/main/java/com/lims/patient/service/PatientInsuranceService.java
+
+```java
+package com.lims.patient.service;
+
+import com.lims.patient.dto.request.InsuranceRequest;
+import com.lims.patient.dto.response.PatientInsuranceResponse;
+import com.lims.patient.entity.Patient;
+import com.lims.patient.entity.PatientAssurance;
+import com.lims.patient.enums.InsuranceType;
+import com.lims.patient.exception.InsuranceConflictException;
+import com.lims.patient.exception.InsuranceNotFoundException;
+import com.lims.patient.exception.InvalidInsuranceDataException;
+import com.lims.patient.exception.PatientNotFoundException;
+import com.lims.patient.mapper.PatientInsuranceMapper;
+import com.lims.patient.repository.PatientAssuranceRepository;
+import com.lims.patient.repository.PatientRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * Service de gestion des assurances/mutuelles des patients.
+ * Implémente la règle métier : document justificatif OBLIGATOIRE.
+ */
+@Service
+@RequiredArgsConstructor
+@Slf4j
+@Transactional
+public class PatientInsuranceService {
+
+    private final PatientRepository patientRepository;
+    private final PatientAssuranceRepository assuranceRepository;
+    private final PatientInsuranceMapper insuranceMapper;
+
+    /**
+     * Ajoute une nouvelle assurance à un patient.
+     * RÈGLE MÉTIER : Le document justificatif est OBLIGATOIRE.
+     */
+    public PatientInsuranceResponse addInsurance(UUID patientId, InsuranceRequest request, String createdBy) {
+        log.info("Ajout d'une assurance {} pour le patient {}", request.typeAssurance(), patientId);
+
+        // 1. Validation du document obligatoire
+        validateDocumentRequired(request.referenceDocument());
+
+        // 2. Récupération du patient
+        Patient patient = findPatientById(patientId);
+
+        // 3. Validation métier
+        validateInsuranceRequest(request, patient);
+
+        // 4. Vérification des conflits (même type actif)
+        checkInsuranceConflicts(patient, request.typeAssurance());
+
+        // 5. Création de l'assurance
+        PatientAssurance assurance = buildAssuranceFromRequest(request, patient);
+
+        // 6. Sauvegarde
+        PatientAssurance savedAssurance = assuranceRepository.save(assurance);
+
+        log.info("Assurance {} créée avec succès pour le patient {}", savedAssurance.getId(), patientId);
+        return insuranceMapper.toResponse(savedAssurance);
+    }
+
+    /**
+     * Récupère les assurances d'un patient.
+     */
+    @Transactional(readOnly = true)
+    public List<PatientInsuranceResponse> getPatientInsurances(UUID patientId, boolean includeInactive) {
+        log.debug("Récupération des assurances pour le patient {} (includeInactive: {})", patientId, includeInactive);
+
+        // Vérification que le patient existe
+        findPatientById(patientId);
+
+        List<PatientAssurance> assurances = includeInactive
+                ? assuranceRepository.findByPatientIdOrderByDateCreationDesc(patientId)
+                : assuranceRepository.findByPatientIdAndEstActiveTrue(patientId);
+
+        return assurances.stream()
+                .map(insuranceMapper::toResponse)
+                .toList();
+    }
+
+    /**
+     * Récupère une assurance spécifique.
+     */
+    @Transactional(readOnly = true)
+    public PatientInsuranceResponse getInsuranceById(UUID patientId, UUID insuranceId) {
+        log.debug("Récupération de l'assurance {} pour le patient {}", insuranceId, patientId);
+
+        PatientAssurance assurance = findInsuranceById(patientId, insuranceId);
+        return insuranceMapper.toResponse(assurance);
+    }
+
+    /**
+     * Met à jour une assurance existante.
+     */
+    public PatientInsuranceResponse updateInsurance(UUID patientId, UUID insuranceId,
+                                                    InsuranceRequest request, String updatedBy) {
+        log.info("Mise à jour de l'assurance {} pour le patient {}", insuranceId, patientId);
+
+        // 1. Validation du document obligatoire
+        validateDocumentRequired(request.referenceDocument());
+
+        // 2. Récupération de l'assurance
+        PatientAssurance existingAssurance = findInsuranceById(patientId, insuranceId);
+
+        // 3. Validation métier
+        validateInsuranceRequest(request, existingAssurance.getPatient());
+
+        // 4. Si changement de type, vérifier les conflits
+        if (!existingAssurance.getTypeAssurance().equals(request.typeAssurance())) {
+            checkInsuranceConflicts(existingAssurance.getPatient(), request.typeAssurance(), insuranceId);
+        }
+
+        // 5. Mise à jour des champs
+        updateAssuranceFields(existingAssurance, request);
+        existingAssurance.setDateModification(LocalDateTime.now());
+
+        // 6. Sauvegarde
+        PatientAssurance savedAssurance = assuranceRepository.save(existingAssurance);
+
+        log.info("Assurance {} mise à jour avec succès", insuranceId);
+        return insuranceMapper.toResponse(savedAssurance);
+    }
+
+    /**
+     * Active ou désactive une assurance.
+     */
+    public PatientInsuranceResponse updateInsuranceStatus(UUID patientId, UUID insuranceId,
+                                                          boolean active, String updatedBy) {
+        log.info("Modification du statut de l'assurance {} à {}", insuranceId, active);
+
+        PatientAssurance assurance = findInsuranceById(patientId, insuranceId);
+        assurance.setEstActive(active);
+        assurance.setDateModification(LocalDateTime.now());
+
+        PatientAssurance savedAssurance = assuranceRepository.save(assurance);
+        return insuranceMapper.toResponse(savedAssurance);
+    }
+
+    /**
+     * Supprime définitivement une assurance.
+     */
+    public void deleteInsurance(UUID patientId, UUID insuranceId, String reason, String deletedBy) {
+        log.warn("Suppression définitive de l'assurance {} - Motif: {}", insuranceId, reason);
+
+        PatientAssurance assurance = findInsuranceById(patientId, insuranceId);
+
+        // TODO: Vérifier si l'assurance n'est pas utilisée dans des prélèvements en cours
+        // if (assuranceInUse(insuranceId)) {
+        //     throw new InsuranceInUseException("Impossible de supprimer une assurance en cours d'utilisation");
+        // }
+
+        assuranceRepository.delete(assurance);
+        log.info("Assurance {} supprimée définitivement", insuranceId);
+    }
+
+    /**
+     * Récupère uniquement les assurances actives d'un patient.
+     */
+    @Transactional(readOnly = true)
+    public List<PatientInsuranceResponse> getActiveInsurances(UUID patientId) {
+        log.debug("Récupération des assurances actives pour le patient {}", patientId);
+
+        findPatientById(patientId); // Vérification existence patient
+
+        List<PatientAssurance> activeAssurances = assuranceRepository
+                .findByPatientIdAndEstActiveTrueAndDateDebutLessThanEqualAndDateFinGreaterThanEqualOrDateFinIsNull(
+                        patientId, LocalDate.now(), LocalDate.now());
+
+        return activeAssurances.stream()
+                .map(insuranceMapper::toResponse)
+                .toList();
+    }
+
+    /**
+     * Valide le document d'une assurance.
+     */
+    public PatientInsuranceResponse validateInsuranceDocument(UUID patientId, UUID insuranceId,
+                                                              String validationComment, String validatedBy) {
+        log.info("Validation du document de l'assurance {} par {}", insuranceId, validatedBy);
+
+        PatientAssurance assurance = findInsuranceById(patientId, insuranceId);
+
+        // TODO: Ajouter champs validation dans l'entité
+        // assurance.setDocumentValidated(true);
+        // assurance.setValidatedBy(validatedBy);
+        // assurance.setValidationDate(LocalDateTime.now());
+        // assurance.setValidationComment(validationComment);
+
+        assurance.setDateModification(LocalDateTime.now());
+        PatientAssurance savedAssurance = assuranceRepository.save(assurance);
+
+        return insuranceMapper.toResponse(savedAssurance);
+    }
+
+    // ====================================================================
+    // MÉTHODES PRIVÉES DE VALIDATION ET UTILITAIRES
+    // ====================================================================
+
+    /**
+     * Validation OBLIGATOIRE du document justificatif.
+     * RÈGLE MÉTIER CRITIQUE : Pas de document = Pas d'assurance.
+     */
+    private void validateDocumentRequired(String referenceDocument) {
+        if (!StringUtils.hasText(referenceDocument)) {
+            throw new InvalidInsuranceDataException(
+                    "Le document justificatif est obligatoire pour créer ou modifier une assurance. " +
+                            "Veuillez scanner ou uploader la carte de mutuelle du patient."
+            );
+        }
+    }
+
+    /**
+     * Récupère un patient par son ID avec vérification d'existence.
+     */
+    private Patient findPatientById(UUID patientId) {
+        return patientRepository.findByIdAndDateSuppressionIsNull(patientId)
+                .orElseThrow(() -> new PatientNotFoundException("Patient non trouvé: " + patientId));
+    }
+
+    /**
+     * Récupère une assurance par son ID avec vérification d'appartenance au patient.
+     */
+    private PatientAssurance findInsuranceById(UUID patientId, UUID insuranceId) {
+        return assuranceRepository.findByIdAndPatientId(insuranceId, patientId)
+                .orElseThrow(() -> new InsuranceNotFoundException(
+                        "Assurance non trouvée: " + insuranceId + " pour le patient: " + patientId));
+    }
+
+    /**
+     * Valide les données de la demande d'assurance.
+     */
+    private void validateInsuranceRequest(InsuranceRequest request, Patient patient) {
+        // Validation des dates
+        if (request.dateFin() != null && request.dateFin().isBefore(request.dateDebut())) {
+            throw new InvalidInsuranceDataException("La date de fin ne peut pas être antérieure à la date de début");
+        }
+
+        // Validation du pourcentage
+        if (request.pourcentagePriseCharge() != null) {
+            if (request.pourcentagePriseCharge().compareTo(java.math.BigDecimal.ZERO) < 0 ||
+                    request.pourcentagePriseCharge().compareTo(java.math.BigDecimal.valueOf(100)) > 0) {
+                throw new InvalidInsuranceDataException("Le pourcentage de prise en charge doit être entre 0 et 100");
+            }
+        }
+
+        // Validation du numéro d'adhérent (longueur minimale)
+        if (request.numeroAdherent().length() < 5) {
+            throw new InvalidInsuranceDataException("Le numéro d'adhérent doit contenir au moins 5 caractères");
+        }
+    }
+
+    /**
+     * Vérifie les conflits d'assurance (même type actif).
+     */
+    private void checkInsuranceConflicts(Patient patient, InsuranceType typeAssurance) {
+        checkInsuranceConflicts(patient, typeAssurance, null);
+    }
+
+    private void checkInsuranceConflicts(Patient patient, InsuranceType typeAssurance, UUID excludeId) {
+        boolean hasConflict = assuranceRepository.existsByPatientAndTypeAssuranceAndEstActiveTrueAndIdNot(
+                patient, typeAssurance, excludeId != null ? excludeId : UUID.randomUUID());
+
+        if (hasConflict) {
+            throw new InsuranceConflictException(
+                    "Le patient possède déjà une assurance active de type: " + typeAssurance.getLabel());
+        }
+    }
+
+    /**
+     * Construit une entité PatientAssurance à partir de la requête.
+     */
+    private PatientAssurance buildAssuranceFromRequest(InsuranceRequest request, Patient patient) {
+        return PatientAssurance.builder()
+                .patient(patient)
+                .typeAssurance(request.typeAssurance())
+                .nomOrganisme(request.nomOrganisme())
+                .numeroAdherent(request.numeroAdherent())
+                .dateDebut(request.dateDebut())
+                .dateFin(request.dateFin())
+                .tiersPayantAutorise(request.tiersPayantAutorise() != null ? request.tiersPayantAutorise() : false)
+                .pourcentagePriseCharge(request.pourcentagePriseCharge())
+                .referenceDocument(request.referenceDocument()) // OBLIGATOIRE
+                .dateUploadDocument(LocalDateTime.now())
+                .estActive(true)
+                .dateCreation(LocalDateTime.now())
+                .build();
+    }
+
+    /**
+     * Met à jour les champs d'une assurance existante.
+     */
+    private void updateAssuranceFields(PatientAssurance assurance, InsuranceRequest request) {
+        assurance.setTypeAssurance(request.typeAssurance());
+        assurance.setNomOrganisme(request.nomOrganisme());
+        assurance.setNumeroAdherent(request.numeroAdherent());
+        assurance.setDateDebut(request.dateDebut());
+        assurance.setDateFin(request.dateFin());
+        assurance.setTiersPayantAutorise(request.tiersPayantAutorise() != null ? request.tiersPayantAutorise() : false);
+        assurance.setPourcentagePriseCharge(request.pourcentagePriseCharge());
+
+        // Si nouveau document, mettre à jour la référence et la date
+        if (!request.referenceDocument().equals(assurance.getReferenceDocument())) {
+            assurance.setReferenceDocument(request.referenceDocument());
+            assurance.setDateUploadDocument(LocalDateTime.now());
         }
     }
 }
@@ -25097,8 +26019,10 @@ This is a binary file of the type: Binary
 ```md
 TODO:
 
-- [ ] initier service document avec minio (pour upload des mutuelles et ordonnances)
+- [ ] mettre à jour service patient pour créer/modifier une assurance/mutuelle + y rattacher un fichier déjà uploadé
 - [ ] initier service parcours/dossier (pour y rajouter les ordonnances, analyses, réponses aux conditions pré-analytics)
+
+- [X] initier service document avec minio (pour upload des mutuelles et ordonnances)
 - [X] Mettre à jour un patient (json patch) (prendre en compte la situation du patient)
 - [X] Rajouter un ref de situation 
 - [X] Créer un patient (prendre en compte la situation du patient)

@@ -1,5 +1,6 @@
 package com.lims.patient.entity;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.lims.patient.enums.DeliveryMethod;
 import com.lims.patient.enums.GenderType;
 import com.lims.patient.enums.NotificationPreference;
@@ -170,14 +171,6 @@ public class Patient {
     @Column(name = "date_suppression")
     private LocalDateTime dateSuppression; // Soft delete
 
-    // ===== RELATIONS CONSERVÉES =====
-    @OneToMany(mappedBy = "patient", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @Builder.Default
-    private List<PatientAssurance> assurances = new ArrayList<>();
-
-    @OneToMany(mappedBy = "patient", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @Builder.Default
-    private List<Ordonnance> ordonnances = new ArrayList<>();
 
     // ===== MÉTHODES UTILITAIRES =====
 
@@ -234,22 +227,6 @@ public class Patient {
             return 0;
         }
         return LocalDate.now().getYear() - dateNaissance.getYear();
-    }
-
-    /**
-     * Ajoute une assurance
-     */
-    public void addAssurance(PatientAssurance assurance) {
-        assurance.setPatient(this);
-        this.assurances.add(assurance);
-    }
-
-    /**
-     * Ajoute une ordonnance
-     */
-    public void addOrdonnance(Ordonnance ordonnance) {
-        ordonnance.setPatient(this);
-        this.ordonnances.add(ordonnance);
     }
 
     /**
