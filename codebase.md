@@ -5222,6 +5222,1645 @@ springdoc:
     enabled: true
 ```
 
+# lims-document-service/pom.xml
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.lims</groupId>
+        <artifactId>lims-system</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>lims-document-service</artifactId>
+    <packaging>jar</packaging>
+
+    <name>LIMS Document Service</name>
+    <description>Service de gestion des documents et fichiers pour le système LIMS</description>
+
+    <properties>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <mapstruct.version>1.6.3</mapstruct.version>
+        <minio.version>8.5.7</minio.version>
+    </properties>
+
+    <dependencies>
+        <!-- Spring Boot Starters -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- PostgreSQL Driver -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- MinIO Client -->
+        <dependency>
+            <groupId>io.minio</groupId>
+            <artifactId>minio</artifactId>
+            <version>${minio.version}</version>
+        </dependency>
+
+        <!-- JWT Support -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>0.12.6</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>0.12.6</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>0.12.6</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Apache Tika for file type detection -->
+        <dependency>
+            <groupId>org.apache.tika</groupId>
+            <artifactId>tika-core</artifactId>
+            <version>2.9.1</version>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- MapStruct -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>${mapstruct.version}</version>
+        </dependency>
+
+        <!-- OpenAPI Documentation -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>2.2.0</version>
+        </dependency>
+
+        <!-- JSON Processing -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <!-- Development Tools -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Test Dependencies -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Spring Boot Plugin -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+
+            <!-- Maven Compiler Plugin avec MapStruct -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>21</source>
+                    <target>21</target>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.mapstruct</groupId>
+                            <artifactId>mapstruct-processor</artifactId>
+                            <version>${mapstruct.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>1.18.30</version>
+                        </path>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok-mapstruct-binding</artifactId>
+                            <version>0.2.0</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+```
+
+# lims-document-service/src/main/java/com/lims/document/config/AdminJwtAuthenticationConverter.java
+
+```java
+package com.lims.document.config;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.convert.converter.Converter;
+import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+
+import java.util.Collection;
+import java.util.List;
+import java.util.stream.Stream;
+
+/**
+ * Convertisseur d'authentification JWT spécialisé pour les admins.
+ * Extrait les rôles admin et configure l'authentification.
+ */
+@Slf4j
+public class AdminJwtAuthenticationConverter extends JwtAuthenticationConverter {
+
+    public AdminJwtAuthenticationConverter() {
+        this.setJwtGrantedAuthoritiesConverter(this::extractAuthorities);
+    }
+
+    private Collection<GrantedAuthority> extractAuthorities(Jwt jwt) {
+        // Pour le service référentiel, tous les utilisateurs valides sont admins
+        return List.of(new SimpleGrantedAuthority("ROLE_ADMIN"));
+    }
+}
+```
+
+# lims-document-service/src/main/java/com/lims/document/config/AdminJwtDecoder.java
+
+```java
+package com.lims.document.config;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtException;
+
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Décodeur JWT spécialisé pour les tokens admin du realm lims-admin.
+ * Identique à celui du service referential pour cohérence.
+ */
+@Slf4j
+public class AdminJwtDecoder implements JwtDecoder {
+
+    private final String jwtSecret;
+
+    public AdminJwtDecoder(String jwtSecret) {
+        this.jwtSecret = jwtSecret;
+    }
+
+    @Override
+    public Jwt decode(String token) throws JwtException {
+        try {
+            log.debug("Decoding JWT token for referential service");
+
+            // Créer la clé secrète pour HMAC SHA512
+            SecretKeySpec secretKey = new SecretKeySpec(
+                    jwtSecret.getBytes(StandardCharsets.UTF_8),
+                    "HmacSHA512"
+            );
+
+            // Décoder avec JJWT
+            Claims claims = Jwts.parser()
+                    .verifyWith(secretKey)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+
+            log.debug("JWT decoded successfully for subject: {}", claims.getSubject());
+
+            // VALIDATION STRICTE : Vérifier que c'est un token admin
+            String realm = (String) claims.get("realm");
+            String userType = (String) claims.get("user_type");
+
+            if (!"lims-admin".equals(realm)) {
+                log.warn("Invalid realm for referential service: {}. Expected: lims-admin", realm);
+                throw new JwtException("Invalid realm. Referential service only accepts admin tokens.");
+            }
+
+            if (!"ADMIN".equals(userType)) {
+                log.warn("Invalid user type for referential service: {}. Expected: ADMIN", userType);
+                throw new JwtException("Invalid user type. Referential service only accepts admin users.");
+            }
+
+            // Convertir en Spring Security Jwt
+            return createSpringJwt(token, claims);
+
+        } catch (JwtException e) {
+            // Re-lancer les JwtException
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to decode JWT: {}", e.getMessage());
+            throw new JwtException("Failed to decode JWT", e);
+        }
+    }
+
+    private Jwt createSpringJwt(String token, Claims claims) {
+        Map<String, Object> headers = new HashMap<>();
+        headers.put("alg", "HS512");
+        headers.put("typ", "JWT");
+
+        Map<String, Object> claimsMap = new HashMap<>(claims);
+
+        Instant issuedAt = claims.getIssuedAt() != null ?
+                claims.getIssuedAt().toInstant() : Instant.now();
+        Instant expiresAt = claims.getExpiration() != null ?
+                claims.getExpiration().toInstant() : Instant.now().plusSeconds(3600);
+
+        return new Jwt(
+                token,
+                issuedAt,
+                expiresAt,
+                headers,
+                claimsMap
+        );
+    }
+}
+```
+
+# lims-document-service/src/main/java/com/lims/document/config/GlobalExceptionHandler.java
+
+```java
+package com.lims.document.config;
+
+import com.lims.document.exception.DocumentNotFoundException;
+import com.lims.document.exception.DocumentUploadException;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+
+@RestControllerAdvice
+@Slf4j
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(DocumentNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleDocumentNotFound(DocumentNotFoundException ex) {
+        log.error("Document non trouvé: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.NOT_FOUND.value())
+                .error("Document Non Trouvé")
+                .message(ex.getMessage())
+                .path("/api/v1/documents")
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
+
+    @ExceptionHandler(DocumentUploadException.class)
+    public ResponseEntity<ErrorResponse> handleDocumentUpload(DocumentUploadException ex) {
+        log.error("Erreur d'upload de document: {}", ex.getMessage(), ex);
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Erreur d'Upload")
+                .message(ex.getMessage())
+                .path("/api/v1/documents/upload")
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
+        log.error("Fichier trop volumineux: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.PAYLOAD_TOO_LARGE.value())
+                .error("Fichier Trop Volumineux")
+                .message("Le fichier dépasse la taille maximale autorisée (50MB)")
+                .path("/api/v1/documents/upload")
+                .build();
+
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(error);
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
+        Map<String, String> errors = new HashMap<>();
+        ex.getBindingResult().getAllErrors().forEach(error -> {
+            String fieldName = ((FieldError) error).getField();
+            String errorMessage = error.getDefaultMessage();
+            errors.put(fieldName, errorMessage);
+        });
+
+        log.error("Erreurs de validation: {}", errors);
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Données Invalides")
+                .message("Erreurs de validation des données")
+                .path("/api/v1/documents")
+                .validationErrors(errors)
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
+        log.error("Accès refusé: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.FORBIDDEN.value())
+                .error("Accès Refusé")
+                .message("Vous n'avez pas les permissions nécessaires pour accéder à cette ressource")
+                .path("/api/v1/documents")
+                .build();
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleGeneral(Exception ex) {
+        log.error("Erreur interne du serveur: {}", ex.getMessage(), ex);
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .error("Erreur Interne")
+                .message("Une erreur interne s'est produite")
+                .path("/api/v1/documents")
+                .build();
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+    }
+
+    // Classe interne pour la réponse d'erreur
+    @lombok.Builder
+    @lombok.Data
+    public static class ErrorResponse {
+        private LocalDateTime timestamp;
+        private int status;
+        private String error;
+        private String message;
+        private String path;
+        private Map<String, String> validationErrors;
+    }
+}
+```
+
+# lims-document-service/src/main/java/com/lims/document/config/MinioConfig.java
+
+```java
+package com.lims.document.config;
+
+import io.minio.MinioClient;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+@Slf4j
+public class MinioConfig {
+
+    @Value("${minio.endpoint}")
+    private String endpoint;
+
+    @Value("${minio.access-key}")
+    private String accessKey;
+
+    @Value("${minio.secret-key}")
+    private String secretKey;
+
+    @Bean
+    public MinioClient minioClient() {
+        log.info("Configuration du client MinIO avec endpoint: {}", endpoint);
+
+        return MinioClient.builder()
+                .endpoint(endpoint)
+                .credentials(accessKey, secretKey)
+                .build();
+    }
+}
+```
+
+# lims-document-service/src/main/java/com/lims/document/config/OpenApiConfig.java
+
+```java
+package com.lims.document.config;
+
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Contact;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.info.License;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
+import io.swagger.v3.oas.models.servers.Server;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import java.util.List;
+
+/**
+ * Configuration OpenAPI pour la documentation Swagger du service documents.
+ * Ce service gère l'upload, le téléchargement et la gestion des documents/fichiers.
+ */
+@Configuration
+public class OpenApiConfig {
+
+    @Bean
+    public OpenAPI documentServiceOpenAPI() {
+        return new OpenAPI()
+                .info(new Info()
+                        .title("LIMS Document Service API")
+                        .description("API de gestion des documents et fichiers pour le système LIMS de laboratoire de biologie médicale. Ce service permet l'upload, le téléchargement et la gestion des documents (ordonnances, cartes mutuelles, résultats, etc.) avec stockage sécurisé sur MinIO.")
+                        .version("1.0.0")
+                        .contact(new Contact()
+                                .name("Équipe LIMS")
+                                .email("support@lims.com")
+                                .url("https://lims.com"))
+                        .license(new License()
+                                .name("Propriétaire")
+                                .url("https://lims.com/license")))
+                .servers(List.of(
+                        new Server()
+                                .url("http://localhost:8094")
+                                .description("Serveur de développement"),
+                        new Server()
+                                .url("https://api.lims.com/documents")
+                                .description("Serveur de production")))
+                .addSecurityItem(new SecurityRequirement().addList("Bearer Authentication"))
+                .components(new io.swagger.v3.oas.models.Components()
+                        .addSecuritySchemes("Bearer Authentication",
+                                new SecurityScheme()
+                                        .type(SecurityScheme.Type.HTTP)
+                                        .scheme("bearer")
+                                        .bearerFormat("JWT")
+                                        .description("Token JWT obtenu via le service d'authentification (realm: lims-staff)")));
+    }
+}
+```
+
+# lims-document-service/src/main/java/com/lims/document/config/SecurityConfig.java
+
+```java
+package com.lims.document.config;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
+import java.util.List;
+
+/**
+ * Configuration de sécurité pour le service documents LIMS.
+ * Ce service accepte les tokens JWT du realm lims-staff (secrétaires, préleveurs, admins).
+ */
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity(prePostEnabled = true)
+public class SecurityConfig {
+
+    @Value("${lims.jwt.secret}")
+    private String jwtSecret;
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+                .authorizeHttpRequests(auth -> auth
+                        // Endpoints publics
+                        .requestMatchers(
+                                "/actuator/**",
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
+                        ).permitAll()
+
+                        // Tous les autres endpoints nécessitent une authentification admin
+                        .anyRequest().authenticated()
+                )
+
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> jwt
+                                .decoder(jwtDecoder())
+                                .jwtAuthenticationConverter(jwtAuthenticationConverter())
+                        )
+                );
+
+        return http.build();
+    }
+
+    @Bean
+    public JwtDecoder jwtDecoder() {
+        return new AdminJwtDecoder(jwtSecret);
+    }
+
+    @Bean
+    public JwtAuthenticationConverter jwtAuthenticationConverter() {
+        return new AdminJwtAuthenticationConverter();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        // Origines autorisées
+        configuration.setAllowedOriginPatterns(List.of("*"));
+
+        // Méthodes HTTP autorisées
+        configuration.setAllowedMethods(Arrays.asList(
+                "GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"
+        ));
+
+        // Headers autorisés
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+
+        // Headers exposés pour les réponses (utile pour les téléchargements)
+        configuration.setExposedHeaders(Arrays.asList(
+                "X-Total-Count", "X-Page-Number", "X-Page-Size", "Content-Disposition"
+        ));
+
+        // Autoriser les credentials
+        configuration.setAllowCredentials(true);
+
+        // Durée de cache pour les requêtes preflight
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+
+        return source;
+    }
+}
+```
+
+# lims-document-service/src/main/java/com/lims/document/controller/DocumentController.java
+
+```java
+package com.lims.document.controller;
+
+import com.lims.document.dto.DocumentDTO;
+import com.lims.document.dto.UploadRequestDTO;
+import com.lims.document.entity.Document;
+import com.lims.document.service.DocumentService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/v1/documents")
+@RequiredArgsConstructor
+@Slf4j
+@Tag(name = "Documents", description = "API de gestion des documents et fichiers")
+@SecurityRequirement(name = "Bearer Authentication")
+public class DocumentController {
+
+    private final DocumentService documentService;
+
+    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload d'un document",
+            description = "Upload un fichier (image ou PDF) vers le stockage MinIO")
+    @ApiResponse(responseCode = "201", description = "Document uploadé avec succès")
+    @ApiResponse(responseCode = "400", description = "Données invalides")
+    @ApiResponse(responseCode = "413", description = "Fichier trop volumineux")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('SECRETAIRE') or hasRole('PRELEVEUR')")
+    public ResponseEntity<DocumentDTO> uploadDocument(
+            @RequestPart("file") MultipartFile file,
+            @RequestPart("metadata") @Valid UploadRequestDTO request,
+            Authentication authentication) {
+
+        UUID uploadedBy = UUID.fromString(authentication.getName());
+        DocumentDTO result = documentService.uploadDocument(file, request, uploadedBy);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(result);
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "Récupérer les métadonnées d'un document",
+            description = "Récupère les informations d'un document par son ID")
+    @ApiResponse(responseCode = "200", description = "Document trouvé")
+    @ApiResponse(responseCode = "404", description = "Document non trouvé")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('SECRETAIRE') or hasRole('PRELEVEUR')")
+    public ResponseEntity<DocumentDTO> getDocument(@PathVariable UUID id) {
+        DocumentDTO document = documentService.getDocumentById(id);
+        return ResponseEntity.ok(document);
+    }
+
+    @GetMapping("/{id}/download")
+    @Operation(summary = "Télécharger un document",
+            description = "Télécharge le contenu binaire d'un document")
+    @ApiResponse(responseCode = "200", description = "Document téléchargé",
+            content = @Content(mediaType = "application/octet-stream"))
+    @ApiResponse(responseCode = "404", description = "Document non trouvé")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('SECRETAIRE') or hasRole('PRELEVEUR')")
+    public ResponseEntity<byte[]> downloadDocument(@PathVariable UUID id) {
+        DocumentDTO document = documentService.getDocumentById(id);
+        byte[] fileContent = documentService.downloadDocument(id);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType(document.getContentType()));
+        headers.setContentDispositionFormData("attachment", document.getOriginalFilename());
+        headers.setContentLength(fileContent.length);
+
+        return ResponseEntity.ok()
+                .headers(headers)
+                .body(fileContent);
+    }
+
+    @GetMapping("/{id}/url")
+    @Operation(summary = "Générer une URL de téléchargement temporaire",
+            description = "Génère une URL présignée valide pendant 1 heure")
+    @ApiResponse(responseCode = "200", description = "URL générée avec succès")
+    @ApiResponse(responseCode = "404", description = "Document non trouvé")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('SECRETAIRE') or hasRole('PRELEVEUR')")
+    public ResponseEntity<String> generateDownloadUrl(
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "60") int expirationMinutes) {
+
+        String url = documentService.generateDownloadUrl(id, expirationMinutes);
+        return ResponseEntity.ok(url);
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Supprimer un document",
+            description = "Suppression logique d'un document (soft delete)")
+    @ApiResponse(responseCode = "204", description = "Document supprimé avec succès")
+    @ApiResponse(responseCode = "404", description = "Document non trouvé")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('SECRETAIRE')")
+    public ResponseEntity<Void> deleteDocument(@PathVariable UUID id, Authentication authentication) {
+        UUID deletedBy = UUID.fromString(authentication.getName());
+        documentService.softDeleteDocument(id, deletedBy);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/my-documents")
+    @Operation(summary = "Récupérer mes documents",
+            description = "Liste paginée des documents uploadés par l'utilisateur connecté")
+    @ApiResponse(responseCode = "200", description = "Liste des documents")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('SECRETAIRE') or hasRole('PRELEVEUR')")
+    public ResponseEntity<Page<DocumentDTO>> getMyDocuments(
+            Pageable pageable, Authentication authentication) {
+
+        UUID userId = UUID.fromString(authentication.getName());
+        Page<DocumentDTO> documents = documentService.getDocumentsByUser(userId, pageable);
+        return ResponseEntity.ok(documents);
+    }
+
+    @GetMapping("/patient/{patientId}")
+    @Operation(summary = "Récupérer les documents d'un patient",
+            description = "Liste tous les documents associés à un patient")
+    @ApiResponse(responseCode = "200", description = "Liste des documents du patient")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('SECRETAIRE')")
+    public ResponseEntity<List<DocumentDTO>> getPatientDocuments(@PathVariable UUID patientId) {
+        List<DocumentDTO> documents = documentService.getDocumentsByPatient(patientId);
+        return ResponseEntity.ok(documents);
+    }
+
+    @GetMapping("/type/{documentType}")
+    @Operation(summary = "Récupérer les documents par type",
+            description = "Liste tous les documents d'un type spécifique")
+    @ApiResponse(responseCode = "200", description = "Liste des documents du type demandé")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<DocumentDTO>> getDocumentsByType(
+            @PathVariable Document.DocumentType documentType) {
+
+        List<DocumentDTO> documents = documentService.getDocumentsByType(documentType);
+        return ResponseEntity.ok(documents);
+    }
+}
+```
+
+# lims-document-service/src/main/java/com/lims/document/DocumentServiceApplication.java
+
+```java
+package com.lims.document;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class DocumentServiceApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(DocumentServiceApplication.class, args);
+    }
+}
+```
+
+# lims-document-service/src/main/java/com/lims/document/dto/DocumentDTO.java
+
+```java
+package com.lims.document.dto;
+
+import com.lims.document.entity.Document;
+import lombok.Data;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Data
+public class DocumentDTO {
+    private UUID id;
+    private String filename;
+    private String originalFilename;
+    private String contentType;
+    private Long fileSize;
+    private Document.DocumentType documentType;
+    private Document.DocumentStatus status;
+    private UUID uploadedBy;
+    private UUID patientId;
+    private String relatedEntityType;
+    private UUID relatedEntityId;
+    private String description;
+    private String[] tags;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+    private String downloadUrl;  // URL temporaire générée à la demande
+}
+```
+
+# lims-document-service/src/main/java/com/lims/document/dto/UploadRequestDTO.java
+
+```java
+package com.lims.document.dto;
+
+import com.lims.document.entity.Document;
+import jakarta.validation.constraints.NotNull;
+import lombok.Data;
+
+import java.util.UUID;
+
+@Data
+public class UploadRequestDTO {
+
+    @NotNull(message = "Le type de document est obligatoire")
+    private Document.DocumentType documentType;
+
+    private UUID patientId;
+    private String relatedEntityType;
+    private UUID relatedEntityId;
+    private String description;
+    private String[] tags;
+}
+```
+
+# lims-document-service/src/main/java/com/lims/document/entity/Document.java
+
+```java
+package com.lims.document.entity;
+
+import jakarta.persistence.*;
+        import lombok.Data;
+import lombok.EqualsAndHashCode;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Entity
+@Table(name = "documents", schema = "lims_documents")
+@Data
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
+public class Document {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    @EqualsAndHashCode.Include
+    private UUID id;
+
+    @Column(name = "filename", nullable = false)
+    private String filename;
+
+    @Column(name = "original_filename", nullable = false)
+    private String originalFilename;
+
+    @Column(name = "content_type", nullable = false)
+    private String contentType;
+
+    @Column(name = "file_size", nullable = false)
+    private Long fileSize;
+
+    @Column(name = "bucket_name", nullable = false)
+    private String bucketName;
+
+    @Column(name = "object_key", nullable = false, unique = true)
+    private String objectKey;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "document_type", nullable = false)
+    private DocumentType documentType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private DocumentStatus status = DocumentStatus.ACTIVE;
+
+    @Column(name = "uploaded_by", nullable = false)
+    private UUID uploadedBy;
+
+    @Column(name = "patient_id")
+    private UUID patientId;
+
+    @Column(name = "related_entity_type")
+    private String relatedEntityType;
+
+    @Column(name = "related_entity_id")
+    private UUID relatedEntityId;
+
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;
+
+    @Column(name = "tags", columnDefinition = "TEXT[]")
+    private String[] tags;
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    // Enums
+    public enum DocumentType {
+        PRESCRIPTION,      // Ordonnance
+        INSURANCE_CARD,    // Carte mutuelle
+        IDENTITY_CARD,     // Pièce d'identité
+        MEDICAL_RESULT,    // Résultat d'analyse
+        GENERAL_DOCUMENT   // Document générique
+    }
+
+    public enum DocumentStatus {
+        ACTIVE,
+        DELETED,
+        ARCHIVED
+    }
+}
+
+```
+
+# lims-document-service/src/main/java/com/lims/document/exception/DocumentNotFoundException.java
+
+```java
+package com.lims.document.exception;
+
+public class DocumentNotFoundException extends RuntimeException {
+    public DocumentNotFoundException(String message) {
+        super(message);
+    }
+}
+```
+
+# lims-document-service/src/main/java/com/lims/document/exception/DocumentUploadException.java
+
+```java
+package com.lims.document.exception;
+
+public class DocumentUploadException extends RuntimeException {
+    public DocumentUploadException(String message) {
+        super(message);
+    }
+
+    public DocumentUploadException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+```
+
+# lims-document-service/src/main/java/com/lims/document/mapper/DocumentMapper.java
+
+```java
+package com.lims.document.mapper;
+
+import com.lims.document.dto.DocumentDTO;
+import com.lims.document.entity.Document;
+import org.mapstruct.*;
+
+@Mapper(componentModel = "spring")
+public interface DocumentMapper {
+
+    @Mapping(target = "downloadUrl", ignore = true)
+    DocumentDTO toDTO(Document document);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "filename", ignore = true)
+    @Mapping(target = "bucketName", ignore = true)
+    @Mapping(target = "objectKey", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "deletedAt", ignore = true)
+    @Mapping(target = "status", constant = "ACTIVE")
+    Document toEntity(DocumentDTO documentDTO);
+}
+```
+
+# lims-document-service/src/main/java/com/lims/document/repository/DocumentRepository.java
+
+```java
+package com.lims.document.repository;
+
+import com.lims.document.entity.Document;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+@Repository
+public interface DocumentRepository extends JpaRepository<Document, UUID> {
+
+    // Recherche des documents actifs uniquement
+    @Query("SELECT d FROM Document d WHERE d.status = 'ACTIVE' AND d.deletedAt IS NULL")
+    List<Document> findAllActive();
+
+    @Query("SELECT d FROM Document d WHERE d.id = :id AND d.status = 'ACTIVE' AND d.deletedAt IS NULL")
+    Optional<Document> findActiveById(@Param("id") UUID id);
+
+    @Query("SELECT d FROM Document d WHERE d.patientId = :patientId AND d.status = 'ACTIVE' AND d.deletedAt IS NULL")
+    List<Document> findActiveByPatientId(@Param("patientId") UUID patientId);
+
+    @Query("SELECT d FROM Document d WHERE d.documentType = :type AND d.status = 'ACTIVE' AND d.deletedAt IS NULL")
+    List<Document> findActiveByDocumentType(@Param("type") Document.DocumentType type);
+
+    @Query("SELECT d FROM Document d WHERE d.uploadedBy = :userId AND d.status = 'ACTIVE' AND d.deletedAt IS NULL")
+    Page<Document> findActiveByUploadedBy(@Param("userId") UUID userId, Pageable pageable);
+
+    Optional<Document> findByObjectKeyAndStatusAndDeletedAtIsNull(String objectKey, Document.DocumentStatus status);
+}
+```
+
+# lims-document-service/src/main/java/com/lims/document/service/DocumentService.java
+
+```java
+package com.lims.document.service;
+
+import com.lims.document.dto.DocumentDTO;
+import com.lims.document.dto.UploadRequestDTO;
+import com.lims.document.entity.Document;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
+import java.util.UUID;
+
+public interface DocumentService {
+
+    DocumentDTO uploadDocument(MultipartFile file, UploadRequestDTO request, UUID uploadedBy);
+
+    DocumentDTO getDocumentById(UUID id);
+
+    byte[] downloadDocument(UUID id);
+
+    String generateDownloadUrl(UUID id, int expirationMinutes);
+
+    void softDeleteDocument(UUID id, UUID deletedBy);
+
+    Page<DocumentDTO> getDocumentsByUser(UUID userId, Pageable pageable);
+
+    List<DocumentDTO> getDocumentsByPatient(UUID patientId);
+
+    List<DocumentDTO> getDocumentsByType(Document.DocumentType type);
+}
+```
+
+# lims-document-service/src/main/java/com/lims/document/service/impl/DocumentServiceImpl.java
+
+```java
+package com.lims.document.service.impl;
+
+import com.lims.document.dto.DocumentDTO;
+import com.lims.document.dto.UploadRequestDTO;
+import com.lims.document.entity.Document;
+import com.lims.document.exception.DocumentNotFoundException;
+import com.lims.document.exception.DocumentUploadException;
+import com.lims.document.mapper.DocumentMapper;
+import com.lims.document.repository.DocumentRepository;
+import com.lims.document.service.DocumentService;
+import com.lims.document.service.MinioService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.tika.Tika;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class DocumentServiceImpl implements DocumentService {
+
+    private final DocumentRepository documentRepository;
+    private final MinioService minioService;
+    private final DocumentMapper documentMapper;
+    private final Tika tika = new Tika();
+
+    @Override
+    @Transactional
+    public DocumentDTO uploadDocument(MultipartFile file, UploadRequestDTO request, UUID uploadedBy) {
+        try {
+            // Validation du fichier
+            validateFile(file);
+
+            // Génération d'un nom unique
+            String objectKey = generateObjectKey(file.getOriginalFilename());
+
+            // Détermination du bucket selon le type de document
+            String bucketName = determineBucket(request.getDocumentType());
+
+            // Détection du type MIME réel
+            String detectedContentType = tika.detect(file.getInputStream());
+
+            // Upload vers MinIO
+            minioService.uploadFile(bucketName, objectKey, file.getInputStream(),
+                    file.getSize(), detectedContentType);
+
+            // Création de l'entité Document
+            Document document = new Document();
+            document.setFilename(objectKey);
+            document.setOriginalFilename(file.getOriginalFilename());
+            document.setContentType(detectedContentType);
+            document.setFileSize(file.getSize());
+            document.setBucketName(bucketName);
+            document.setObjectKey(objectKey);
+            document.setDocumentType(request.getDocumentType());
+            document.setUploadedBy(uploadedBy);
+            document.setPatientId(request.getPatientId());
+            document.setRelatedEntityType(request.getRelatedEntityType());
+            document.setRelatedEntityId(request.getRelatedEntityId());
+            document.setDescription(request.getDescription());
+            document.setTags(request.getTags());
+
+            Document savedDocument = documentRepository.save(document);
+
+            log.info("Document uploadé avec succès: {} par utilisateur: {}",
+                    objectKey, uploadedBy);
+
+            return documentMapper.toDTO(savedDocument);
+
+        } catch (Exception e) {
+            log.error("Erreur lors de l'upload du document: {}", e.getMessage(), e);
+            throw new DocumentUploadException("Impossible d'uploader le document: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DocumentDTO getDocumentById(UUID id) {
+        Document document = documentRepository.findActiveById(id)
+                .orElseThrow(() -> new DocumentNotFoundException("Document non trouvé avec l'ID: " + id));
+
+        DocumentDTO dto = documentMapper.toDTO(document);
+        dto.setDownloadUrl(generateDownloadUrl(id, 60)); // URL valide 1h
+
+        return dto;
+    }
+
+    @Override
+    public byte[] downloadDocument(UUID id) {
+        Document document = documentRepository.findActiveById(id)
+                .orElseThrow(() -> new DocumentNotFoundException("Document non trouvé avec l'ID: " + id));
+
+        try {
+            return minioService.downloadFile(document.getBucketName(), document.getObjectKey());
+        } catch (Exception e) {
+            log.error("Erreur lors du téléchargement du document {}: {}", id, e.getMessage(), e);
+            throw new DocumentUploadException("Impossible de télécharger le document", e);
+        }
+    }
+
+    @Override
+    public String generateDownloadUrl(UUID id, int expirationMinutes) {
+        Document document = documentRepository.findActiveById(id)
+                .orElseThrow(() -> new DocumentNotFoundException("Document non trouvé avec l'ID: " + id));
+
+        try {
+            return minioService.generatePresignedUrl(document.getBucketName(),
+                    document.getObjectKey(), expirationMinutes);
+        } catch (Exception e) {
+            log.error("Erreur lors de la génération de l'URL de téléchargement pour {}: {}",
+                    id, e.getMessage(), e);
+            throw new DocumentUploadException("Impossible de générer l'URL de téléchargement", e);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void softDeleteDocument(UUID id, UUID deletedBy) {
+        Document document = documentRepository.findActiveById(id)
+                .orElseThrow(() -> new DocumentNotFoundException("Document non trouvé avec l'ID: " + id));
+
+        document.setStatus(Document.DocumentStatus.DELETED);
+        document.setDeletedAt(LocalDateTime.now());
+
+        documentRepository.save(document);
+
+        log.info("Document {} supprimé (soft delete) par utilisateur: {}", id, deletedBy);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<DocumentDTO> getDocumentsByUser(UUID userId, Pageable pageable) {
+        return documentRepository.findActiveByUploadedBy(userId, pageable)
+                .map(documentMapper::toDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DocumentDTO> getDocumentsByPatient(UUID patientId) {
+        return documentRepository.findActiveByPatientId(patientId)
+                .stream()
+                .map(documentMapper::toDTO)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DocumentDTO> getDocumentsByType(Document.DocumentType type) {
+        return documentRepository.findActiveByDocumentType(type)
+                .stream()
+                .map(documentMapper::toDTO)
+                .toList();
+    }
+
+    // Méthodes privées
+    private void validateFile(MultipartFile file) {
+        if (file.isEmpty()) {
+            throw new DocumentUploadException("Le fichier ne peut pas être vide");
+        }
+
+        // Validation de la taille (max 50MB)
+        if (file.getSize() > 50 * 1024 * 1024) {
+            throw new DocumentUploadException("Le fichier ne peut pas dépasser 50MB");
+        }
+
+        // Validation des types de fichier autorisés
+        String contentType = file.getContentType();
+        if (contentType == null || !isAllowedContentType(contentType)) {
+            throw new DocumentUploadException("Type de fichier non autorisé: " + contentType);
+        }
+    }
+
+    private boolean isAllowedContentType(String contentType) {
+        return contentType.equals("application/pdf") ||
+                contentType.equals("image/jpeg") ||
+                contentType.equals("image/png") ||
+                contentType.equals("image/gif") ||
+                contentType.equals("image/webp");
+    }
+
+    private String generateObjectKey(String originalFilename) {
+        String extension = getFileExtension(originalFilename);
+        return UUID.randomUUID().toString() + (extension.isEmpty() ? "" : "." + extension);
+    }
+
+    private String getFileExtension(String filename) {
+        if (filename == null || filename.lastIndexOf(".") == -1) {
+            return "";
+        }
+        return filename.substring(filename.lastIndexOf(".") + 1);
+    }
+
+    private String determineBucket(Document.DocumentType documentType) {
+        return switch (documentType) {
+            case PRESCRIPTION -> "lims-prescriptions";
+            case INSURANCE_CARD -> "lims-insurance";
+            case MEDICAL_RESULT -> "lims-results";
+            case IDENTITY_CARD, GENERAL_DOCUMENT -> "lims-documents";
+        };
+    }
+}
+```
+
+# lims-document-service/src/main/java/com/lims/document/service/impl/MinioServiceImpl.java
+
+```java
+package com.lims.document.service.impl;
+
+import com.lims.document.exception.DocumentUploadException;
+import com.lims.document.service.MinioService;
+import io.minio.*;
+import io.minio.http.Method;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.util.concurrent.TimeUnit;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class MinioServiceImpl implements MinioService {
+
+    private final MinioClient minioClient;
+
+    @Override
+    public void uploadFile(String bucketName, String objectKey, InputStream inputStream,
+                           long contentLength, String contentType) {
+        try {
+            minioClient.putObject(
+                    PutObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(objectKey)
+                            .stream(inputStream, contentLength, -1)
+                            .contentType(contentType)
+                            .build()
+            );
+
+            log.debug("Fichier uploadé avec succès: {}/{}", bucketName, objectKey);
+
+        } catch (Exception e) {
+            log.error("Erreur lors de l'upload vers MinIO: {}", e.getMessage(), e);
+            throw new DocumentUploadException("Erreur d'upload vers le stockage", e);
+        }
+    }
+
+    @Override
+    public byte[] downloadFile(String bucketName, String objectKey) {
+        try (InputStream stream = minioClient.getObject(
+                GetObjectArgs.builder()
+                        .bucket(bucketName)
+                        .object(objectKey)
+                        .build());
+             ByteArrayOutputStream result = new ByteArrayOutputStream()) {
+
+            byte[] buffer = new byte[1024];
+            int length;
+            while ((length = stream.read(buffer)) != -1) {
+                result.write(buffer, 0, length);
+            }
+
+            log.debug("Fichier téléchargé avec succès: {}/{}", bucketName, objectKey);
+            return result.toByteArray();
+
+        } catch (Exception e) {
+            log.error("Erreur lors du téléchargement depuis MinIO: {}", e.getMessage(), e);
+            throw new DocumentUploadException("Erreur de téléchargement depuis le stockage", e);
+        }
+    }
+
+    @Override
+    public String generatePresignedUrl(String bucketName, String objectKey, int expirationMinutes) {
+        try {
+            return minioClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .method(Method.GET)
+                            .bucket(bucketName)
+                            .object(objectKey)
+                            .expiry(expirationMinutes, TimeUnit.MINUTES)
+                            .build()
+            );
+
+        } catch (Exception e) {
+            log.error("Erreur lors de la génération de l'URL présignée: {}", e.getMessage(), e);
+            throw new DocumentUploadException("Erreur de génération d'URL", e);
+        }
+    }
+
+    @Override
+    public void deleteFile(String bucketName, String objectKey) {
+        try {
+            minioClient.removeObject(
+                    RemoveObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(objectKey)
+                            .build()
+            );
+
+            log.debug("Fichier supprimé avec succès: {}/{}", bucketName, objectKey);
+
+        } catch (Exception e) {
+            log.error("Erreur lors de la suppression dans MinIO: {}", e.getMessage(), e);
+            throw new DocumentUploadException("Erreur de suppression depuis le stockage", e);
+        }
+    }
+
+    @Override
+    public boolean fileExists(String bucketName, String objectKey) {
+        try {
+            minioClient.statObject(
+                    StatObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(objectKey)
+                            .build()
+            );
+            return true;
+
+        } catch (Exception e) {
+            return false;
+        }
+    }
+}
+```
+
+# lims-document-service/src/main/java/com/lims/document/service/MinioService.java
+
+```java
+package com.lims.document.service;
+
+import java.io.InputStream;
+
+public interface MinioService {
+
+    void uploadFile(String bucketName, String objectKey, InputStream inputStream,
+                    long contentLength, String contentType);
+
+    byte[] downloadFile(String bucketName, String objectKey);
+
+    String generatePresignedUrl(String bucketName, String objectKey, int expirationMinutes);
+
+    void deleteFile(String bucketName, String objectKey);
+
+    boolean fileExists(String bucketName, String objectKey);
+}
+```
+
+# lims-document-service/src/main/resources/application-prod.yml
+
+```yml
+# ===========================================
+# PROFIL DE PRODUCTION
+# ===========================================
+spring:
+    config:
+    activate:
+      on-profile: production
+
+# Database configuration pour production
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:lims_db}
+    username: ${DB_USERNAME:lims_user}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+```
+
+# lims-document-service/src/main/resources/application-test.yml
+
+```yml
+# Configuration base de données pour tests
+spring:
+  config:
+    activate:
+      on-profile: test
+
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+
+# MinIO configuration pour tests (utilisation d'un mock)
+minio:
+  endpoint: http://localhost:9000
+  access-key: minioadmin
+  secret-key: minioadmin
+
+# Logging pour tests
+logging:
+  level:
+    com.lims.document: DEBUG
+```
+
+# lims-document-service/src/main/resources/application.yml
+
+```yml
+server:
+  port: 8094
+
+spring:
+  application:
+    name: lims-document-service
+  profiles:
+    active: development
+
+  # Database configuration
+  datasource:
+    url: jdbc:postgresql://localhost:5432/lims_db
+    username: lims_user
+    password: dev_password_123
+    driver-class-name: org.postgresql.Driver
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        default_schema: lims_documents
+
+  # Servlet configuration for file upload
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 50MB
+      max-request-size: 50MB
+      file-size-threshold: 1MB
+# Configuration JWT spécifique au service référentiel
+lims:
+  jwt:
+    secret: "G9/BrPDMezKO3cxercRPm7OtvRjWGOeONQCk7AjB6s+pttEuco8xcUEE6dT2IHNHix9aNk4i+c1N8CaTTp84WxCfZMCC/UVJABajwU4ToymMJ/9gT3uxMK5PqrJcCHNi2cUo3P9k+ZaBCqvqwcDZv6kY7mdaz6G5VmcWAU8+4OgZVZEssNvY2kTInV2Sz4JZzp4/N8aWGf6ml3C+q4I8l0Yk9qImvqnAeMX83Rxp3R+yLk2LvCuaYx1lEkSbkM2NbsN1W8ebtZwxMC0CpeLY57V7DocrjvK7v/pjHHUu27qad1JgLBhmoNy4LZX1rqLSKdYvjGQqQd8SU4vP311d9fY8rv47DLKjSPKkee4XTtrfTfH1fh3mnPjYl2NoZjCzr7KAHB3lKpk56rUlmXYbqqExOlDGmnXOrnCL5JRj3LWgwvw6sR73/CGsigxkZvks00QF48cSfJPgFT+TdZ4FyAxc9vC+MG5FDdSjG+wCgmJ/UYQ9MOdLhNGs2itMpf3mN/z81/JYbbDxrNWPah56Ybr8Y4DUykgfJLMgiK/nwME5/qwjzkfRpjEMBRaZbIJPy7N+NfdgIolVjdNj6eBNUHLlrerV2G5FcEkHTsYrTIFrhxxAI3gE3KI92pBPBXxKohXrvVt4nupaj9onnzfP/y5s5kQkNUomVQYMIbyUKGU="
+
+# Security configuration
+security:
+  oauth2:
+    resourceserver:
+      jwt:
+        issuer-uri: http://auth.lims.local/realms/lims-staff
+        jwk-set-uri: http://auth.lims.local/realms/lims-staff/protocol/openid-connect/certs
+
+# MinIO configuration
+minio:
+  endpoint: http://localhost:9001
+  access-key: lims_minio_admin
+  secret-key: minio_dev_password_123
+
+# Management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  health:
+    defaults:
+      enabled: true
+
+# Documentation Swagger/OpenAPI
+springdoc:
+  api-docs:
+    enabled: true
+    path: /api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    config-url: /api-docs/swagger-config
+    urls-primary-name: "Document Service API"
+    display-request-duration: true
+    show-extensions: true
+    show-common-extensions: true
+
+# Logging
+logging:
+  level:
+    com.lims.document: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    io.minio: DEBUG
+```
+
 # lims-laboratory-service/pom.xml
 
 ```xml
@@ -23225,6 +24864,7 @@ This is a binary file of the type: Binary
         <module>lims-laboratory-service</module>
         <module>lims-patient-service</module>
         <module>lims-ref-service</module>
+        <module>lims-document-service</module>
     </modules>
 
     <dependencyManagement>
@@ -23457,9 +25097,9 @@ This is a binary file of the type: Binary
 ```md
 TODO:
 
-- [ ] Mettre à jour un patient (json patch) (prendre en compte la situation du patient)
 - [ ] initier service document avec minio (pour upload des mutuelles et ordonnances)
 - [ ] initier service parcours/dossier (pour y rajouter les ordonnances, analyses, réponses aux conditions pré-analytics)
+- [X] Mettre à jour un patient (json patch) (prendre en compte la situation du patient)
 - [X] Rajouter un ref de situation 
 - [X] Créer un patient (prendre en compte la situation du patient)
 - [X] initier service référentiel (avec analyses)

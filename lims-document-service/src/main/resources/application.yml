@@ -1,0 +1,87 @@
+server:
+  port: 8094
+
+spring:
+  application:
+    name: lims-document-service
+  profiles:
+    active: development
+
+  # Database configuration
+  datasource:
+    url: jdbc:postgresql://localhost:5432/lims_db
+    username: lims_user
+    password: dev_password_123
+    driver-class-name: org.postgresql.Driver
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        default_schema: lims_documents
+
+  # Servlet configuration for file upload
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 50MB
+      max-request-size: 50MB
+      file-size-threshold: 1MB
+# Configuration JWT spécifique au service référentiel
+lims:
+  jwt:
+    secret: "G9/BrPDMezKO3cxercRPm7OtvRjWGOeONQCk7AjB6s+pttEuco8xcUEE6dT2IHNHix9aNk4i+c1N8CaTTp84WxCfZMCC/UVJABajwU4ToymMJ/9gT3uxMK5PqrJcCHNi2cUo3P9k+ZaBCqvqwcDZv6kY7mdaz6G5VmcWAU8+4OgZVZEssNvY2kTInV2Sz4JZzp4/N8aWGf6ml3C+q4I8l0Yk9qImvqnAeMX83Rxp3R+yLk2LvCuaYx1lEkSbkM2NbsN1W8ebtZwxMC0CpeLY57V7DocrjvK7v/pjHHUu27qad1JgLBhmoNy4LZX1rqLSKdYvjGQqQd8SU4vP311d9fY8rv47DLKjSPKkee4XTtrfTfH1fh3mnPjYl2NoZjCzr7KAHB3lKpk56rUlmXYbqqExOlDGmnXOrnCL5JRj3LWgwvw6sR73/CGsigxkZvks00QF48cSfJPgFT+TdZ4FyAxc9vC+MG5FDdSjG+wCgmJ/UYQ9MOdLhNGs2itMpf3mN/z81/JYbbDxrNWPah56Ybr8Y4DUykgfJLMgiK/nwME5/qwjzkfRpjEMBRaZbIJPy7N+NfdgIolVjdNj6eBNUHLlrerV2G5FcEkHTsYrTIFrhxxAI3gE3KI92pBPBXxKohXrvVt4nupaj9onnzfP/y5s5kQkNUomVQYMIbyUKGU="
+
+# Security configuration
+security:
+  oauth2:
+    resourceserver:
+      jwt:
+        issuer-uri: http://auth.lims.local/realms/lims-staff
+        jwk-set-uri: http://auth.lims.local/realms/lims-staff/protocol/openid-connect/certs
+
+# MinIO configuration
+minio:
+  endpoint: http://localhost:9000
+  access-key: lims_minio_admin
+  secret-key: minio_dev_password_123
+
+# Management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  health:
+    defaults:
+      enabled: true
+
+# Documentation Swagger/OpenAPI
+springdoc:
+  api-docs:
+    enabled: true
+    path: /api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    config-url: /api-docs/swagger-config
+    urls-primary-name: "Document Service API"
+    display-request-duration: true
+    show-extensions: true
+    show-common-extensions: true
+
+# Logging
+logging:
+  level:
+    com.lims.document: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    io.minio: DEBUG

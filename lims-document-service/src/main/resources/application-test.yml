@@ -1,0 +1,27 @@
+# Configuration base de données pour tests
+spring:
+  config:
+    activate:
+      on-profile: test
+
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+
+# MinIO configuration pour tests (utilisation d'un mock)
+minio:
+  endpoint: http://localhost:9000
+  access-key: minioadmin
+  secret-key: minioadmin
+
+# Logging pour tests
+logging:
+  level:
+    com.lims.document: DEBUG
