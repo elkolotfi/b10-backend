@@ -6905,6 +6905,10 @@ logging:
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
 
         <!-- PostgreSQL Driver -->
         <dependency>
@@ -6913,10 +6917,50 @@ logging:
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Spring Security OAuth2 JOSE -->
+        <!-- Lombok -->
         <dependency>
-            <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-oauth2-jose</artifactId>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- MapStruct -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>${mapstruct.version}</version>
+        </dependency>
+
+        <!-- OpenAPI Documentation -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>2.2.0</version>
+        </dependency>
+
+        <!-- JSON Processing -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <!-- ✅ JWT Support -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>0.12.6</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>0.12.6</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>0.12.6</version>
+            <scope>runtime</scope>
         </dependency>
 
         <!-- Development Tools -->
@@ -6938,44 +6982,1289 @@ logging:
             <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
         <plugins>
+            <!-- Spring Boot Plugin -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+
+            <!-- Maven Compiler Plugin avec MapStruct et Lombok -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.12.1</version>
+                <configuration>
+                    <source>21</source>
+                    <target>21</target>
+                    <encoding>UTF-8</encoding>
+                    <parameters>true</parameters>
+                    <annotationProcessorPaths>
+                        <!-- MapStruct Processor -->
+                        <path>
+                            <groupId>org.mapstruct</groupId>
+                            <artifactId>mapstruct-processor</artifactId>
+                            <version>${mapstruct.version}</version>
+                        </path>
+                        <!-- Lombok -->
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                        <!-- Lombok MapStruct Binding -->
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok-mapstruct-binding</artifactId>
+                            <version>0.2.0</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
             </plugin>
         </plugins>
     </build>
 </project>
 ```
 
-# lims-laboratory-service/src/main/java/com/lims/laboratory/controller/LaboratoryController.java
+# lims-laboratory-service/src/main/java/com/lims/laboratory/config/AdminJwtAuthenticationConverter.java
+
+```java
+package com.lims.laboratory.config;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+
+import java.util.Collection;
+import java.util.List;
+
+/**
+ * Convertisseur d'authentification JWT spécialisé pour les admins.
+ * Extrait les rôles admin et configure l'authentification.
+ */
+@Slf4j
+public class AdminJwtAuthenticationConverter extends JwtAuthenticationConverter {
+
+    public AdminJwtAuthenticationConverter() {
+        this.setJwtGrantedAuthoritiesConverter(this::extractAuthorities);
+    }
+
+    private Collection<GrantedAuthority> extractAuthorities(Jwt jwt) {
+        // Pour le service référentiel, tous les utilisateurs valides sont admins
+        return List.of(new SimpleGrantedAuthority("ROLE_ADMIN"));
+    }
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/config/AdminJwtDecoder.java
+
+```java
+package com.lims.laboratory.config;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtException;
+
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Décodeur JWT spécialisé pour les tokens admin du realm lims-admin.
+ * Identique à celui du service referential pour cohérence.
+ */
+@Slf4j
+public class AdminJwtDecoder implements JwtDecoder {
+
+    private final String jwtSecret;
+
+    public AdminJwtDecoder(String jwtSecret) {
+        this.jwtSecret = jwtSecret;
+    }
+
+    @Override
+    public Jwt decode(String token) throws JwtException {
+        try {
+            log.debug("Decoding JWT token for referential service");
+
+            // Créer la clé secrète pour HMAC SHA512
+            SecretKeySpec secretKey = new SecretKeySpec(
+                    jwtSecret.getBytes(StandardCharsets.UTF_8),
+                    "HmacSHA512"
+            );
+
+            // Décoder avec JJWT
+            Claims claims = Jwts.parser()
+                    .verifyWith(secretKey)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+
+            log.debug("JWT decoded successfully for subject: {}", claims.getSubject());
+
+            // VALIDATION STRICTE : Vérifier que c'est un token admin
+            String realm = (String) claims.get("realm");
+            String userType = (String) claims.get("user_type");
+
+            if (!"lims-admin".equals(realm)) {
+                log.warn("Invalid realm for referential service: {}. Expected: lims-admin", realm);
+                throw new JwtException("Invalid realm. Referential service only accepts admin tokens.");
+            }
+
+            if (!"ADMIN".equals(userType)) {
+                log.warn("Invalid user type for referential service: {}. Expected: ADMIN", userType);
+                throw new JwtException("Invalid user type. Referential service only accepts admin users.");
+            }
+
+            // Convertir en Spring Security Jwt
+            return createSpringJwt(token, claims);
+
+        } catch (JwtException e) {
+            // Re-lancer les JwtException
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to decode JWT: {}", e.getMessage());
+            throw new JwtException("Failed to decode JWT", e);
+        }
+    }
+
+    private Jwt createSpringJwt(String token, Claims claims) {
+        Map<String, Object> headers = new HashMap<>();
+        headers.put("alg", "HS512");
+        headers.put("typ", "JWT");
+
+        Map<String, Object> claimsMap = new HashMap<>(claims);
+
+        Instant issuedAt = claims.getIssuedAt() != null ?
+                claims.getIssuedAt().toInstant() : Instant.now();
+        Instant expiresAt = claims.getExpiration() != null ?
+                claims.getExpiration().toInstant() : Instant.now().plusSeconds(3600);
+
+        return new Jwt(
+                token,
+                issuedAt,
+                expiresAt,
+                headers,
+                claimsMap
+        );
+    }
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/config/OpenApiConfig.java
+
+```java
+package com.lims.laboratory.config;
+
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Contact;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.info.License;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
+import io.swagger.v3.oas.models.servers.Server;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import java.util.List;
+
+/**
+ * Configuration OpenAPI pour la documentation Swagger du service documents.
+ * Ce service gère l'upload, le téléchargement et la gestion des documents/fichiers.
+ */
+@Configuration
+public class OpenApiConfig {
+
+    @Bean
+    public OpenAPI documentServiceOpenAPI() {
+        return new OpenAPI()
+                .info(new Info()
+                        .title("LIMS Laboratory Service API")  // 🔧 Changer le titre
+                        .description("API de gestion des laboratoires...")  // 🔧 Changer la description
+                        .version("1.0.0"))
+                .servers(List.of(
+                        new Server()
+                                .url("http://localhost:8091")  // 🔧 Changer le port (8083 pour laboratory)
+                                .description("Serveur de développement")))
+                .addSecurityItem(new SecurityRequirement().addList("Bearer Authentication"))
+                .components(new io.swagger.v3.oas.models.Components()
+                        .addSecuritySchemes("Bearer Authentication",
+                                new SecurityScheme()
+                                        .type(SecurityScheme.Type.HTTP)
+                                        .scheme("bearer")
+                                        .bearerFormat("JWT")
+                                        .description("Token JWT obtenu via le service d'authentification (realm: lims-staff)")));
+    }
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/config/SecurityConfig.java
+
+```java
+package com.lims.laboratory.config;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
+import java.util.List;
+
+/**
+ * Configuration de sécurité pour le service documents LIMS.
+ * Ce service accepte les tokens JWT du realm lims-staff (secrétaires, préleveurs, admins).
+ */
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity(prePostEnabled = true)
+public class SecurityConfig {
+
+    @Value("${lims.jwt.secret}")
+    private String jwtSecret;
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+                .authorizeHttpRequests(auth -> auth
+                        // Endpoints publics (identiques)
+                        .requestMatchers(
+                                "/actuator/**",
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
+                        ).permitAll()
+
+                        // Tous les endpoints laboratoire nécessitent ADMIN
+                        .anyRequest().authenticated()
+                )
+
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> jwt
+                                .decoder(jwtDecoder())
+                                .jwtAuthenticationConverter(jwtAuthenticationConverter())
+                        )
+                );
+
+        return http.build();
+    }
+
+    @Bean
+    public JwtDecoder jwtDecoder() {
+        return new AdminJwtDecoder(jwtSecret);
+    }
+
+    @Bean
+    public JwtAuthenticationConverter jwtAuthenticationConverter() {
+        return new AdminJwtAuthenticationConverter();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        // Origines autorisées
+        configuration.setAllowedOriginPatterns(List.of("*"));
+
+        // Méthodes HTTP autorisées
+        configuration.setAllowedMethods(Arrays.asList(
+                "GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"
+        ));
+
+        // Headers autorisés
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+
+        // Headers exposés pour les réponses (utile pour les téléchargements)
+        configuration.setExposedHeaders(Arrays.asList(
+                "X-Total-Count", "X-Page-Number", "X-Page-Size", "Content-Disposition"
+        ));
+
+        // Autoriser les credentials
+        configuration.setAllowCredentials(true);
+
+        // Durée de cache pour les requêtes preflight
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+
+        return source;
+    }
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/controller/LaboratoireController.java
 
 ```java
 package com.lims.laboratory.controller;
 
+import com.lims.laboratory.dto.request.LaboratoireRequestDTO;
+import com.lims.laboratory.dto.request.LaboratoireSearchDTO;
+import com.lims.laboratory.dto.response.LaboratoireResponseDTO;
+import com.lims.laboratory.dto.response.PagedResponseDTO;
+import com.lims.laboratory.entity.Laboratoire.TypeLaboratoire;
+import com.lims.laboratory.service.LaboratoireService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Contrôleur REST pour la gestion des laboratoires
+ * Permet aux administrateurs de créer, modifier, supprimer et consulter les laboratoires
+ */
+@RestController
+@RequestMapping("/api/v1/laboratoires")
+@RequiredArgsConstructor
+@Slf4j
+@Validated
+@Tag(name = "Laboratoires", description = "Gestion des laboratoires")
+@SecurityRequirement(name = "bearerAuth")
+public class LaboratoireController {
+
+    private final LaboratoireService laboratoireService;
+
+    // === Opérations CRUD ===
+
+    /**
+     * Créer un nouveau laboratoire
+     */
+    @PostMapping
+    @Operation(
+            summary = "Créer un laboratoire",
+            description = "Crée un nouveau laboratoire dans le système. Accessible aux administrateurs uniquement."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Laboratoire créé avec succès"),
+            @ApiResponse(responseCode = "400", description = "Données invalides"),
+            @ApiResponse(responseCode = "409", description = "Conflit - Données dupliquées (SIRET, FINESS, etc.)"),
+            @ApiResponse(responseCode = "403", description = "Accès refusé - Droits administrateur requis")
+    })
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<LaboratoireResponseDTO> createLaboratoire(
+            @Valid @RequestBody LaboratoireRequestDTO requestDTO) {
+
+        log.info("POST /api/v1/laboratoires - Création d'un laboratoire: {}", requestDTO.getNomCommercial());
+
+        LaboratoireResponseDTO response = laboratoireService.createLaboratoire(requestDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * Récupérer un laboratoire par ID
+     */
+    @GetMapping("/{id}")
+    @Operation(
+            summary = "Récupérer un laboratoire",
+            description = "Récupère les détails d'un laboratoire par son identifiant"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Laboratoire trouvé"),
+            @ApiResponse(responseCode = "404", description = "Laboratoire non trouvé"),
+            @ApiResponse(responseCode = "403", description = "Accès refusé")
+    })
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<LaboratoireResponseDTO> getLaboratoireById(
+            @Parameter(name = "id", description = "Identifiant unique du laboratoire") @PathVariable UUID id) {
+
+        log.info("GET /api/v1/laboratoires/{}", id);
+
+        LaboratoireResponseDTO response = laboratoireService.getLaboratoireById(id);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Mettre à jour un laboratoire
+     */
+    @PutMapping("/{id}")
+    @Operation(
+            summary = "Mettre à jour un laboratoire",
+            description = "Met à jour les informations d'un laboratoire existant"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Laboratoire mis à jour"),
+            @ApiResponse(responseCode = "400", description = "Données invalides"),
+            @ApiResponse(responseCode = "404", description = "Laboratoire non trouvé"),
+            @ApiResponse(responseCode = "409", description = "Conflit - Données dupliquées"),
+            @ApiResponse(responseCode = "403", description = "Accès refusé")
+    })
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<LaboratoireResponseDTO> updateLaboratoire(
+            @Parameter(description = "Identifiant unique du laboratoire") @PathVariable UUID id,
+            @Valid @RequestBody LaboratoireRequestDTO requestDTO) {
+
+        log.info("PUT /api/v1/laboratoires/{} - Mise à jour: {}", id, requestDTO.getNomCommercial());
+
+        LaboratoireResponseDTO response = laboratoireService.updateLaboratoire(id, requestDTO);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Supprimer un laboratoire
+     */
+    @DeleteMapping("/{id}")
+    @Operation(
+            summary = "Supprimer un laboratoire",
+            description = "Supprime définitivement un laboratoire du système"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Laboratoire supprimé"),
+            @ApiResponse(responseCode = "404", description = "Laboratoire non trouvé"),
+            @ApiResponse(responseCode = "403", description = "Accès refusé")
+    })
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteLaboratoire(
+            @Parameter(description = "Identifiant unique du laboratoire") @PathVariable UUID id) {
+
+        log.info("DELETE /api/v1/laboratoires/{}", id);
+
+        laboratoireService.deleteLaboratoire(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // === Recherche et listage ===
+
+    /**
+     * Rechercher des laboratoires avec critères et pagination
+     */
+    @GetMapping
+    @Operation(
+            summary = "Rechercher des laboratoires",
+            description = "Recherche paginée de laboratoires avec différents critères de filtrage"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Résultats de recherche"),
+            @ApiResponse(responseCode = "400", description = "Paramètres de pagination invalides")
+    })
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<PagedResponseDTO<LaboratoireResponseDTO>> searchLaboratoires(
+            @Parameter(description = "Terme de recherche (nom, code)") @RequestParam(required = false) String searchTerm,
+            @Parameter(description = "Type de laboratoire") @RequestParam(required = false) TypeLaboratoire typeLaboratoire,
+            @Parameter(description = "Statut actif") @RequestParam(required = false) Boolean actif,
+            @Parameter(description = "Numéro SIRET") @RequestParam(required = false) String siret,
+            @Parameter(description = "Numéro FINESS") @RequestParam(required = false) String numeroFiness,
+            @Parameter(description = "Numéro de page (0-based)") @RequestParam(defaultValue = "0") @Min(0) int page,
+            @Parameter(description = "Taille de page") @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
+            @Parameter(description = "Champ de tri") @RequestParam(defaultValue = "nomCommercial") String sortBy,
+            @Parameter(description = "Direction du tri") @RequestParam(defaultValue = "asc") String sortDirection) {
+
+        log.info("GET /api/v1/laboratoires - Recherche avec critères");
+
+        LaboratoireSearchDTO searchDTO = LaboratoireSearchDTO.builder()
+                .searchTerm(searchTerm)
+                .typeLaboratoire(typeLaboratoire)
+                .actif(actif)
+                .siret(siret)
+                .numeroFiness(numeroFiness)
+                .build();
+
+        PagedResponseDTO<LaboratoireResponseDTO> response = laboratoireService.searchLaboratoires(
+                searchDTO, page, size, sortBy, sortDirection);
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Récupérer tous les laboratoires actifs
+     */
+    @GetMapping("/actifs")
+    @Operation(
+            summary = "Laboratoires actifs",
+            description = "Récupère la liste de tous les laboratoires actifs (sans pagination)"
+    )
+    @ApiResponse(responseCode = "200", description = "Liste des laboratoires actifs")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
+    public ResponseEntity<List<LaboratoireResponseDTO>> getAllActiveLaboratoires() {
+        log.info("GET /api/v1/laboratoires/actifs");
+
+        List<LaboratoireResponseDTO> response = laboratoireService.getAllActiveLaboratoires();
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Récupérer les laboratoires par type
+     */
+    @GetMapping("/type/{type}")
+    @Operation(
+            summary = "Laboratoires par type",
+            description = "Récupère tous les laboratoires actifs d'un type donné"
+    )
+    @ApiResponse(responseCode = "200", description = "Laboratoires du type spécifié")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
+    public ResponseEntity<List<LaboratoireResponseDTO>> getLaboratoiresByType(
+            @Parameter(description = "Type de laboratoire") @PathVariable TypeLaboratoire type) {
+
+        log.info("GET /api/v1/laboratoires/type/{}", type);
+
+        List<LaboratoireResponseDTO> response = laboratoireService.getLaboratoiresByType(type);
+        return ResponseEntity.ok(response);
+    }
+
+    // === Recherches spécifiques ===
+
+    /**
+     * Rechercher par SIRET
+     */
+    @GetMapping("/siret/{siret}")
+    @Operation(
+            summary = "Recherche par SIRET",
+            description = "Trouve un laboratoire par son numéro SIRET"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Laboratoire trouvé"),
+            @ApiResponse(responseCode = "404", description = "Aucun laboratoire avec ce SIRET")
+    })
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<LaboratoireResponseDTO> findBySiret(
+            @Parameter(description = "Numéro SIRET (14 chiffres)") @PathVariable String siret) {
+
+        log.info("GET /api/v1/laboratoires/siret/{}", siret);
+
+        LaboratoireResponseDTO response = laboratoireService.findBySiret(siret);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Rechercher par numéro FINESS
+     */
+    @GetMapping("/finess/{numeroFiness}")
+    @Operation(
+            summary = "Recherche par FINESS",
+            description = "Trouve un laboratoire par son numéro FINESS"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Laboratoire trouvé"),
+            @ApiResponse(responseCode = "404", description = "Aucun laboratoire avec ce numéro FINESS")
+    })
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<LaboratoireResponseDTO> findByNumeroFiness(
+            @Parameter(description = "Numéro FINESS") @PathVariable String numeroFiness) {
+
+        log.info("GET /api/v1/laboratoires/finess/{}", numeroFiness);
+
+        LaboratoireResponseDTO response = laboratoireService.findByNumeroFiness(numeroFiness);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Rechercher par code laboratoire
+     */
+    @GetMapping("/code/{codeLaboratoire}")
+    @Operation(
+            summary = "Recherche par code",
+            description = "Trouve un laboratoire par son code interne"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Laboratoire trouvé"),
+            @ApiResponse(responseCode = "404", description = "Aucun laboratoire avec ce code")
+    })
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<LaboratoireResponseDTO> findByCodeLaboratoire(
+            @Parameter(description = "Code interne du laboratoire") @PathVariable String codeLaboratoire) {
+
+        log.info("GET /api/v1/laboratoires/code/{}", codeLaboratoire);
+
+        LaboratoireResponseDTO response = laboratoireService.findByCodeLaboratoire(codeLaboratoire);
+        return ResponseEntity.ok(response);
+    }
+
+    // === Actions spéciales ===
+
+    /**
+     * Activer/désactiver un laboratoire
+     */
+    @PatchMapping("/{id}/activation")
+    @Operation(
+            summary = "Activer/désactiver un laboratoire",
+            description = "Modifie le statut actif d'un laboratoire sans affecter les autres données"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Statut modifié"),
+            @ApiResponse(responseCode = "404", description = "Laboratoire non trouvé")
+    })
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<LaboratoireResponseDTO> toggleActivation(
+            @Parameter(description = "Identifiant unique du laboratoire") @PathVariable UUID id,
+            @Parameter(description = "Nouveau statut actif") @RequestParam boolean actif) {
+
+        log.info("PATCH /api/v1/laboratoires/{}/activation - Statut: {}", id, actif);
+
+        LaboratoireResponseDTO response = laboratoireService.toggleActivation(id, actif);
+        return ResponseEntity.ok(response);
+    }
+
+    // === Statistiques ===
+
+    /**
+     * Statistiques des laboratoires
+     */
+    @GetMapping("/statistiques")
+    @Operation(
+            summary = "Statistiques des laboratoires",
+            description = "Récupère des statistiques globales sur les laboratoires du système"
+    )
+    @ApiResponse(responseCode = "200", description = "Statistiques générées")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> getStatistiques() {
+        log.info("GET /api/v1/laboratoires/statistiques");
+
+        Map<String, Object> statistiques = laboratoireService.getStatistiques();
+        return ResponseEntity.ok(statistiques);
+    }
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/dto/request/LaboratoireRequestDTO.java
+
+```java
+package com.lims.laboratory.dto.request;
+
+import com.lims.laboratory.entity.Laboratoire.TypeLaboratoire;
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+import lombok.Data;
+import lombok.Builder;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+
+/**
+ * DTO pour la création et mise à jour d'un laboratoire
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Schema(description = "Données pour créer ou modifier un laboratoire")
+public class LaboratoireRequestDTO {
+
+    @NotBlank(message = "Le nom commercial est obligatoire")
+    @Size(max = 255, message = "Le nom commercial ne peut pas dépasser 255 caractères")
+    @Schema(description = "Nom commercial du laboratoire", example = "Laboratoire Central")
+    private String nomCommercial;
+
+    @NotBlank(message = "Le nom légal est obligatoire")
+    @Size(max = 255, message = "Le nom légal ne peut pas dépasser 255 caractères")
+    @Schema(description = "Raison sociale du laboratoire", example = "Laboratoire Central SAS")
+    private String nomLegal;
+
+    @Size(max = 500, message = "Le nom du laboratoire ne peut pas dépasser 500 caractères")
+    @Schema(description = "Nom d'usage du laboratoire", example = "Labo Central - Site Principal")
+    private String nomLaboratoire;
+
+    @Size(max = 100, message = "Le code laboratoire ne peut pas dépasser 100 caractères")
+    @Schema(description = "Code interne du laboratoire", example = "LAB001")
+    private String codeLaboratoire;
+
+    @Schema(description = "Description générale du laboratoire")
+    private String description;
+
+    @Pattern(regexp = "^[0-9]{14}$", message = "Le SIRET doit contenir exactement 14 chiffres")
+    @Schema(description = "Numéro SIRET", example = "12345678901234")
+    private String siret;
+
+    @Size(max = 20, message = "Le numéro FINESS ne peut pas dépasser 20 caractères")
+    @Schema(description = "Identifiant FINESS", example = "123456789")
+    private String numeroFiness;
+
+    @Schema(description = "Type de laboratoire", allowableValues = {"PRIVE", "HOSPITALIER", "PUBLIC", "MIXTE", "RECHERCHE"})
+    private TypeLaboratoire typeLaboratoire;
+
+    @Schema(description = "Adresse complète du laboratoire")
+    private String adresse;
+
+    @Schema(description = "Informations de contact")
+    private String contact;
+
+    @Schema(description = "Statut actif du laboratoire", defaultValue = "true")
+    private Boolean actif = true;
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/dto/request/LaboratoireSearchDTO.java
+
+```java
+package com.lims.laboratory.dto.request;
+
+import com.lims.laboratory.entity.Laboratoire.TypeLaboratoire;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Data;
+import lombok.Builder;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+
+/**
+ * DTO pour la recherche de laboratoires
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Schema(description = "Critères de recherche pour les laboratoires")
+public class LaboratoireSearchDTO {
+
+    @Schema(description = "Recherche textuelle dans nom commercial, nom légal, code")
+    private String searchTerm;
+
+    @Schema(description = "Filtrer par type de laboratoire")
+    private TypeLaboratoire typeLaboratoire;
+
+    @Schema(description = "Filtrer par statut actif", defaultValue = "true")
+    private Boolean actif;
+
+    @Schema(description = "Filtrer par numéro SIRET")
+    private String siret;
+
+    @Schema(description = "Filtrer par numéro FINESS")
+    private String numeroFiness;
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/dto/response/LaboratoireResponseDTO.java
+
+```java
+package com.lims.laboratory.dto.response;
+
+import com.lims.laboratory.entity.Laboratoire.TypeLaboratoire;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Data;
+import lombok.Builder;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+
+import java.time.Instant;
+import java.util.UUID;
+
+/**
+ * DTO de réponse pour un laboratoire
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Schema(description = "Informations complètes d'un laboratoire")
+public class LaboratoireResponseDTO {
+
+    @Schema(description = "Identifiant unique du laboratoire")
+    private UUID id;
+
+    @Schema(description = "Nom commercial du laboratoire")
+    private String nomCommercial;
+
+    @Schema(description = "Raison sociale du laboratoire")
+    private String nomLegal;
+
+    @Schema(description = "Nom d'usage du laboratoire")
+    private String nomLaboratoire;
+
+    @Schema(description = "Code interne du laboratoire")
+    private String codeLaboratoire;
+
+    @Schema(description = "Description générale du laboratoire")
+    private String description;
+
+    @Schema(description = "Numéro SIRET")
+    private String siret;
+
+    @Schema(description = "Identifiant FINESS")
+    private String numeroFiness;
+
+    @Schema(description = "Type de laboratoire")
+    private TypeLaboratoire typeLaboratoire;
+
+    @Schema(description = "Adresse complète du laboratoire")
+    private String adresse;
+
+    @Schema(description = "Informations de contact")
+    private String contact;
+
+    @Schema(description = "Statut actif du laboratoire")
+    private Boolean actif;
+
+    @Schema(description = "Date de création")
+    private Instant createdAt;
+
+    @Schema(description = "Date de dernière modification")
+    private Instant updatedAt;
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/dto/response/PagedResponseDTO.java
+
+```java
+package com.lims.laboratory.dto.response;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Data;
+import lombok.Builder;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+
+import java.util.List;
+
+/**
+ * DTO générique pour les réponses paginées
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Schema(description = "Réponse paginée générique")
+public class PagedResponseDTO<T> {
+
+    @Schema(description = "Liste des éléments de la page courante")
+    private List<T> content;
+
+    @Schema(description = "Numéro de la page courante (base 0)")
+    private int page;
+
+    @Schema(description = "Taille de la page")
+    private int size;
+
+    @Schema(description = "Nombre total d'éléments")
+    private long totalElements;
+
+    @Schema(description = "Nombre total de pages")
+    private int totalPages;
+
+    @Schema(description = "Indique si c'est la première page")
+    private boolean first;
+
+    @Schema(description = "Indique si c'est la dernière page")
+    private boolean last;
+
+    @Schema(description = "Indique s'il y a une page suivante")
+    private boolean hasNext;
+
+    @Schema(description = "Indique s'il y a une page précédente")
+    private boolean hasPrevious;
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/entity/Laboratoire.java
+
+```java
+package com.lims.laboratory.entity;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.time.Instant;
+import java.util.UUID;
+
+/**
+ * Entité représentant un laboratoire
+ * Table: lims_laboratoire.laboratoire
+ */
+@Entity
+@Table(name = "laboratoire", schema = "lims_laboratoire")
+@Data
+@SuperBuilder
+@NoArgsConstructor
+@AllArgsConstructor
+@EqualsAndHashCode(callSuper = false)
+public class Laboratoire {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    @Column(name = "id", nullable = false)
+    private UUID id;
+
+    // === Identification du laboratoire ===
+
+    @Column(name = "nom_commercial", nullable = false, length = 255)
+    private String nomCommercial;
+
+    @Column(name = "nom_legal", nullable = false, length = 255)
+    private String nomLegal;
+
+    @Column(name = "nom_laboratoire", length = 500)
+    private String nomLaboratoire;
+
+    @Column(name = "code_laboratoire", length = 100)
+    private String codeLaboratoire;
+
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;
+
+    @Column(name = "siret", length = 14, unique = true)
+    private String siret;
+
+    @Column(name = "numero_finess", length = 20, unique = true)
+    private String numeroFiness;
+
+    // === Type de laboratoire ===
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type_laboratoire", length = 50)
+    private TypeLaboratoire typeLaboratoire;
+
+    // === Adresse et contact (format simple) ===
+
+    @Column(name = "adresse", columnDefinition = "TEXT")
+    private String adresse;
+
+    @Column(name = "contact", columnDefinition = "TEXT")
+    private String contact;
+
+    // === Statut ===
+
+    @Column(name = "actif", nullable = false)
+    private Boolean actif = true;
+
+    // === Métadonnées système ===
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
+    /**
+     * Énumération des types de laboratoires
+     */
+    public enum TypeLaboratoire {
+        PRIVE("prive"),
+        HOSPITALIER("hospitalier"),
+        PUBLIC("public"),
+        MIXTE("mixte"),
+        RECHERCHE("recherche");
+
+        private final String value;
+
+        TypeLaboratoire(String value) {
+            this.value = value;
+        }
+
+        public String getValue() {
+            return value;
+        }
+
+        public static TypeLaboratoire fromValue(String value) {
+            for (TypeLaboratoire type : TypeLaboratoire.values()) {
+                if (type.value.equals(value)) {
+                    return type;
+                }
+            }
+            throw new IllegalArgumentException("Type de laboratoire non reconnu : " + value);
+        }
+    }
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/exception/LaboratoireDuplicateException.java
+
+```java
+package com.lims.laboratory.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
+
+/**
+ * Exception levée quand on tente de créer un laboratoire avec des données déjà existantes
+ */
+@ResponseStatus(HttpStatus.CONFLICT)
+public class LaboratoireDuplicateException extends RuntimeException {
+
+    public LaboratoireDuplicateException(String message) {
+        super(message);
+    }
+
+    public LaboratoireDuplicateException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/exception/LaboratoireExceptionHandler.java
+
+```java
+package com.lims.laboratory.exception;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 
-@RestController
-@RequestMapping("/api/v1/laboratory")
-public class LaboratoryController {
+/**
+ * Gestionnaire global des exceptions pour les laboratoires
+ */
+@RestControllerAdvice
+@Slf4j
+public class LaboratoireExceptionHandler {
 
-    @GetMapping("/hello")
-    public ResponseEntity<Map<String, Object>> hello() {
-        return ResponseEntity.ok(Map.of(
-                "message", "Hello from LIMS Laboratory Service!",
-                "service", "lims-laboratory-service",
-                "timestamp", LocalDateTime.now(),
-                "port", 8082
-        ));
+    /**
+     * Gestion des erreurs de laboratoire non trouvé
+     */
+    @ExceptionHandler(LaboratoireNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleLaboratoireNotFound(LaboratoireNotFoundException ex) {
+        log.warn("Laboratoire non trouvé: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(Instant.now())
+                .status(HttpStatus.NOT_FOUND.value())
+                .error("Laboratoire non trouvé")
+                .message(ex.getMessage())
+                .path("/api/v1/laboratoires")
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
+
+    /**
+     * Gestion des erreurs de duplication
+     */
+    @ExceptionHandler(LaboratoireDuplicateException.class)
+    public ResponseEntity<ErrorResponse> handleLaboratoireDuplicate(LaboratoireDuplicateException ex) {
+        log.warn("Duplication de laboratoire: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(Instant.now())
+                .status(HttpStatus.CONFLICT.value())
+                .error("Données dupliquées")
+                .message(ex.getMessage())
+                .path("/api/v1/laboratoires")
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
+
+    /**
+     * Gestion des erreurs de validation métier
+     */
+    @ExceptionHandler(LaboratoireValidationException.class)
+    public ResponseEntity<ErrorResponse> handleLaboratoireValidation(LaboratoireValidationException ex) {
+        log.warn("Erreur de validation: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(Instant.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Erreur de validation")
+                .message(ex.getMessage())
+                .path("/api/v1/laboratoires")
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    /**
+     * Gestion des erreurs de validation des annotations Bean Validation
+     */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ValidationErrorResponse> handleValidationExceptions(MethodArgumentNotValidException ex) {
+        log.warn("Erreurs de validation des champs: {}", ex.getMessage());
+
+        Map<String, String> errors = new HashMap<>();
+        ex.getBindingResult().getAllErrors().forEach((error) -> {
+            String fieldName = ((FieldError) error).getField();
+            String errorMessage = error.getDefaultMessage();
+            errors.put(fieldName, errorMessage);
+        });
+
+        ValidationErrorResponse errorResponse = ValidationErrorResponse.builder()
+                .timestamp(Instant.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Erreurs de validation")
+                .message("Les données fournies ne respectent pas les contraintes de validation")
+                .path("/api/v1/laboratoires")
+                .fieldErrors(errors)
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    /**
+     * Gestion des erreurs de contraintes de validation
+     */
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ValidationErrorResponse> handleConstraintViolation(ConstraintViolationException ex) {
+        log.warn("Violations de contraintes: {}", ex.getMessage());
+
+        Map<String, String> errors = new HashMap<>();
+        for (ConstraintViolation<?> violation : ex.getConstraintViolations()) {
+            String fieldName = violation.getPropertyPath().toString();
+            String errorMessage = violation.getMessage();
+            errors.put(fieldName, errorMessage);
+        }
+
+        ValidationErrorResponse errorResponse = ValidationErrorResponse.builder()
+                .timestamp(Instant.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Violations de contraintes")
+                .message("Les données ne respectent pas les contraintes définies")
+                .path("/api/v1/laboratoires")
+                .fieldErrors(errors)
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    /**
+     * Gestion des erreurs génériques
+     */
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
+        log.error("Erreur inattendue: ", ex);
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(Instant.now())
+                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .error("Erreur interne du serveur")
+                .message("Une erreur inattendue s'est produite")
+                .path("/api/v1/laboratoires")
+                .build();
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+    }
+
+    // === Classes de réponse d'erreur ===
+
+    @lombok.Data
+    @lombok.Builder
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    public static class ErrorResponse {
+        private Instant timestamp;
+        private int status;
+        private String error;
+        private String message;
+        private String path;
+    }
+
+    @lombok.Data
+    @lombok.Builder
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    public static class ValidationErrorResponse {
+        private Instant timestamp;
+        private int status;
+        private String error;
+        private String message;
+        private String path;
+        private Map<String, String> fieldErrors;
+    }
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/exception/LaboratoireNotFoundException.java
+
+```java
+package com.lims.laboratory.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
+
+/**
+ * Exception levée quand un laboratoire n'est pas trouvé
+ */
+@ResponseStatus(HttpStatus.NOT_FOUND)
+public class LaboratoireNotFoundException extends RuntimeException {
+
+    public LaboratoireNotFoundException(String message) {
+        super(message);
+    }
+
+    public LaboratoireNotFoundException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/exception/LaboratoireValidationException.java
+
+```java
+package com.lims.laboratory.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
+
+/**
+ * Exception levée lors d'erreurs de validation métier
+ */
+@ResponseStatus(HttpStatus.BAD_REQUEST)
+public class LaboratoireValidationException extends RuntimeException {
+
+    public LaboratoireValidationException(String message) {
+        super(message);
+    }
+
+    public LaboratoireValidationException(String message, Throwable cause) {
+        super(message, cause);
     }
 }
 ```
@@ -6996,6 +8285,515 @@ public class LaboratoryServiceApplication {
 }
 ```
 
+# lims-laboratory-service/src/main/java/com/lims/laboratory/mapper/LaboratoireMapper.java
+
+```java
+package com.lims.laboratory.mapper;
+
+import com.lims.laboratory.dto.request.LaboratoireRequestDTO;
+import com.lims.laboratory.dto.response.LaboratoireResponseDTO;
+import com.lims.laboratory.entity.Laboratoire;
+import org.mapstruct.*;
+
+import java.util.List;
+
+/**
+ * Mapper MapStruct pour les conversions entre Entity et DTO de Laboratoire
+ */
+@Mapper(componentModel = "spring")
+public interface LaboratoireMapper {
+
+    /**
+     * Convertit une entité Laboratoire en DTO de réponse
+     *
+     * @param laboratoire L'entité à convertir
+     * @return Le DTO de réponse
+     */
+    LaboratoireResponseDTO toResponseDTO(Laboratoire laboratoire);
+
+    /**
+     * Convertit une liste d'entités Laboratoire en liste de DTOs de réponse
+     *
+     * @param laboratoires La liste d'entités à convertir
+     * @return La liste de DTOs de réponse
+     */
+    List<LaboratoireResponseDTO> toResponseDTOList(List<Laboratoire> laboratoires);
+
+    /**
+     * Convertit un DTO de requête en entité Laboratoire
+     *
+     * @param requestDTO Le DTO de requête
+     * @return L'entité Laboratoire
+     */
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    Laboratoire toEntity(LaboratoireRequestDTO requestDTO);
+
+    /**
+     * Met à jour une entité Laboratoire existante avec les données du DTO de requête
+     * Les champs null dans le DTO ne modifient pas l'entité existante
+     *
+     * @param requestDTO Le DTO contenant les nouvelles données
+     * @param laboratoire L'entité existante à mettre à jour
+     */
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    void updateEntity(LaboratoireRequestDTO requestDTO, @MappingTarget Laboratoire laboratoire);
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/repository/LaboratoireRepository.java
+
+```java
+package com.lims.laboratory.repository;
+
+import com.lims.laboratory.entity.Laboratoire;
+import com.lims.laboratory.entity.Laboratoire.TypeLaboratoire;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * Repository pour l'entité Laboratoire
+ */
+@Repository
+public interface LaboratoireRepository extends JpaRepository<Laboratoire, UUID>, JpaSpecificationExecutor<Laboratoire> {
+
+    // === Recherches par identifiants uniques ===
+
+    /**
+     * Recherche un laboratoire par son numéro SIRET
+     */
+    Optional<Laboratoire> findBySiret(String siret);
+
+    /**
+     * Recherche un laboratoire par son numéro FINESS
+     */
+    Optional<Laboratoire> findByNumeroFiness(String numeroFiness);
+
+    /**
+     * Recherche un laboratoire par son code interne
+     */
+    Optional<Laboratoire> findByCodeLaboratoire(String codeLaboratoire);
+
+    // === Vérifications d'unicité ===
+
+    /**
+     * Vérifie si un SIRET existe déjà (excluant un laboratoire spécifique)
+     */
+    boolean existsBySiretAndIdNot(String siret, UUID id);
+
+    /**
+     * Vérifie si un numéro FINESS existe déjà (excluant un laboratoire spécifique)
+     */
+    boolean existsByNumeroFinessAndIdNot(String numeroFiness, UUID id);
+
+    /**
+     * Vérifie si un code laboratoire existe déjà (excluant un laboratoire spécifique)
+     */
+    boolean existsByCodeLaboratoireAndIdNot(String codeLaboratoire, UUID id);
+
+    // === Recherches par statut ===
+
+    /**
+     * Recherche tous les laboratoires actifs
+     */
+    List<Laboratoire> findByActifTrue();
+
+    /**
+     * Recherche tous les laboratoires par statut
+     */
+    List<Laboratoire> findByActif(Boolean actif);
+
+    // === Recherches par type ===
+
+    /**
+     * Recherche par type de laboratoire
+     */
+    List<Laboratoire> findByTypeLaboratoire(TypeLaboratoire typeLaboratoire);
+
+    /**
+     * Recherche par type et statut
+     */
+    List<Laboratoire> findByTypeLaboratoireAndActif(TypeLaboratoire typeLaboratoire, Boolean actif);
+
+    // === Recherches textuelles ===
+
+    /**
+     * Recherche textuelle dans les noms et codes (avec pagination)
+     */
+    @Query("""
+        SELECT l FROM Laboratoire l 
+        WHERE (:searchTerm IS NULL OR 
+               LOWER(l.nomCommercial) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR
+               LOWER(l.nomLegal) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR
+               LOWER(l.nomLaboratoire) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR
+               LOWER(l.codeLaboratoire) LIKE LOWER(CONCAT('%', :searchTerm, '%')))
+        """)
+    Page<Laboratoire> findBySearchTerm(@Param("searchTerm") String searchTerm, Pageable pageable);
+
+    /**
+     * Recherche avancée avec plusieurs critères
+     */
+    @Query("""
+        SELECT l FROM Laboratoire l 
+        WHERE (:searchTerm IS NULL OR 
+               LOWER(l.nomCommercial) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR
+               LOWER(l.nomLegal) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR
+               LOWER(l.nomLaboratoire) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR
+               LOWER(l.codeLaboratoire) LIKE LOWER(CONCAT('%', :searchTerm, '%')))
+        AND (:typeLaboratoire IS NULL OR l.typeLaboratoire = :typeLaboratoire)
+        AND (:actif IS NULL OR l.actif = :actif)
+        AND (:siret IS NULL OR l.siret = :siret)
+        AND (:numeroFiness IS NULL OR l.numeroFiness = :numeroFiness)
+        ORDER BY l.nomCommercial ASC
+        """)
+    Page<Laboratoire> findWithCriteria(
+            @Param("searchTerm") String searchTerm,
+            @Param("typeLaboratoire") TypeLaboratoire typeLaboratoire,
+            @Param("actif") Boolean actif,
+            @Param("siret") String siret,
+            @Param("numeroFiness") String numeroFiness,
+            Pageable pageable
+    );
+
+    // === Statistiques ===
+
+    /**
+     * Compte les laboratoires actifs
+     */
+    long countByActifTrue();
+
+    /**
+     * Compte les laboratoires par type
+     */
+    long countByTypeLaboratoire(TypeLaboratoire typeLaboratoire);
+
+    /**
+     * Statistiques par type de laboratoire
+     */
+    @Query("""
+        SELECT l.typeLaboratoire, COUNT(l) 
+        FROM Laboratoire l 
+        WHERE l.actif = true
+        GROUP BY l.typeLaboratoire
+        """)
+    List<Object[]> getStatistiquesByType();
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/service/LaboratoireService.java
+
+```java
+package com.lims.laboratory.service;
+
+import com.lims.laboratory.dto.request.LaboratoireRequestDTO;
+import com.lims.laboratory.dto.request.LaboratoireSearchDTO;
+import com.lims.laboratory.dto.response.LaboratoireResponseDTO;
+import com.lims.laboratory.dto.response.PagedResponseDTO;
+import com.lims.laboratory.entity.Laboratoire;
+import com.lims.laboratory.entity.Laboratoire.TypeLaboratoire;
+import com.lims.laboratory.exception.LaboratoireNotFoundException;
+import com.lims.laboratory.exception.LaboratoireDuplicateException;
+import com.lims.laboratory.mapper.LaboratoireMapper;
+import com.lims.laboratory.repository.LaboratoireRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+/**
+ * Service pour la gestion des laboratoires
+ */
+@Service
+@Transactional
+@RequiredArgsConstructor
+@Slf4j
+public class LaboratoireService {
+
+    private final LaboratoireRepository laboratoireRepository;
+    private final LaboratoireMapper laboratoireMapper;
+
+    // === Opérations CRUD ===
+
+    /**
+     * Crée un nouveau laboratoire
+     */
+    public LaboratoireResponseDTO createLaboratoire(LaboratoireRequestDTO requestDTO) {
+        log.info("Création d'un nouveau laboratoire: {}", requestDTO.getNomCommercial());
+
+        // Vérification des doublons
+        validateUniqueFields(requestDTO, null);
+
+        // Conversion et sauvegarde
+        Laboratoire laboratoire = laboratoireMapper.toEntity(requestDTO);
+        laboratoire = laboratoireRepository.save(laboratoire);
+
+        log.info("Laboratoire créé avec l'ID: {}", laboratoire.getId());
+        return laboratoireMapper.toResponseDTO(laboratoire);
+    }
+
+    /**
+     * Récupère un laboratoire par son ID
+     */
+    @Transactional(readOnly = true)
+    public LaboratoireResponseDTO getLaboratoireById(UUID id) {
+        log.debug("Recherche du laboratoire avec l'ID: {}", id);
+
+        Laboratoire laboratoire = findLaboratoireById(id);
+        return laboratoireMapper.toResponseDTO(laboratoire);
+    }
+
+    /**
+     * Met à jour un laboratoire existant
+     */
+    public LaboratoireResponseDTO updateLaboratoire(UUID id, LaboratoireRequestDTO requestDTO) {
+        log.info("Mise à jour du laboratoire avec l'ID: {}", id);
+
+        Laboratoire laboratoire = findLaboratoireById(id);
+
+        // Vérification des doublons (en excluant le laboratoire actuel)
+        validateUniqueFields(requestDTO, id);
+
+        // Mise à jour et sauvegarde
+        laboratoireMapper.updateEntity(requestDTO, laboratoire);
+        laboratoire = laboratoireRepository.save(laboratoire);
+
+        log.info("Laboratoire mis à jour avec l'ID: {}", laboratoire.getId());
+        return laboratoireMapper.toResponseDTO(laboratoire);
+    }
+
+    /**
+     * Supprime un laboratoire
+     */
+    public void deleteLaboratoire(UUID id) {
+        log.info("Suppression du laboratoire avec l'ID: {}", id);
+
+        Laboratoire laboratoire = findLaboratoireById(id);
+        laboratoireRepository.delete(laboratoire);
+
+        log.info("Laboratoire supprimé avec l'ID: {}", id);
+    }
+
+    /**
+     * Active ou désactive un laboratoire
+     */
+    public LaboratoireResponseDTO toggleActivation(UUID id, boolean actif) {
+        log.info("Modification du statut du laboratoire {} : {}", id, actif ? "activation" : "désactivation");
+
+        Laboratoire laboratoire = findLaboratoireById(id);
+        laboratoire.setActif(actif);
+        laboratoire = laboratoireRepository.save(laboratoire);
+
+        log.info("Statut du laboratoire {} modifié : {}", id, actif);
+        return laboratoireMapper.toResponseDTO(laboratoire);
+    }
+
+    // === Recherches et listages ===
+
+    /**
+     * Recherche paginée de laboratoires avec critères
+     */
+    @Transactional(readOnly = true)
+    public PagedResponseDTO<LaboratoireResponseDTO> searchLaboratoires(
+            LaboratoireSearchDTO searchDTO,
+            int page,
+            int size,
+            String sortBy,
+            String sortDirection) {
+
+        log.debug("Recherche de laboratoires avec critères: {}", searchDTO);
+
+        // Configuration du tri
+        Sort.Direction direction = Sort.Direction.fromString(sortDirection);
+        Sort sort = Sort.by(direction, sortBy);
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        // Recherche avec critères
+        Page<Laboratoire> laboratoirePage = laboratoireRepository.findWithCriteria(
+                searchDTO.getSearchTerm(),
+                searchDTO.getTypeLaboratoire(),
+                searchDTO.getActif(),
+                searchDTO.getSiret(),
+                searchDTO.getNumeroFiness(),
+                pageable
+        );
+
+        // Conversion des résultats
+        List<LaboratoireResponseDTO> content = laboratoireMapper.toResponseDTOList(laboratoirePage.getContent());
+
+        return PagedResponseDTO.<LaboratoireResponseDTO>builder()
+                .content(content)
+                .page(laboratoirePage.getNumber())
+                .size(laboratoirePage.getSize())
+                .totalElements(laboratoirePage.getTotalElements())
+                .totalPages(laboratoirePage.getTotalPages())
+                .first(laboratoirePage.isFirst())
+                .last(laboratoirePage.isLast())
+                .hasNext(laboratoirePage.hasNext())
+                .hasPrevious(laboratoirePage.hasPrevious())
+                .build();
+    }
+
+    /**
+     * Récupère tous les laboratoires actifs (sans pagination)
+     */
+    @Transactional(readOnly = true)
+    public List<LaboratoireResponseDTO> getAllActiveLaboratoires() {
+        log.debug("Récupération de tous les laboratoires actifs");
+
+        List<Laboratoire> laboratoires = laboratoireRepository.findByActifTrue();
+        return laboratoireMapper.toResponseDTOList(laboratoires);
+    }
+
+    /**
+     * Récupère les laboratoires par type
+     */
+    @Transactional(readOnly = true)
+    public List<LaboratoireResponseDTO> getLaboratoiresByType(TypeLaboratoire type) {
+        log.debug("Récupération des laboratoires de type: {}", type);
+
+        List<Laboratoire> laboratoires = laboratoireRepository.findByTypeLaboratoireAndActif(type, true);
+        return laboratoireMapper.toResponseDTOList(laboratoires);
+    }
+
+    // === Recherches spécifiques ===
+
+    /**
+     * Recherche un laboratoire par SIRET
+     */
+    @Transactional(readOnly = true)
+    public LaboratoireResponseDTO findBySiret(String siret) {
+        log.debug("Recherche du laboratoire avec SIRET: {}", siret);
+
+        return laboratoireRepository.findBySiret(siret)
+                .map(laboratoireMapper::toResponseDTO)
+                .orElseThrow(() -> new LaboratoireNotFoundException("Aucun laboratoire trouvé avec le SIRET: " + siret));
+    }
+
+    /**
+     * Recherche un laboratoire par numéro FINESS
+     */
+    @Transactional(readOnly = true)
+    public LaboratoireResponseDTO findByNumeroFiness(String numeroFiness) {
+        log.debug("Recherche du laboratoire avec numéro FINESS: {}", numeroFiness);
+
+        return laboratoireRepository.findByNumeroFiness(numeroFiness)
+                .map(laboratoireMapper::toResponseDTO)
+                .orElseThrow(() -> new LaboratoireNotFoundException("Aucun laboratoire trouvé avec le numéro FINESS: " + numeroFiness));
+    }
+
+    /**
+     * Recherche un laboratoire par code laboratoire
+     */
+    @Transactional(readOnly = true)
+    public LaboratoireResponseDTO findByCodeLaboratoire(String codeLaboratoire) {
+        log.debug("Recherche du laboratoire avec code: {}", codeLaboratoire);
+
+        return laboratoireRepository.findByCodeLaboratoire(codeLaboratoire)
+                .map(laboratoireMapper::toResponseDTO)
+                .orElseThrow(() -> new LaboratoireNotFoundException("Aucun laboratoire trouvé avec le code: " + codeLaboratoire));
+    }
+
+    // === Statistiques ===
+
+    /**
+     * Récupère les statistiques des laboratoires
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getStatistiques() {
+        log.debug("Génération des statistiques des laboratoires");
+
+        long totalActifs = laboratoireRepository.countByActifTrue();
+        long totalGlobal = laboratoireRepository.count();
+
+        // Statistiques par type
+        List<Object[]> statsByType = laboratoireRepository.getStatistiquesByType();
+        Map<String, Long> repartitionByType = statsByType.stream()
+                .collect(Collectors.toMap(
+                        row -> ((TypeLaboratoire) row[0]).name(),
+                        row -> (Long) row[1]
+                ));
+
+        return Map.of(
+                "totalLaboratoires", totalGlobal,
+                "laboratoiresActifs", totalActifs,
+                "laboratoiresInactifs", totalGlobal - totalActifs,
+                "repartitionParType", repartitionByType
+        );
+    }
+
+    // === Méthodes utilitaires ===
+
+    /**
+     * Trouve un laboratoire par ID ou lance une exception
+     */
+    private Laboratoire findLaboratoireById(UUID id) {
+        return laboratoireRepository.findById(id)
+                .orElseThrow(() -> new LaboratoireNotFoundException("Laboratoire non trouvé avec l'ID: " + id));
+    }
+
+    /**
+     * Valide l'unicité des champs uniques
+     */
+    private void validateUniqueFields(LaboratoireRequestDTO requestDTO, UUID excludeId) {
+        // Vérification SIRET
+        if (StringUtils.hasText(requestDTO.getSiret())) {
+            boolean siretExists = (excludeId != null)
+                    ? laboratoireRepository.existsBySiretAndIdNot(requestDTO.getSiret(), excludeId)
+                    : laboratoireRepository.findBySiret(requestDTO.getSiret()).isPresent();
+
+            if (siretExists) {
+                throw new LaboratoireDuplicateException("Un laboratoire existe déjà avec le SIRET: " + requestDTO.getSiret());
+            }
+        }
+
+        // Vérification numéro FINESS
+        if (StringUtils.hasText(requestDTO.getNumeroFiness())) {
+            boolean finessExists = (excludeId != null)
+                    ? laboratoireRepository.existsByNumeroFinessAndIdNot(requestDTO.getNumeroFiness(), excludeId)
+                    : laboratoireRepository.findByNumeroFiness(requestDTO.getNumeroFiness()).isPresent();
+
+            if (finessExists) {
+                throw new LaboratoireDuplicateException("Un laboratoire existe déjà avec le numéro FINESS: " + requestDTO.getNumeroFiness());
+            }
+        }
+
+        // Vérification code laboratoire
+        if (StringUtils.hasText(requestDTO.getCodeLaboratoire())) {
+            boolean codeExists = (excludeId != null)
+                    ? laboratoireRepository.existsByCodeLaboratoireAndIdNot(requestDTO.getCodeLaboratoire(), excludeId)
+                    : laboratoireRepository.findByCodeLaboratoire(requestDTO.getCodeLaboratoire()).isPresent();
+
+            if (codeExists) {
+                throw new LaboratoireDuplicateException("Un laboratoire existe déjà avec le code: " + requestDTO.getCodeLaboratoire());
+            }
+        }
+    }
+}
+```
+
 # lims-laboratory-service/src/main/resources/application.yml
 
 ```yml
@@ -7008,11 +8806,11 @@ spring:
   profiles:
     active: development
 
-  # Database configuration
+    # Database configuration
   datasource:
-    url: jdbc:postgresql://localhost:5432/lims_core
+    url: jdbc:postgresql://localhost:5432/lims_db
     username: lims_user
-    password: lims_password
+    password: dev_password_123
     driver-class-name: org.postgresql.Driver
 
   # JPA Configuration
@@ -7024,14 +8822,11 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+        default_schema: lims_laboratoire
 
-# Security configuration (to be configured with Keycloak)
-security:
-  oauth2:
-    resourceserver:
-      jwt:
-        issuer-uri: http://auth.lims.local/realms/lims-staff
-        jwk-set-uri: http://auth.lims.local/realms/lims-staff/protocol/openid-connect/certs
+lims:
+  jwt:
+    secret: "G9/BrPDMezKO3cxercRPm7OtvRjWGOeONQCk7AjB6s+pttEuco8xcUEE6dT2IHNHix9aNk4i+c1N8CaTTp84WxCfZMCC/UVJABajwU4ToymMJ/9gT3uxMK5PqrJcCHNi2cUo3P9k+ZaBCqvqwcDZv6kY7mdaz6G5VmcWAU8+4OgZVZEssNvY2kTInV2Sz4JZzp4/N8aWGf6ml3C+q4I8l0Yk9qImvqnAeMX83Rxp3R+yLk2LvCuaYx1lEkSbkM2NbsN1W8ebtZwxMC0CpeLY57V7DocrjvK7v/pjHHUu27qad1JgLBhmoNy4LZX1rqLSKdYvjGQqQd8SU4vP311d9fY8rv47DLKjSPKkee4XTtrfTfH1fh3mnPjYl2NoZjCzr7KAHB3lKpk56rUlmXYbqqExOlDGmnXOrnCL5JRj3LWgwvw6sR73/CGsigxkZvks00QF48cSfJPgFT+TdZ4FyAxc9vC+MG5FDdSjG+wCgmJ/UYQ9MOdLhNGs2itMpf3mN/z81/JYbbDxrNWPah56Ybr8Y4DUykgfJLMgiK/nwME5/qwjzkfRpjEMBRaZbIJPy7N+NfdgIolVjdNj6eBNUHLlrerV2G5FcEkHTsYrTIFrhxxAI3gE3KI92pBPBXxKohXrvVt4nupaj9onnzfP/y5s5kQkNUomVQYMIbyUKGU="
 
 # Logging
 logging:
@@ -10405,6 +12200,7 @@ public class OrdonnanceAnalyse {
 ```java
 package com.lims.patient.entity;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.lims.patient.enums.DeliveryMethod;
 import com.lims.patient.enums.GenderType;
 import com.lims.patient.enums.NotificationPreference;
@@ -10575,14 +12371,6 @@ public class Patient {
     @Column(name = "date_suppression")
     private LocalDateTime dateSuppression; // Soft delete
 
-    // ===== RELATIONS CONSERVÉES =====
-    @OneToMany(mappedBy = "patient", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @Builder.Default
-    private List<PatientAssurance> assurances = new ArrayList<>();
-
-    @OneToMany(mappedBy = "patient", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @Builder.Default
-    private List<Ordonnance> ordonnances = new ArrayList<>();
 
     // ===== MÉTHODES UTILITAIRES =====
 
@@ -10639,22 +12427,6 @@ public class Patient {
             return 0;
         }
         return LocalDate.now().getYear() - dateNaissance.getYear();
-    }
-
-    /**
-     * Ajoute une assurance
-     */
-    public void addAssurance(PatientAssurance assurance) {
-        assurance.setPatient(this);
-        this.assurances.add(assurance);
-    }
-
-    /**
-     * Ajoute une ordonnance
-     */
-    public void addOrdonnance(Ordonnance ordonnance) {
-        ordonnance.setPatient(this);
-        this.ordonnances.add(ordonnance);
     }
 
     /**
@@ -11852,7 +13624,6 @@ public interface PatientMapper {
     @Mapping(target = "id", source = "id", qualifiedByName = "uuidToString")
     @Mapping(target = "personalInfo", source = ".", qualifiedByName = "toPersonalInfoResponse")
     @Mapping(target = "contactInfo", source = ".", qualifiedByName = "toContactInfoResponse")
-    @Mapping(target = "insurances", source = "assurances")
     @Mapping(target = "specificities", source = ".", qualifiedByName = "toSpecificitiesResponse")
     @Mapping(target = "consent", source = ".", qualifiedByName = "toConsentResponse")
     PatientResponse toPatientResponse(Patient patient);
@@ -12039,31 +13810,6 @@ public interface PatientMapper {
         }
 
         return sb.toString();
-    }
-
-    /**
-     * Vérifie si le patient a une assurance active
-     */
-    @Named("hasActiveInsurance")
-    default Boolean hasActiveInsurance(Patient patient) {
-        if (patient == null || patient.getAssurances() == null) return false;
-
-        return patient.getAssurances().stream()
-                .anyMatch(assurance -> assurance.getEstActive() != null && assurance.getEstActive() &&
-                        (assurance.getDateFin() == null || assurance.getDateFin().isAfter(LocalDate.now())));
-    }
-
-    /**
-     * Vérifie si le patient a une ordonnance en cours
-     */
-    @Named("hasActivePrescription")
-    default Boolean hasActivePrescription(Patient patient) {
-        if (patient == null || patient.getOrdonnances() == null) return false;
-
-        return patient.getOrdonnances().stream()
-                .anyMatch(o -> o.getDateSuppression() == null &&
-                        (o.getStatut() == PrescriptionStatus.EN_ATTENTE ||
-                                o.getStatut() == PrescriptionStatus.VALIDEE));
     }
 
     /**
@@ -14225,14 +15971,6 @@ public class PatientService {
             log.debug("Commentaire patient ajouté");
         }
 
-        // 6. Ajout des assurances (existant)
-        if (request.insurances() != null) {
-            for (InsuranceRequest insuranceRequest : request.insurances()) {
-                PatientAssurance assurance = buildAssuranceFromRequest(insuranceRequest);
-                patient.addAssurance(assurance);
-            }
-        }
-
         // 7. Sauvegarde
         Patient savedPatient;
         try {
@@ -14886,28 +16624,6 @@ public class PatientValidationService {
 
         if (patient == null) {
             throw new InvalidPatientDataException("Le patient à supprimer ne peut pas être nul");
-        }
-
-        // Vérifier s'il y a des ordonnances actives
-        boolean hasActivePrescriptions = patient.getOrdonnances().stream()
-                .anyMatch(ordonnance -> ordonnance.getDateSuppression() == null &&
-                        (ordonnance.getStatut() == PrescriptionStatus.EN_ATTENTE ||
-                                ordonnance.getStatut() == PrescriptionStatus.VALIDEE));
-
-        if (hasActivePrescriptions) {
-            throw new PatientBusinessRuleException(
-                    "SUPPRESSION_INTERDITE",
-                    "Impossible de supprimer le patient : il a des ordonnances actives");
-        }
-
-        // Vérification des assurances actives
-        boolean hasActiveInsurance = patient.getAssurances().stream()
-                .anyMatch(assurance -> assurance.getEstActive() != null &&
-                        assurance.getEstActive() &&
-                        (assurance.getDateFin() == null || assurance.getDateFin().isAfter(LocalDate.now())));
-
-        if (hasActiveInsurance) {
-            log.warn("Suppression d'un patient avec assurance active: {}", patient.getId());
         }
 
         log.debug("Validation de suppression terminée avec succès");

@@ -4,16 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="7aacdcd1-1ad1-4553-9a77-bce1e509ee8f" name="Changes" comment="working minio document service">
+    <list default="true" id="7aacdcd1-1ad1-4553-9a77-bce1e509ee8f" name="Changes" comment="add insurance">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/TODO.md" beforeDir="false" afterPath="$PROJECT_DIR$/TODO.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/codebase.md" beforeDir="false" afterPath="$PROJECT_DIR$/codebase.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/request/InsuranceRequest.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/dto/request/InsuranceRequest.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/entity/Patient.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/entity/Patient.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/mapper/PatientMapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/mapper/PatientMapper.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/repository/PatientAssuranceRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/repository/PatientAssuranceRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientService.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientValidationService.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-patient-service/src/main/java/com/lims/patient/service/PatientValidationService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-laboratory-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/lims-laboratory-service/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-laboratory-service/src/main/java/com/lims/laboratory/controller/LaboratoryController.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-laboratory-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/lims-laboratory-service/src/main/resources/application.yml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -50,41 +45,46 @@
     <ConfirmationsSetting value="1" id="Add" />
   </component>
   <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showExcludedFiles" value="false" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Application.AuthServiceApplication.executor&quot;: &quot;Debug&quot;,
-    &quot;Application.DocumentServiceApplication.executor&quot;: &quot;Debug&quot;,
-    &quot;Application.PatientServiceApplication.executor&quot;: &quot;Debug&quot;,
-    &quot;Application.ReferentialServiceApplication.executor&quot;: &quot;Debug&quot;,
-    &quot;Maven.lims-auth-service [clean].executor&quot;: &quot;Run&quot;,
-    &quot;Maven.lims-patient-service [clean].executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/Users/elkolotfi/Desktop/NEW_START/PROJECTS/b10/backend/lims-system/lims-document-service/src/main/resources&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;settings.qodana&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Application.AuthServiceApplication.executor": "Debug",
+    "Application.DocumentServiceApplication.executor": "Debug",
+    "Application.LaboratoryServiceApplication.executor": "Debug",
+    "Application.PatientServiceApplication.executor": "Debug",
+    "Application.ReferentialServiceApplication.executor": "Debug",
+    "Maven.lims-auth-service [clean].executor": "Run",
+    "Maven.lims-laboratory-service [clean].executor": "Run",
+    "Maven.lims-patient-service [clean].executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "git-widget-placeholder": "main",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "/Users/elkolotfi/Desktop/NEW_START/PROJECTS/b10/backend/lims-system/lims-laboratory-service/src/main/java/com/lims/laboratory/config",
+    "settings.editor.selected.configurable": "settings.qodana"
   },
-  &quot;keyToStringList&quot;: {
-    &quot;com.intellij.ide.scratch.ScratchImplUtil$2/New Scratch File&quot;: [
-      &quot;HTML&quot;
+  "keyToStringList": {
+    "com.intellij.ide.scratch.ScratchImplUtil$2/New Scratch File": [
+      "HTML"
     ]
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/lims-laboratory-service/src/main/java/com/lims/laboratory/config" />
       <recent name="$PROJECT_DIR$/lims-document-service/src/main/resources" />
       <recent name="$PROJECT_DIR$/lims-ref-service/src/main/java/com/lims" />
       <recent name="$PROJECT_DIR$/lims-ref-service/src/main/resources" />
     </key>
     <key name="CopyClassDialog.RECENTS_KEY">
+      <recent name="com.lims.laboratory.config" />
       <recent name="com.lims" />
     </key>
   </component>
-  <component name="RunManager" selected="Application.DocumentServiceApplication">
+  <component name="RunManager" selected="Application.AuthServiceApplication">
     <configuration name="AuthServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="ALTERNATIVE_JRE_PATH" value="corretto-21" />
       <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
@@ -106,6 +106,19 @@
       <extension name="coverage">
         <pattern>
           <option name="PATTERN" value="com.lims.document.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="LaboratoryServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+      <option name="MAIN_CLASS_NAME" value="com.lims.laboratory.LaboratoryServiceApplication" />
+      <module name="lims-laboratory-service" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="com.lims.laboratory.*" />
           <option name="ENABLED" value="true" />
         </pattern>
       </extension>
@@ -141,10 +154,11 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Application.LaboratoryServiceApplication" />
+        <item itemvalue="Application.AuthServiceApplication" />
         <item itemvalue="Application.PatientServiceApplication" />
         <item itemvalue="Application.DocumentServiceApplication" />
         <item itemvalue="Application.ReferentialServiceApplication" />
-        <item itemvalue="Application.AuthServiceApplication" />
       </list>
     </recent_temporary>
   </component>
@@ -293,7 +307,15 @@
       <option name="project" value="LOCAL" />
       <updated>1753774899054</updated>
     </task>
-    <option name="localTasksCounter" value="18" />
+    <task id="LOCAL-00018" summary="add insurance">
+      <option name="closed" value="true" />
+      <created>1753805602939</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1753805602939</updated>
+    </task>
+    <option name="localTasksCounter" value="19" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -331,7 +353,8 @@
     <MESSAGE value="working patient add" />
     <MESSAGE value="update patient working" />
     <MESSAGE value="working minio document service" />
-    <option name="LAST_COMMIT_MESSAGE" value="working minio document service" />
+    <MESSAGE value="add insurance" />
+    <option name="LAST_COMMIT_MESSAGE" value="add insurance" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

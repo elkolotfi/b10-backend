@@ -7,11 +7,11 @@ spring:
   profiles:
     active: development
 
-  # Database configuration
+    # Database configuration
   datasource:
-    url: jdbc:postgresql://localhost:5432/lims_core
+    url: jdbc:postgresql://localhost:5432/lims_db
     username: lims_user
-    password: lims_password
+    password: dev_password_123
     driver-class-name: org.postgresql.Driver
 
   # JPA Configuration
@@ -23,14 +23,11 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+        default_schema: lims_laboratoire
 
-# Security configuration (to be configured with Keycloak)
-security:
-  oauth2:
-    resourceserver:
-      jwt:
-        issuer-uri: http://auth.lims.local/realms/lims-staff
-        jwk-set-uri: http://auth.lims.local/realms/lims-staff/protocol/openid-connect/certs
+lims:
+  jwt:
+    secret: "G9/BrPDMezKO3cxercRPm7OtvRjWGOeONQCk7AjB6s+pttEuco8xcUEE6dT2IHNHix9aNk4i+c1N8CaTTp84WxCfZMCC/UVJABajwU4ToymMJ/9gT3uxMK5PqrJcCHNi2cUo3P9k+ZaBCqvqwcDZv6kY7mdaz6G5VmcWAU8+4OgZVZEssNvY2kTInV2Sz4JZzp4/N8aWGf6ml3C+q4I8l0Yk9qImvqnAeMX83Rxp3R+yLk2LvCuaYx1lEkSbkM2NbsN1W8ebtZwxMC0CpeLY57V7DocrjvK7v/pjHHUu27qad1JgLBhmoNy4LZX1rqLSKdYvjGQqQd8SU4vP311d9fY8rv47DLKjSPKkee4XTtrfTfH1fh3mnPjYl2NoZjCzr7KAHB3lKpk56rUlmXYbqqExOlDGmnXOrnCL5JRj3LWgwvw6sR73/CGsigxkZvks00QF48cSfJPgFT+TdZ4FyAxc9vC+MG5FDdSjG+wCgmJ/UYQ9MOdLhNGs2itMpf3mN/z81/JYbbDxrNWPah56Ybr8Y4DUykgfJLMgiK/nwME5/qwjzkfRpjEMBRaZbIJPy7N+NfdgIolVjdNj6eBNUHLlrerV2G5FcEkHTsYrTIFrhxxAI3gE3KI92pBPBXxKohXrvVt4nupaj9onnzfP/y5s5kQkNUomVQYMIbyUKGU="
 
 # Logging
 logging:
