@@ -4,11 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="7aacdcd1-1ad1-4553-9a77-bce1e509ee8f" name="Changes" comment="add insurance">
+    <list default="true" id="7aacdcd1-1ad1-4553-9a77-bce1e509ee8f" name="Changes" comment="new laboratoire controller">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-laboratory-service/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/lims-laboratory-service/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-laboratory-service/src/main/java/com/lims/laboratory/controller/LaboratoryController.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-laboratory-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/lims-laboratory-service/src/main/resources/application.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TODO.md" beforeDir="false" afterPath="$PROJECT_DIR$/TODO.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-laboratory-service/src/main/java/com/lims/laboratory/config/AdminJwtAuthenticationConverter.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-laboratory-service/src/main/java/com/lims/laboratory/config/AdminJwtAuthenticationConverter.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-laboratory-service/src/main/java/com/lims/laboratory/controller/LaboratoireController.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-laboratory-service/src/main/java/com/lims/laboratory/controller/LaboratoireController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lims-laboratory-service/src/main/java/com/lims/laboratory/exception/LaboratoireExceptionHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-laboratory-service/src/main/java/com/lims/laboratory/exception/LaboratoireExceptionHandler.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -80,6 +81,7 @@
       <recent name="$PROJECT_DIR$/lims-ref-service/src/main/resources" />
     </key>
     <key name="CopyClassDialog.RECENTS_KEY">
+      <recent name="com.lims.laboratory.controller" />
       <recent name="com.lims.laboratory.config" />
       <recent name="com.lims" />
     </key>
@@ -315,7 +317,15 @@
       <option name="project" value="LOCAL" />
       <updated>1753805602939</updated>
     </task>
-    <option name="localTasksCounter" value="19" />
+    <task id="LOCAL-00019" summary="new laboratoire controller">
+      <option name="closed" value="true" />
+      <created>1754483023587</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1754483023587</updated>
+    </task>
+    <option name="localTasksCounter" value="20" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -354,7 +364,8 @@
     <MESSAGE value="update patient working" />
     <MESSAGE value="working minio document service" />
     <MESSAGE value="add insurance" />
-    <option name="LAST_COMMIT_MESSAGE" value="add insurance" />
+    <MESSAGE value="new laboratoire controller" />
+    <option name="LAST_COMMIT_MESSAGE" value="new laboratoire controller" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -478,6 +489,11 @@
           <url>file://$PROJECT_DIR$/lims-document-service/src/main/java/com/lims/document/service/impl/MinioServiceImpl.java</url>
           <line>37</line>
           <option name="timeStamp" value="100" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/lims-laboratory-service/src/main/java/com/lims/laboratory/service/ExamenService.java</url>
+          <line>195</line>
+          <option name="timeStamp" value="107" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

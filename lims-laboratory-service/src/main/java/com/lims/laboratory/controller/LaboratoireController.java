@@ -83,7 +83,7 @@ public class LaboratoireController {
     })
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<LaboratoireResponseDTO> getLaboratoireById(
-            @Parameter(name = "id", description = "Identifiant unique du laboratoire") @PathVariable UUID id) {
+            @Parameter(description = "Identifiant unique du laboratoire") @PathVariable(name = "id") UUID id) {
 
         log.info("GET /api/v1/laboratoires/{}", id);
 

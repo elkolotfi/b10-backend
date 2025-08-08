@@ -22,6 +22,9 @@ public class AdminJwtAuthenticationConverter extends JwtAuthenticationConverter 
 
     private Collection<GrantedAuthority> extractAuthorities(Jwt jwt) {
         // Pour le service référentiel, tous les utilisateurs valides sont admins
-        return List.of(new SimpleGrantedAuthority("ROLE_ADMIN"));
+        return List.of(
+                new SimpleGrantedAuthority("ROLE_ADMIN"),
+                new SimpleGrantedAuthority("ROLE_ADMIN_LAB")
+        );
     }
 }

@@ -1,15 +1,22 @@
 package com.lims.laboratory.exception;
 
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.WebRequest;
 
-import jakarta.validation.ConstraintViolation;
-import jakarta.validation.ConstraintViolationException;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -20,6 +27,24 @@ import java.util.Map;
 @RestControllerAdvice
 @Slf4j
 public class LaboratoireExceptionHandler {
+
+    /**
+     * Gestion des erreurs de laboratoire non trouvé
+     */
+    @ExceptionHandler(ExamenNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleLaboratoireNotFound(ExamenNotFoundException ex) {
+        log.warn("Excamen non trouvé: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(Instant.now())
+                .status(HttpStatus.NOT_FOUND.value())
+                .error("Laboratoire non trouvé")
+                .message(ex.getMessage())
+                .path("/api/v1/laboratoires")
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
 
     /**
      * Gestion des erreurs de laboratoire non trouvé
@@ -145,12 +170,42 @@ public class LaboratoireExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
 
+    @ExceptionHandler(AuthorizationDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAuthorizationDenied(AuthorizationDeniedException ex, WebRequest request) {
+        log.warn("Accès refusé - Autorisation insuffisante: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(Instant.now())
+                .status(HttpStatus.FORBIDDEN.value())
+                .error("Accès refusé")
+                .message("Vous n'avez pas les autorisations nécessaires pour effectuer cette action")
+                .path(request.getDescription(false).replace("uri=", ""))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingRequestParameter(MissingServletRequestParameterException ex, WebRequest request) {
+        log.warn("Paramètre de requête manquant: {} de type {}", ex.getParameterName(), ex.getParameterType());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(Instant.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Paramètre manquant")
+                .message(String.format("Le paramètre '%s' de type '%s' est requis", ex.getParameterName(), ex.getParameterType()))
+                .path(request.getDescription(false).replace("uri=", ""))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
     // === Classes de réponse d'erreur ===
 
-    @lombok.Data
-    @lombok.Builder
-    @lombok.NoArgsConstructor
-    @lombok.AllArgsConstructor
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class ErrorResponse {
         private Instant timestamp;
         private int status;
@@ -159,10 +214,10 @@ public class LaboratoireExceptionHandler {
         private String path;
     }
 
-    @lombok.Data
-    @lombok.Builder
-    @lombok.NoArgsConstructor
-    @lombok.AllArgsConstructor
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class ValidationErrorResponse {
         private Instant timestamp;
         private int status;
