@@ -7,8 +7,7 @@
     <list default="true" id="7aacdcd1-1ad1-4553-9a77-bce1e509ee8f" name="Changes" comment="new laboratoire controller">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/TODO.md" beforeDir="false" afterPath="$PROJECT_DIR$/TODO.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-laboratory-service/src/main/java/com/lims/laboratory/config/AdminJwtAuthenticationConverter.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-laboratory-service/src/main/java/com/lims/laboratory/config/AdminJwtAuthenticationConverter.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-laboratory-service/src/main/java/com/lims/laboratory/controller/LaboratoireController.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-laboratory-service/src/main/java/com/lims/laboratory/controller/LaboratoireController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/codebase.md" beforeDir="false" afterPath="$PROJECT_DIR$/codebase.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lims-laboratory-service/src/main/java/com/lims/laboratory/exception/LaboratoireExceptionHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-laboratory-service/src/main/java/com/lims/laboratory/exception/LaboratoireExceptionHandler.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -50,29 +49,29 @@
     <option name="showExcludedFiles" value="false" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Application.AuthServiceApplication.executor": "Debug",
-    "Application.DocumentServiceApplication.executor": "Debug",
-    "Application.LaboratoryServiceApplication.executor": "Debug",
-    "Application.PatientServiceApplication.executor": "Debug",
-    "Application.ReferentialServiceApplication.executor": "Debug",
-    "Maven.lims-auth-service [clean].executor": "Run",
-    "Maven.lims-laboratory-service [clean].executor": "Run",
-    "Maven.lims-patient-service [clean].executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "git-widget-placeholder": "main",
-    "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "/Users/elkolotfi/Desktop/NEW_START/PROJECTS/b10/backend/lims-system/lims-laboratory-service/src/main/java/com/lims/laboratory/config",
-    "settings.editor.selected.configurable": "settings.qodana"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Application.AuthServiceApplication.executor&quot;: &quot;Debug&quot;,
+    &quot;Application.DocumentServiceApplication.executor&quot;: &quot;Debug&quot;,
+    &quot;Application.LaboratoryServiceApplication.executor&quot;: &quot;Debug&quot;,
+    &quot;Application.PatientServiceApplication.executor&quot;: &quot;Debug&quot;,
+    &quot;Application.ReferentialServiceApplication.executor&quot;: &quot;Debug&quot;,
+    &quot;Maven.lims-auth-service [clean].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.lims-laboratory-service [clean].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.lims-patient-service [clean].executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/Users/elkolotfi/Desktop/NEW_START/PROJECTS/b10/backend/lims-system/lims-laboratory-service/src/main/java/com/lims/laboratory/config&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;settings.qodana&quot;
   },
-  "keyToStringList": {
-    "com.intellij.ide.scratch.ScratchImplUtil$2/New Scratch File": [
-      "HTML"
+  &quot;keyToStringList&quot;: {
+    &quot;com.intellij.ide.scratch.ScratchImplUtil$2/New Scratch File&quot;: [
+      &quot;HTML&quot;
     ]
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/lims-laboratory-service/src/main/java/com/lims/laboratory/config" />
@@ -86,7 +85,7 @@
       <recent name="com.lims" />
     </key>
   </component>
-  <component name="RunManager" selected="Application.AuthServiceApplication">
+  <component name="RunManager" selected="Application.LaboratoryServiceApplication">
     <configuration name="AuthServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="ALTERNATIVE_JRE_PATH" value="corretto-21" />
       <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />

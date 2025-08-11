@@ -1,7 +1,7 @@
 TODO:
 
-- [ ] Rajouter un nouveau controller pour gérer les examens
-- [ ] Rajouter un nouveau controller pour gérer les analyses
+- [X] Rajouter un nouveau controller pour gérer les examens
+- [X] Rajouter un nouveau controller pour gérer les analyses
 - [ ] Rajouter un nouveau controller pour gérer les prélèvements
 - [ ] initier service parcours/dossier (pour y rajouter les ordonnances, analyses, réponses aux conditions pré-analytics)
 

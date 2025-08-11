@@ -200,6 +200,34 @@ public class LaboratoireExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
+    @ExceptionHandler(AnalyseNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleAnalyseNotFound(AnalyseNotFoundException ex) {
+        log.warn("Analyse non trouvée: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .status(HttpStatus.NOT_FOUND.value())
+                .error("ANALYSE_NOT_FOUND")
+                .message(ex.getMessage())
+                .timestamp(Instant.now())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
+
+    @ExceptionHandler(AnalyseDuplicateException.class)
+    public ResponseEntity<ErrorResponse> handleAnalyseDuplicate(AnalyseDuplicateException ex) {
+        log.warn("Conflit analyse: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .status(HttpStatus.CONFLICT.value())
+                .error("ANALYSE_DUPLICATE")
+                .message(ex.getMessage())
+                .timestamp(Instant.now())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
+
     // === Classes de réponse d'erreur ===
 
     @Data
