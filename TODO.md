@@ -1,5 +1,7 @@
 TODO:
 
+- [ ] Replace postgresql by mongodb
+- [ ] Alimenter la base de données avec 
 - [X] Rajouter un nouveau controller pour gérer les examens
 - [X] Rajouter un nouveau controller pour gérer les analyses
 - [ ] Rajouter un nouveau controller pour gérer les prélèvements

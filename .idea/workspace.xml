@@ -4,11 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="7aacdcd1-1ad1-4553-9a77-bce1e509ee8f" name="Changes" comment="new laboratoire controller">
+    <list default="true" id="7aacdcd1-1ad1-4553-9a77-bce1e509ee8f" name="Changes" comment="new analyses controller">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/TODO.md" beforeDir="false" afterPath="$PROJECT_DIR$/TODO.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/codebase.md" beforeDir="false" afterPath="$PROJECT_DIR$/codebase.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lims-laboratory-service/src/main/java/com/lims/laboratory/exception/LaboratoireExceptionHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/lims-laboratory-service/src/main/java/com/lims/laboratory/exception/LaboratoireExceptionHandler.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -85,7 +84,7 @@
       <recent name="com.lims" />
     </key>
   </component>
-  <component name="RunManager" selected="Application.LaboratoryServiceApplication">
+  <component name="RunManager" selected="Application.ReferentialServiceApplication">
     <configuration name="AuthServiceApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="ALTERNATIVE_JRE_PATH" value="corretto-21" />
       <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
@@ -155,11 +154,11 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Application.ReferentialServiceApplication" />
+        <item itemvalue="Application.DocumentServiceApplication" />
+        <item itemvalue="Application.PatientServiceApplication" />
         <item itemvalue="Application.LaboratoryServiceApplication" />
         <item itemvalue="Application.AuthServiceApplication" />
-        <item itemvalue="Application.PatientServiceApplication" />
-        <item itemvalue="Application.DocumentServiceApplication" />
-        <item itemvalue="Application.ReferentialServiceApplication" />
       </list>
     </recent_temporary>
   </component>
@@ -324,7 +323,15 @@
       <option name="project" value="LOCAL" />
       <updated>1754483023587</updated>
     </task>
-    <option name="localTasksCounter" value="20" />
+    <task id="LOCAL-00020" summary="new analyses controller">
+      <option name="closed" value="true" />
+      <created>1754922718210</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1754922718210</updated>
+    </task>
+    <option name="localTasksCounter" value="21" />
     <servers />
   </component>
   <component name="Vcs.Log.History.Properties">
@@ -364,7 +371,8 @@
     <MESSAGE value="working minio document service" />
     <MESSAGE value="add insurance" />
     <MESSAGE value="new laboratoire controller" />
-    <option name="LAST_COMMIT_MESSAGE" value="new laboratoire controller" />
+    <MESSAGE value="new analyses controller" />
+    <option name="LAST_COMMIT_MESSAGE" value="new analyses controller" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

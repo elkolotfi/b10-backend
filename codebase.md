@@ -1,4 +1,3 @@
-
 # lims-auth-service/pom.xml
 
 ```xml
@@ -7075,7 +7074,10 @@ public class AdminJwtAuthenticationConverter extends JwtAuthenticationConverter 
 
     private Collection<GrantedAuthority> extractAuthorities(Jwt jwt) {
         // Pour le service référentiel, tous les utilisateurs valides sont admins
-        return List.of(new SimpleGrantedAuthority("ROLE_ADMIN"));
+        return List.of(
+                new SimpleGrantedAuthority("ROLE_ADMIN"),
+                new SimpleGrantedAuthority("ROLE_ADMIN_LAB")
+        );
     }
 }
 ```
@@ -7335,6 +7337,775 @@ public class SecurityConfig {
 }
 ```
 
+# lims-laboratory-service/src/main/java/com/lims/laboratory/controller/AdminExamenController.java
+
+```java
+package com.lims.laboratory.controller;
+
+import com.lims.laboratory.dto.request.ExamenRequestDTO;
+import com.lims.laboratory.dto.request.ExamenSearchDTO;
+import com.lims.laboratory.dto.response.ExamenResponseDTO;
+import com.lims.laboratory.dto.response.PagedResponseDTO;
+import com.lims.laboratory.service.ExamenService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Contrôleur REST pour la gestion des examens de laboratoire
+ * Permet aux administrateurs de laboratoire de gérer leurs examens personnalisés
+ */
+@RestController
+@RequestMapping("/api/v1/admin/examens")
+@RequiredArgsConstructor
+@Slf4j
+@Validated
+@Tag(name = "Examens", description = "Gestion des examens de laboratoire")
+@SecurityRequirement(name = "bearerAuth")
+public class AdminExamenController {
+
+    private final ExamenService examenService;
+
+    // === Opérations CRUD ===
+
+    /**
+     * Créer un nouvel examen pour un laboratoire
+     */
+    @PostMapping
+    @Operation(
+            summary = "Créer un examen",
+            description = "Ajoute un nouvel examen personnalisé dans le catalogue d'un laboratoire"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Examen créé avec succès"),
+            @ApiResponse(responseCode = "400", description = "Données invalides"),
+            @ApiResponse(responseCode = "409", description = "Examen déjà existant pour ce laboratoire")
+    })
+    @PreAuthorize("hasRole('ADMIN_LAB') or hasRole('SECRETAIRE')")
+    public ResponseEntity<ExamenResponseDTO> createExamen(@Valid @RequestBody ExamenRequestDTO requestDTO) {
+        log.info("POST /api/v1/examens - Création examen pour laboratoire: {}", requestDTO.getLaboratoireId());
+
+        ExamenResponseDTO response = examenService.createExamen(requestDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * Lister les examens avec pagination et filtres
+     */
+    @GetMapping
+    @Operation(
+            summary = "Lister les examens",
+            description = "Récupère la liste paginée des examens avec possibilité de filtrage"
+    )
+    @ApiResponse(responseCode = "200", description = "Liste récupérée")
+    @PreAuthorize("hasRole('ADMIN_LAB') or hasRole('SECRETAIRE') or hasRole('PRELEVEUR')")
+    public ResponseEntity<PagedResponseDTO<ExamenResponseDTO>> getExamens(
+            @Parameter(description = "Numéro de page (0-based)") @RequestParam(name = "page", defaultValue = "0") @Min(0) int page,
+            @Parameter(description = "Taille de page") @RequestParam(name = "size", defaultValue = "20") @Min(1) @Max(100) int size,
+            @Parameter(description = "Champ de tri") @RequestParam(name = "sort", defaultValue = "nomExamenLabo") String sortBy,
+            @Parameter(description = "Direction de tri") @RequestParam(name = "dir", defaultValue = "asc") String sortDirection,
+            @Parameter(description = "ID du laboratoire") @RequestParam(name = "lab") UUID laboratoireId,
+            @Parameter(description = "Filtres de recherche") @ModelAttribute ExamenSearchDTO searchDTO) {
+
+        log.info("GET /api/v1/examens - page: {}, size: {}, laboratoireId: {}", page, size, laboratoireId);
+
+        PagedResponseDTO<ExamenResponseDTO> response = examenService.getExamens(
+                page, size, sortBy, sortDirection, laboratoireId, searchDTO);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Obtenir un examen par son ID
+     */
+    @GetMapping("/{id}")
+    @Operation(
+            summary = "Obtenir un examen",
+            description = "Récupère les détails complets d'un examen spécifique"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Examen trouvé"),
+            @ApiResponse(responseCode = "404", description = "Examen non trouvé")
+    })
+    @PreAuthorize("hasRole('ADMIN_LAB') or hasRole('SECRETAIRE') or hasRole('PRELEVEUR')")
+    public ResponseEntity<ExamenResponseDTO> getExamenById(@PathVariable UUID id) {
+        log.info("GET /api/v1/examens/{}", id);
+
+        ExamenResponseDTO response = examenService.getExamenById(id);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Mettre à jour un examen
+     */
+    @PutMapping("/{id}")
+    @Operation(
+            summary = "Modifier un examen",
+            description = "Met à jour les informations d'un examen existant"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Examen modifié"),
+            @ApiResponse(responseCode = "404", description = "Examen non trouvé"),
+            @ApiResponse(responseCode = "400", description = "Données invalides")
+    })
+    @PreAuthorize("hasRole('ADMIN_LAB') or hasRole('SECRETAIRE')")
+    public ResponseEntity<ExamenResponseDTO> updateExamen(
+            @PathVariable UUID id,
+            @Valid @RequestBody ExamenRequestDTO requestDTO) {
+
+        log.info("PUT /api/v1/examens/{}", id);
+
+        ExamenResponseDTO response = examenService.updateExamen(id, requestDTO);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Supprimer (désactiver) un examen
+     */
+    @DeleteMapping("/{id}")
+    @Operation(
+            summary = "Supprimer un examen",
+            description = "Désactive un examen (soft delete) - l'examen reste accessible pour l'historique"
+    )
+    @ApiResponse(responseCode = "204", description = "Examen supprimé")
+    @PreAuthorize("hasRole('ADMIN_LAB')")
+    public ResponseEntity<Void> deleteExamen(@PathVariable UUID id) {
+        log.info("DELETE /api/v1/examens/{}", id);
+
+        examenService.deleteExamen(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // === Recherches spécialisées ===
+
+    /**
+     * Rechercher des examens par laboratoire
+     */
+    @GetMapping("/laboratoire/{laboratoireId}")
+    @Operation(
+            summary = "Examens par laboratoire",
+            description = "Récupère tous les examens actifs d'un laboratoire spécifique"
+    )
+    @ApiResponse(responseCode = "200", description = "Examens récupérés")
+    @PreAuthorize("hasRole('ADMIN_LAB') or hasRole('SECRETAIRE') or hasRole('PRELEVEUR')")
+    public ResponseEntity<List<ExamenResponseDTO>> getExamensByLaboratoire(@PathVariable UUID laboratoireId) {
+        log.info("GET /api/v1/examens/laboratoire/{}", laboratoireId);
+
+        List<ExamenResponseDTO> examens = examenService.getExamensByLaboratoire(laboratoireId);
+        return ResponseEntity.ok(examens);
+    }
+
+    /**
+     * Rechercher des examens par code référentiel
+     */
+    @GetMapping("/referentiel/{examenReferentielId}")
+    @Operation(
+            summary = "Examens par référentiel",
+            description = "Trouve tous les laboratoires proposant un examen du référentiel"
+    )
+    @ApiResponse(responseCode = "200", description = "Examens trouvés")
+    @PreAuthorize("hasRole('ADMIN_LAB') or hasRole('SECRETAIRE')")
+    public ResponseEntity<List<ExamenResponseDTO>> getExamensByReferentiel(@PathVariable UUID examenReferentielId) {
+        log.info("GET /api/v1/examens/referentiel/{}", examenReferentielId);
+
+        List<ExamenResponseDTO> examens = examenService.getExamensByReferentiel(examenReferentielId);
+        return ResponseEntity.ok(examens);
+    }
+
+    // === Actions spécialisées ===
+
+    /**
+     * Activer/désactiver un examen
+     */
+    @PatchMapping("/{id}/activation")
+    @Operation(
+            summary = "Activer/désactiver un examen",
+            description = "Change le statut actif d'un examen sans affecter les autres données"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Statut modifié"),
+            @ApiResponse(responseCode = "404", description = "Examen non trouvé")
+    })
+    @PreAuthorize("hasRole('ADMIN_LAB') or hasRole('SECRETAIRE')")
+    public ResponseEntity<ExamenResponseDTO> toggleActivation(
+            @PathVariable UUID id,
+            @RequestParam boolean actif) {
+
+        log.info("PATCH /api/v1/examens/{}/activation - Statut: {}", id, actif);
+
+        ExamenResponseDTO response = examenService.toggleActivation(id, actif);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Dupliquer un examen vers un autre laboratoire
+     */
+    @PostMapping("/{id}/dupliquer")
+    @Operation(
+            summary = "Dupliquer un examen",
+            description = "Copie un examen existant vers un ou plusieurs autres laboratoires"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Examens dupliqués"),
+            @ApiResponse(responseCode = "404", description = "Examen source non trouvé"),
+            @ApiResponse(responseCode = "400", description = "Laboratoires cibles invalides")
+    })
+    @PreAuthorize("hasRole('ADMIN_LAB')")
+    public ResponseEntity<List<ExamenResponseDTO>> dupliquerExamen(
+            @PathVariable UUID id,
+            @RequestParam List<UUID> laboratoireIds) {
+
+        log.info("POST /api/v1/examens/{}/dupliquer vers {} laboratoires", id, laboratoireIds.size());
+
+        List<ExamenResponseDTO> examens = examenService.dupliquerExamen(id, laboratoireIds);
+        return ResponseEntity.status(HttpStatus.CREATED).body(examens);
+    }
+
+    // === Statistiques ===
+
+    /**
+     * Statistiques des examens
+     */
+    @GetMapping("/statistiques")
+    @Operation(
+            summary = "Statistiques des examens",
+            description = "Récupère des statistiques sur les examens du laboratoire"
+    )
+    @ApiResponse(responseCode = "200", description = "Statistiques générées")
+    @PreAuthorize("hasRole('ADMIN_LAB')")
+    public ResponseEntity<Map<String, Object>> getStatistiques(
+            @RequestParam(required = false) UUID laboratoireId) {
+        log.info("GET /api/v1/examens/statistiques - laboratoireId: {}", laboratoireId);
+
+        Map<String, Object> statistiques = examenService.getStatistiques(laboratoireId);
+        return ResponseEntity.ok(statistiques);
+    }
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/controller/AnalysesController.java
+
+```java
+package com.lims.laboratory.controller;
+
+import com.lims.laboratory.dto.request.AnalyseRequestDTO;
+import com.lims.laboratory.dto.request.AnalyseSearchDTO;
+import com.lims.laboratory.dto.response.AnalyseResponseDTO;
+import com.lims.laboratory.dto.response.PagedResponseDTO;
+import com.lims.laboratory.service.AnalyseService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Contrôleur REST pour la gestion des analyses de laboratoire
+ * Permet la personnalisation des analyses du référentiel par chaque laboratoire
+ */
+@RestController
+@RequestMapping("/api/v1/analyses")
+@RequiredArgsConstructor
+@Slf4j
+@Validated
+@Tag(name = "Analyses", description = "Gestion des analyses personnalisées par laboratoire")
+@SecurityRequirement(name = "bearerAuth")
+public class AnalysesController {
+
+    private final AnalyseService analyseService;
+
+    // === OPÉRATIONS CRUD ===
+
+    /**
+     * Créer une nouvelle analyse personnalisée
+     */
+    @PostMapping
+    @Operation(
+            summary = "Créer une analyse",
+            description = "Crée une nouvelle analyse personnalisée pour un laboratoire à partir du référentiel"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Analyse créée avec succès"),
+            @ApiResponse(responseCode = "400", description = "Données invalides"),
+            @ApiResponse(responseCode = "409", description = "Conflit - Analyse déjà configurée pour ce laboratoire")
+    })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
+    public ResponseEntity<AnalyseResponseDTO> createAnalyse(
+            @Parameter(description = "Données de l'analyse à créer")
+            @Valid @RequestBody AnalyseRequestDTO requestDTO) {
+
+        log.info("POST /api/v1/analyses - Création analyse pour laboratoire: {}", requestDTO.getLaboratoireId());
+
+        AnalyseResponseDTO response = analyseService.createAnalyse(requestDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * Modifier une analyse existante
+     */
+    @PutMapping("/{id}")
+    @Operation(
+            summary = "Modifier une analyse",
+            description = "Met à jour les paramètres d'une analyse personnalisée"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Analyse modifiée avec succès"),
+            @ApiResponse(responseCode = "404", description = "Analyse non trouvée"),
+            @ApiResponse(responseCode = "409", description = "Conflit - Code d'analyse déjà utilisé")
+    })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
+    public ResponseEntity<AnalyseResponseDTO> updateAnalyse(
+            @Parameter(description = "Identifiant unique de l'analyse") @PathVariable UUID id,
+            @Parameter(description = "Nouvelles données de l'analyse")
+            @Valid @RequestBody AnalyseRequestDTO requestDTO) {
+
+        log.info("PUT /api/v1/analyses/{} - Modification analyse", id);
+
+        AnalyseResponseDTO response = analyseService.updateAnalyse(id, requestDTO);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Supprimer une analyse
+     */
+    @DeleteMapping("/{id}")
+    @Operation(
+            summary = "Supprimer une analyse",
+            description = "Supprime définitivement une analyse personnalisée du laboratoire"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Analyse supprimée avec succès"),
+            @ApiResponse(responseCode = "404", description = "Analyse non trouvée")
+    })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
+    public ResponseEntity<Void> deleteAnalyse(
+            @Parameter(description = "Identifiant unique de l'analyse") @PathVariable UUID id) {
+
+        log.info("DELETE /api/v1/analyses/{} - Suppression analyse", id);
+
+        analyseService.deleteAnalyse(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // === CONSULTATIONS ===
+
+    /**
+     * Récupérer une analyse par son ID
+     */
+    @GetMapping("/{id}")
+    @Operation(
+            summary = "Récupérer une analyse",
+            description = "Récupère les détails d'une analyse par son identifiant"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Analyse trouvée"),
+            @ApiResponse(responseCode = "404", description = "Analyse non trouvée")
+    })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
+    public ResponseEntity<AnalyseResponseDTO> findById(
+            @Parameter(description = "Identifiant unique de l'analyse") @PathVariable UUID id) {
+
+        log.info("GET /api/v1/analyses/{}", id);
+
+        AnalyseResponseDTO response = analyseService.findById(id);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Rechercher des analyses avec critères
+     */
+    @GetMapping
+    @Operation(
+            summary = "Rechercher des analyses",
+            description = "Recherche paginée des analyses avec filtres optionnels"
+    )
+    @ApiResponse(responseCode = "200", description = "Recherche effectuée avec succès")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
+    public ResponseEntity<PagedResponseDTO<AnalyseResponseDTO>> searchAnalyses(
+            @Parameter(description = "Critères de recherche") @Valid AnalyseSearchDTO searchDTO,
+            @Parameter(description = "Numéro de page (commence à 0)")
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @Parameter(description = "Taille de page")
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
+            @Parameter(description = "Champ de tri")
+            @RequestParam(defaultValue = "nomAnalyseLabo") String sortBy,
+            @Parameter(description = "Direction du tri")
+            @RequestParam(defaultValue = "ASC") String sortDirection) {
+
+        log.info("GET /api/v1/analyses - Recherche avec critères");
+
+        PagedResponseDTO<AnalyseResponseDTO> response = analyseService.searchAnalyses(
+                searchDTO, page, size, sortBy, sortDirection);
+        return ResponseEntity.ok(response);
+    }
+
+    // === ENDPOINTS SPÉCIALISÉS ===
+
+    /**
+     * Récupérer les analyses actives d'un laboratoire
+     */
+    @GetMapping("/laboratoire/{laboratoireId}/actives")
+    @Operation(
+            summary = "Analyses actives d'un laboratoire",
+            description = "Récupère toutes les analyses actives configurées pour un laboratoire"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Liste des analyses actives"),
+            @ApiResponse(responseCode = "404", description = "Laboratoire non trouvé")
+    })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
+    public ResponseEntity<List<AnalyseResponseDTO>> findActiveAnalysesByLaboratoire(
+            @Parameter(description = "Identifiant du laboratoire") @PathVariable UUID laboratoireId) {
+
+        log.info("GET /api/v1/analyses/laboratoire/{}/actives", laboratoireId);
+
+        List<AnalyseResponseDTO> response = analyseService.findActiveAnalysesByLaboratoire(laboratoireId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Récupérer les analyses d'un examen
+     */
+    @GetMapping("/examen/{laboratoireExamenId}")
+    @Operation(
+            summary = "Analyses d'un examen",
+            description = "Récupère toutes les analyses actives liées à un examen de laboratoire"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Liste des analyses de l'examen"),
+            @ApiResponse(responseCode = "404", description = "Examen non trouvé")
+    })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
+    public ResponseEntity<List<AnalyseResponseDTO>> findAnalysesByExamen(
+            @Parameter(description = "Identifiant de l'examen laboratoire") @PathVariable UUID laboratoireExamenId) {
+
+        log.info("GET /api/v1/analyses/examen/{}", laboratoireExamenId);
+
+        List<AnalyseResponseDTO> response = analyseService.findAnalysesByExamen(laboratoireExamenId);
+        return ResponseEntity.ok(response);
+    }
+
+    // === ACTIONS SPÉCIALES ===
+
+    /**
+     * Activer/désactiver une analyse
+     */
+    @PatchMapping("/{id}/activation")
+    @Operation(
+            summary = "Activer/désactiver une analyse",
+            description = "Modifie le statut actif d'une analyse sans affecter les autres données"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Statut modifié"),
+            @ApiResponse(responseCode = "404", description = "Analyse non trouvée")
+    })
+    @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
+    public ResponseEntity<AnalyseResponseDTO> toggleActivation(
+            @Parameter(description = "Identifiant unique de l'analyse") @PathVariable UUID id,
+            @Parameter(description = "Nouveau statut actif") @RequestParam boolean active) {
+
+        log.info("PATCH /api/v1/analyses/{}/activation - Statut: {}", id, active);
+
+        AnalyseResponseDTO response = analyseService.toggleActivation(id, active);
+        return ResponseEntity.ok(response);
+    }
+
+    // === STATISTIQUES ===
+
+    /**
+     * Statistiques des analyses d'un laboratoire
+     */
+    @GetMapping("/laboratoire/{laboratoireId}/statistiques")
+    @Operation(
+            summary = "Statistiques des analyses",
+            description = "Récupère des statistiques sur les analyses configurées par un laboratoire"
+    )
+    @ApiResponse(responseCode = "200", description = "Statistiques générées")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
+    public ResponseEntity<Map<String, Object>> getStatistiquesAnalyses(
+            @Parameter(description = "Identifiant du laboratoire") @PathVariable UUID laboratoireId) {
+
+        log.info("GET /api/v1/analyses/laboratoire/{}/statistiques", laboratoireId);
+
+        Map<String, Object> statistiques = analyseService.getStatistiquesAnalyses(laboratoireId);
+        return ResponseEntity.ok(statistiques);
+    }
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/controller/ExamenController.java
+
+```java
+package com.lims.laboratory.controller;
+
+import com.lims.laboratory.dto.request.ExamenRequestDTO;
+import com.lims.laboratory.dto.request.ExamenSearchDTO;
+import com.lims.laboratory.dto.response.ExamenResponseDTO;
+import com.lims.laboratory.dto.response.PagedResponseDTO;
+import com.lims.laboratory.service.ExamenService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Contrôleur REST pour la gestion des examens de laboratoire
+ * Permet aux administrateurs de laboratoire de gérer leurs examens personnalisés
+ */
+@RestController
+@RequestMapping("/api/v1/examens")
+@RequiredArgsConstructor
+@Slf4j
+@Validated
+@Tag(name = "Examens", description = "Gestion des examens de laboratoire")
+@SecurityRequirement(name = "bearerAuth")
+public class ExamenController {
+
+    private final ExamenService examenService;
+
+    // === Opérations CRUD ===
+    /**
+     * Lister les examens avec pagination et filtres
+     */
+    @GetMapping
+    @Operation(
+            summary = "Lister les examens",
+            description = "Récupère la liste paginée des examens avec possibilité de filtrage"
+    )
+    @ApiResponse(responseCode = "200", description = "Liste récupérée")
+    @PreAuthorize("hasRole('ADMIN_LAB') or hasRole('SECRETAIRE') or hasRole('PRELEVEUR')")
+    public ResponseEntity<PagedResponseDTO<ExamenResponseDTO>> getExamens(
+            @Parameter(description = "Numéro de page (0-based)") @RequestParam(name = "page", defaultValue = "0") @Min(0) int page,
+            @Parameter(description = "Taille de page") @RequestParam(name = "size", defaultValue = "20") @Min(1) @Max(100) int size,
+            @Parameter(description = "Champ de tri") @RequestParam(name = "sort", defaultValue = "nomExamenLabo") String sortBy,
+            @Parameter(description = "Direction de tri") @RequestParam(name = "dir", defaultValue = "asc") String sortDirection,
+            @Parameter(description = "ID du laboratoire") @RequestParam(name = "lab") UUID laboratoireId,
+            @Parameter(description = "Filtres de recherche") @ModelAttribute ExamenSearchDTO searchDTO) {
+
+        log.info("GET /api/v1/examens - page: {}, size: {}, laboratoireId: {}", page, size, laboratoireId);
+
+        searchDTO.setExamenActif(true);
+
+        PagedResponseDTO<ExamenResponseDTO> response = examenService.getExamens(
+                page, size, sortBy, sortDirection, laboratoireId, searchDTO);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Obtenir un examen par son ID
+     */
+    @GetMapping("/{id}")
+    @Operation(
+            summary = "Obtenir un examen",
+            description = "Récupère les détails complets d'un examen spécifique"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Examen trouvé"),
+            @ApiResponse(responseCode = "404", description = "Examen non trouvé")
+    })
+    @PreAuthorize("hasRole('ADMIN_LAB') or hasRole('SECRETAIRE') or hasRole('PRELEVEUR')")
+    public ResponseEntity<ExamenResponseDTO> getExamenById(@PathVariable(name = "id") UUID id) {
+        log.info("GET /api/v1/examens/{}", id);
+
+        ExamenResponseDTO response = examenService.getActifExamenById(id);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Mettre à jour un examen
+     */
+    @PutMapping("/{id}")
+    @Operation(
+            summary = "Modifier un examen",
+            description = "Met à jour les informations d'un examen existant"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Examen modifié"),
+            @ApiResponse(responseCode = "404", description = "Examen non trouvé"),
+            @ApiResponse(responseCode = "400", description = "Données invalides")
+    })
+    @PreAuthorize("hasRole('ADMIN_LAB') or hasRole('SECRETAIRE')")
+    public ResponseEntity<ExamenResponseDTO> updateExamen(
+            @PathVariable UUID id,
+            @Valid @RequestBody ExamenRequestDTO requestDTO) {
+
+        log.info("PUT /api/v1/examens/{}", id);
+
+        ExamenResponseDTO response = examenService.updateExamen(id, requestDTO);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Supprimer (désactiver) un examen
+     */
+    @DeleteMapping("/{id}")
+    @Operation(
+            summary = "Supprimer un examen",
+            description = "Désactive un examen (soft delete) - l'examen reste accessible pour l'historique"
+    )
+    @ApiResponse(responseCode = "204", description = "Examen supprimé")
+    @PreAuthorize("hasRole('ADMIN_LAB')")
+    public ResponseEntity<Void> deleteExamen(@PathVariable UUID id) {
+        log.info("DELETE /api/v1/examens/{}", id);
+
+        examenService.deleteExamen(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // === Recherches spécialisées ===
+
+    /**
+     * Rechercher des examens par laboratoire
+     */
+    @GetMapping("/laboratoire/{laboratoireId}")
+    @Operation(
+            summary = "Examens par laboratoire",
+            description = "Récupère tous les examens actifs d'un laboratoire spécifique"
+    )
+    @ApiResponse(responseCode = "200", description = "Examens récupérés")
+    @PreAuthorize("hasRole('ADMIN_LAB') or hasRole('SECRETAIRE') or hasRole('PRELEVEUR')")
+    public ResponseEntity<List<ExamenResponseDTO>> getExamensByLaboratoire(@PathVariable UUID laboratoireId) {
+        log.info("GET /api/v1/examens/laboratoire/{}", laboratoireId);
+
+        List<ExamenResponseDTO> examens = examenService.getExamensByLaboratoire(laboratoireId);
+        return ResponseEntity.ok(examens);
+    }
+
+    /**
+     * Rechercher des examens par code référentiel
+     */
+    @GetMapping("/referentiel/{examenReferentielId}")
+    @Operation(
+            summary = "Examens par référentiel",
+            description = "Trouve tous les laboratoires proposant un examen du référentiel"
+    )
+    @ApiResponse(responseCode = "200", description = "Examens trouvés")
+    @PreAuthorize("hasRole('ADMIN_LAB') or hasRole('SECRETAIRE')")
+    public ResponseEntity<List<ExamenResponseDTO>> getExamensByReferentiel(@PathVariable UUID examenReferentielId) {
+        log.info("GET /api/v1/examens/referentiel/{}", examenReferentielId);
+
+        List<ExamenResponseDTO> examens = examenService.getExamensByReferentiel(examenReferentielId);
+        return ResponseEntity.ok(examens);
+    }
+
+    // === Actions spécialisées ===
+
+    /**
+     * Activer/désactiver un examen
+     */
+    @PatchMapping("/{id}/activation")
+    @Operation(
+            summary = "Activer/désactiver un examen",
+            description = "Change le statut actif d'un examen sans affecter les autres données"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Statut modifié"),
+            @ApiResponse(responseCode = "404", description = "Examen non trouvé")
+    })
+    @PreAuthorize("hasRole('ADMIN_LAB') or hasRole('SECRETAIRE')")
+    public ResponseEntity<ExamenResponseDTO> toggleActivation(
+            @PathVariable UUID id,
+            @RequestParam boolean actif) {
+
+        log.info("PATCH /api/v1/examens/{}/activation - Statut: {}", id, actif);
+
+        ExamenResponseDTO response = examenService.toggleActivation(id, actif);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Dupliquer un examen vers un autre laboratoire
+     */
+    @PostMapping("/{id}/dupliquer")
+    @Operation(
+            summary = "Dupliquer un examen",
+            description = "Copie un examen existant vers un ou plusieurs autres laboratoires"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Examens dupliqués"),
+            @ApiResponse(responseCode = "404", description = "Examen source non trouvé"),
+            @ApiResponse(responseCode = "400", description = "Laboratoires cibles invalides")
+    })
+    @PreAuthorize("hasRole('ADMIN_LAB')")
+    public ResponseEntity<List<ExamenResponseDTO>> dupliquerExamen(
+            @PathVariable UUID id,
+            @RequestParam List<UUID> laboratoireIds) {
+
+        log.info("POST /api/v1/examens/{}/dupliquer vers {} laboratoires", id, laboratoireIds.size());
+
+        List<ExamenResponseDTO> examens = examenService.dupliquerExamen(id, laboratoireIds);
+        return ResponseEntity.status(HttpStatus.CREATED).body(examens);
+    }
+
+    // === Statistiques ===
+
+    /**
+     * Statistiques des examens
+     */
+    @GetMapping("/statistiques")
+    @Operation(
+            summary = "Statistiques des examens",
+            description = "Récupère des statistiques sur les examens du laboratoire"
+    )
+    @ApiResponse(responseCode = "200", description = "Statistiques générées")
+    @PreAuthorize("hasRole('ADMIN_LAB')")
+    public ResponseEntity<Map<String, Object>> getStatistiques(
+            @RequestParam(required = false) UUID laboratoireId) {
+        log.info("GET /api/v1/examens/statistiques - laboratoireId: {}", laboratoireId);
+
+        Map<String, Object> statistiques = examenService.getStatistiques(laboratoireId);
+        return ResponseEntity.ok(statistiques);
+    }
+}
+```
+
 # lims-laboratory-service/src/main/java/com/lims/laboratory/controller/LaboratoireController.java
 
 ```java
@@ -7423,7 +8194,7 @@ public class LaboratoireController {
     })
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<LaboratoireResponseDTO> getLaboratoireById(
-            @Parameter(name = "id", description = "Identifiant unique du laboratoire") @PathVariable UUID id) {
+            @Parameter(description = "Identifiant unique du laboratoire") @PathVariable(name = "id") UUID id) {
 
         log.info("GET /api/v1/laboratoires/{}", id);
 
@@ -7672,6 +8443,191 @@ public class LaboratoireController {
 }
 ```
 
+# lims-laboratory-service/src/main/java/com/lims/laboratory/dto/request/AnalyseRequestDTO.java
+
+```java
+package com.lims.laboratory.dto.request;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.util.UUID;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Schema(description = "Données pour créer ou modifier une analyse laboratoire")
+public class AnalyseRequestDTO {
+
+    @Schema(description = "ID du laboratoire", example = "123e4567-e89b-12d3-a456-426614174000")
+    @NotNull(message = "L'identifiant du laboratoire est obligatoire")
+    private UUID laboratoireId;
+
+    @Schema(description = "ID de l'examen laboratoire parent", example = "123e4567-e89b-12d3-a456-426614174001")
+    @NotNull(message = "L'identifiant de l'examen laboratoire est obligatoire")
+    private UUID laboratoireExamenId;
+
+    @Schema(description = "ID de l'analyse dans le référentiel", example = "123e4567-e89b-12d3-a456-426614174002")
+    @NotNull(message = "L'identifiant de l'analyse référentiel est obligatoire")
+    private UUID analyseReferentielId;
+
+    @Schema(description = "Nom personnalisé de l'analyse par le laboratoire", example = "Hémoglobine A1c - Méthode HPLC")
+    @Size(max = 500, message = "Le nom de l'analyse ne peut dépasser 500 caractères")
+    private String nomAnalyseLabo;
+
+    @Schema(description = "Code interne de l'analyse pour le laboratoire", example = "HBA1C_HPLC")
+    @Size(max = 100, message = "Le code de l'analyse ne peut dépasser 100 caractères")
+    private String codeAnalyseLabo;
+
+    @Schema(description = "Technique analytique utilisée", example = "Chromatographie liquide haute performance")
+    @Size(max = 200, message = "La technique utilisée ne peut dépasser 200 caractères")
+    private String techniqueUtilisee;
+
+    @Schema(description = "Automate/équipement utilisé", example = "Cobas c111 - Roche")
+    @Size(max = 200, message = "L'automate utilisé ne peut dépasser 200 caractères")
+    private String automateUtilise;
+
+    @Schema(description = "Coefficient NABM pour la tarification", example = "B25")
+    @Size(max = 10, message = "Le coefficient prix ne peut dépasser 10 caractères")
+    private String prixCoefficient;
+
+    @Schema(description = "Prix de l'analyse", example = "15.50")
+    @DecimalMin(value = "0.0", inclusive = true, message = "Le prix doit être positif ou nul")
+    private BigDecimal prixAnalyse;
+
+    @Schema(description = "Valeurs normales spécifiques au laboratoire", example = "< 5.7% (normal), 5.7-6.4% (pré-diabète), ≥ 6.5% (diabète)")
+    private String valeursNormalesLabo;
+
+    @Schema(description = "L'analyse est-elle active", example = "true")
+    private Boolean analyseActive = true;
+
+    @Schema(description = "L'analyse est-elle sous-traitée", example = "false")
+    private Boolean sousTraite = false;
+
+    @Schema(description = "ID du laboratoire sous-traitant si applicable", example = "123e4567-e89b-12d3-a456-426614174003")
+    private UUID laboratoireSousTraitantId;
+
+    @Schema(description = "Commentaires techniques du laboratoire")
+    private String commentairesTechnique;
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/dto/request/AnalyseSearchDTO.java
+
+```java
+package com.lims.laboratory.dto.request;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.UUID;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Schema(description = "Critères de recherche pour les analyses")
+public class AnalyseSearchDTO {
+
+    @Schema(description = "Filtrer par laboratoire", example = "123e4567-e89b-12d3-a456-426614174000")
+    private UUID laboratoireId;
+
+    @Schema(description = "Filtrer par examen", example = "123e4567-e89b-12d3-a456-426614174001")
+    private UUID laboratoireExamenId;
+
+    @Schema(description = "Recherche textuelle dans le nom de l'analyse", example = "hémoglobine")
+    @Size(max = 100, message = "Le terme de recherche ne peut dépasser 100 caractères")
+    private String nomAnalyse;
+
+    @Schema(description = "Recherche par code d'analyse", example = "HBA1C")
+    @Size(max = 50, message = "Le code d'analyse ne peut dépasser 50 caractères")
+    private String codeAnalyse;
+
+    @Schema(description = "Filtrer par statut actif", example = "true")
+    private Boolean analyseActive;
+
+    @Schema(description = "Filtrer par sous-traitance", example = "false")
+    private Boolean sousTraite;
+
+    @Schema(description = "Recherche par technique", example = "HPLC")
+    @Size(max = 100, message = "La technique ne peut dépasser 100 caractères")
+    private String technique;
+
+    @Schema(description = "Recherche par automate", example = "Cobas")
+    @Size(max = 100, message = "L'automate ne peut dépasser 100 caractères")
+    private String automate;
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/dto/request/ExamenRequestDTO.java
+
+```java
+package com.lims.laboratory.dto.request;
+
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.UUID;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class ExamenRequestDTO {
+
+    @NotNull(message = "L'ID du laboratoire est obligatoire")
+    private UUID laboratoireId;
+
+    @NotNull(message = "L'ID de l'examen référentiel est obligatoire")
+    private UUID examenReferentielId;
+
+    @Size(max = 500, message = "Le nom de l'examen ne peut pas dépasser 500 caractères")
+    private String nomExamenLabo;
+
+    private Boolean examenActif = true;
+
+    private Boolean examenRealiseInternement = true;
+
+    @Size(max = 100, message = "Le délai de rendu habituel ne peut pas dépasser 100 caractères")
+    private String delaiRenduHabituel;
+
+    @Size(max = 100, message = "Le délai de rendu urgent ne peut pas dépasser 100 caractères")
+    private String delaiRenduUrgent;
+
+    @Size(max = 2000, message = "Les conditions particulières ne peuvent pas dépasser 2000 caractères")
+    private String conditionsParticulieres;
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/dto/request/ExamenSearchDTO.java
+
+```java
+package com.lims.laboratory.dto.request;
+
+import lombok.Data;
+
+@Data
+public class ExamenSearchDTO {
+    private String nomExamen;
+    private Boolean examenActif;
+    private Boolean examenRealiseInternement;
+}
+```
+
 # lims-laboratory-service/src/main/java/com/lims/laboratory/dto/request/LaboratoireRequestDTO.java
 
 ```java
@@ -7776,6 +8732,135 @@ public class LaboratoireSearchDTO {
 
     @Schema(description = "Filtrer par numéro FINESS")
     private String numeroFiness;
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/dto/response/AnalyseResponseDTO.java
+
+```java
+package com.lims.laboratory.dto.response;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Schema(description = "Informations d'une analyse laboratoire")
+public class AnalyseResponseDTO {
+
+    @Schema(description = "Identifiant unique de l'analyse")
+    private UUID id;
+
+    @Schema(description = "Identifiant du laboratoire")
+    private UUID laboratoireId;
+
+    @Schema(description = "Identifiant de l'examen laboratoire")
+    private UUID laboratoireExamenId;
+
+    @Schema(description = "Identifiant de l'analyse référentiel")
+    private UUID analyseReferentielId;
+
+    @Schema(description = "Nom personnalisé de l'analyse")
+    private String nomAnalyseLabo;
+
+    @Schema(description = "Code interne de l'analyse")
+    private String codeAnalyseLabo;
+
+    @Schema(description = "Technique analytique utilisée")
+    private String techniqueUtilisee;
+
+    @Schema(description = "Automate/équipement utilisé")
+    private String automateUtilise;
+
+    @Schema(description = "Coefficient NABM")
+    private String prixCoefficient;
+
+    @Schema(description = "Prix de l'analyse")
+    private BigDecimal prixAnalyse;
+
+    @Schema(description = "Valeurs normales spécifiques")
+    private String valeursNormalesLabo;
+
+    @Schema(description = "Statut actif de l'analyse")
+    private Boolean analyseActive;
+
+    @Schema(description = "Analyse sous-traitée")
+    private Boolean sousTraite;
+
+    @Schema(description = "ID du laboratoire sous-traitant")
+    private UUID laboratoireSousTraitantId;
+
+    @Schema(description = "Commentaires techniques")
+    private String commentairesTechnique;
+
+    @Schema(description = "Date de création")
+    private LocalDateTime createdAt;
+
+    @Schema(description = "Date de dernière modification")
+    private LocalDateTime updatedAt;
+
+    // Informations du laboratoire (dénormalisées pour l'affichage)
+    @Schema(description = "Nom du laboratoire")
+    private String nomLaboratoire;
+
+    // Informations de l'examen (dénormalisées pour l'affichage)
+    @Schema(description = "Nom de l'examen")
+    private String nomExamen;
+
+    // Informations du laboratoire sous-traitant (dénormalisées pour l'affichage)
+    @Schema(description = "Nom du laboratoire sous-traitant")
+    private String nomLaboratoireSousTraitant;
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/dto/response/ExamenResponseDTO.java
+
+```java
+package com.lims.laboratory.dto.response;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class ExamenResponseDTO {
+
+    private UUID id;
+    private UUID laboratoireId;
+    private String laboratoireNom;
+    private UUID examenReferentielId;
+    private String nomExamenLabo;
+    private Boolean examenActif;
+    private Boolean examenRealiseInternement;
+    private String delaiRenduHabituel;
+    private String delaiRenduUrgent;
+    private String conditionsParticulieres;
+
+    // Statistiques rapides
+    private Integer nombreAnalyses;
+    private Integer nombrePrelevements;
+    private Integer nombreTarifs;
+
+    // Métadonnées
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }
 ```
 
@@ -7900,6 +8985,209 @@ public class PagedResponseDTO<T> {
 }
 ```
 
+# lims-laboratory-service/src/main/java/com/lims/laboratory/entity/Analyse.java
+
+```java
+package com.lims.laboratory.entity;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+/**
+ * Entité représentant une analyse spécifique d'un examen dans un laboratoire
+ * Correspond à la table laboratoire_analyse
+ */
+@Entity
+@Table(name = "laboratoire_analyse", schema = "lims_laboratoire")
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class Analyse {
+
+    @Id
+    @GeneratedValue(generator = "UUID")
+    @Column(name = "id", updatable = false, nullable = false)
+    private UUID id;
+
+    // === Relations ===
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "laboratoire_id", nullable = false)
+    private Laboratoire laboratoire;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "laboratoire_examen_id", nullable = false)
+    private Examen examen;
+
+    @Column(name = "analyse_referentiel_id", nullable = false)
+    private UUID analyseReferentielId; // FK vers lims_referential.analyse_porteuse_resultat(id)
+
+    // === Personnalisations du laboratoire ===
+
+    @Column(name = "nom_analyse_labo", length = 500)
+    private String nomAnalyseLabo;
+
+    @Column(name = "code_analyse_labo", length = 100)
+    private String codeAnalyseLabo;
+
+    // === Informations techniques ===
+
+    @Column(name = "technique_utilisee", length = 200)
+    private String techniqueUtilisee;
+
+    @Column(name = "automate_utilise", length = 200)
+    private String automateUtilise;
+
+    // === Tarification ===
+
+    @Column(name = "prix_coefficient", length = 10)
+    private String prixCoefficient; // Coefficient NABM (ex: "B12", "K15")
+
+    @Column(name = "prix_analyse", precision = 10, scale = 2)
+    private BigDecimal prixAnalyse; // Prix calculé automatiquement ou prix libre
+
+    // === Valeurs de référence ===
+
+    @Column(name = "valeurs_normales_labo")
+    private String valeursNormalesLabo; // Valeurs normales spécifiques au labo
+
+    // === Configuration ===
+
+    @Builder.Default
+    @Column(name = "analyse_active", nullable = false)
+    private Boolean analyseActive = true;
+
+    @Builder.Default
+    @Column(name = "sous_traite", nullable = false)
+    private Boolean sousTraite = false;
+
+    // === Métadonnées système ===
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/entity/Examen.java
+
+```java
+package com.lims.laboratory.entity;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * Entité représentant un examen personnalisé par un laboratoire
+ * Correspond à la table laboratoire_examen
+ */
+@Entity
+@Table(name = "laboratoire_examen", schema = "lims_laboratoire")
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class Examen {
+
+    @Id
+    @GeneratedValue(generator = "UUID")
+    @Column(name = "id", updatable = false, nullable = false)
+    private UUID id;
+
+    // === Relations ===
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "laboratoire_id", nullable = false)
+    private Laboratoire laboratoire;
+
+    @Column(name = "examen_referentiel_id", nullable = false)
+    private UUID examenReferentielId; // FK vers lims_referential.examen_prescriptible(id)
+
+    // === Personnalisations du laboratoire ===
+
+    @Column(name = "nom_examen_labo", length = 500)
+    private String nomExamenLabo;
+
+    // === Configuration de l'examen ===
+
+    @Builder.Default
+    @Column(name = "examen_actif", nullable = false)
+    private Boolean examenActif = true;
+
+    @Builder.Default
+    @Column(name = "examen_realise_internement", nullable = false)
+    private Boolean examenRealiseInternement = true;
+
+    // === Délais de rendu ===
+
+    @Column(name = "delai_rendu_habituel", length = 100)
+    private String delaiRenduHabituel; // "24h", "2-3 jours", etc.
+
+    @Column(name = "delai_rendu_urgent", length = 100)
+    private String delaiRenduUrgent; // "2h", "dans la journée", etc.
+
+    // === Conditions particulières ===
+
+    @Column(name = "conditions_particulieres")
+    private String conditionsParticulieres;
+
+    // === Relations avec autres entités ===
+
+    @OneToMany(mappedBy = "examen", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<Analyse> analyses = new ArrayList<>();
+
+    @OneToMany(mappedBy = "examen", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<Prelevement> prelevements = new ArrayList<>();
+
+    @OneToMany(mappedBy = "examen", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<Tarif> tarifs = new ArrayList<>();
+
+    // === Métadonnées système ===
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    // === Contrainte unique ===
+    @Table(uniqueConstraints = {
+            @UniqueConstraint(name = "uk_laboratoire_examen_referentiel",
+                    columnNames = {"laboratoire_id", "examen_referentiel_id"})
+    })
+    public static class ExamenConstraints {}
+}
+```
+
 # lims-laboratory-service/src/main/java/com/lims/laboratory/entity/Laboratoire.java
 
 ```java
@@ -8019,6 +9307,673 @@ public class Laboratoire {
 }
 ```
 
+# lims-laboratory-service/src/main/java/com/lims/laboratory/entity/LaboratoireAnalyse.java
+
+```java
+package com.lims.laboratory.entity;
+
+import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+/**
+ * Entité représentant une analyse spécifique personnalisée par un laboratoire
+ * Correspond exactement à la table laboratoire_analyse du schéma lims_laboratoire
+ */
+@Entity
+@Table(name = "laboratoire_analyse", schema = "lims_laboratoire",
+        indexes = {
+                @Index(name = "idx_laboratoire_analyse_labo_id", columnList = "laboratoire_id"),
+                @Index(name = "idx_laboratoire_analyse_examen_id", columnList = "laboratoire_examen_id"),
+                @Index(name = "idx_laboratoire_analyse_ref_id", columnList = "analyse_referentiel_id"),
+                @Index(name = "idx_laboratoire_analyse_sous_traite", columnList = "sous_traite")
+        },
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_laboratoire_analyse_code",
+                        columnNames = {"laboratoire_id", "code_analyse_labo"})
+        })
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@EqualsAndHashCode(callSuper = false)
+public class LaboratoireAnalyse {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    @Column(name = "id", updatable = false, nullable = false)
+    private UUID id;
+
+    // === RÉFÉRENCES ===
+
+    @Column(name = "laboratoire_id", nullable = false)
+    @NotNull(message = "L'identifiant du laboratoire est obligatoire")
+    private UUID laboratoireId;
+
+    @Column(name = "laboratoire_examen_id", nullable = false)
+    @NotNull(message = "L'identifiant de l'examen laboratoire est obligatoire")
+    private UUID laboratoireExamenId;
+
+    @Column(name = "analyse_referentiel_id", nullable = false)
+    @NotNull(message = "L'identifiant de l'analyse référentiel est obligatoire")
+    private UUID analyseReferentielId;
+
+    // === PERSONNALISATIONS DU LABORATOIRE ===
+
+    @Column(name = "nom_analyse_labo", length = 500)
+    @Size(max = 500, message = "Le nom de l'analyse ne peut dépasser 500 caractères")
+    private String nomAnalyseLabo;
+
+    @Column(name = "code_analyse_labo", length = 100)
+    @Size(max = 100, message = "Le code de l'analyse ne peut dépasser 100 caractères")
+    private String codeAnalyseLabo;
+
+    // === INFORMATIONS TECHNIQUES ===
+
+    @Column(name = "technique_utilisee", length = 200)
+    @Size(max = 200, message = "La technique utilisée ne peut dépasser 200 caractères")
+    private String techniqueUtilisee;
+
+    @Column(name = "automate_utilise", length = 200)
+    @Size(max = 200, message = "L'automate utilisé ne peut dépasser 200 caractères")
+    private String automateUtilise;
+
+    // === TARIFICATION ===
+
+    @Column(name = "prix_coefficient", length = 10)
+    @Size(max = 10, message = "Le coefficient prix ne peut dépasser 10 caractères")
+    private String prixCoefficient; // Ex: "B12", "K15"
+
+    @Column(name = "prix_analyse", precision = 10, scale = 2)
+    @DecimalMin(value = "0.0", inclusive = true, message = "Le prix doit être positif ou nul")
+    private BigDecimal prixAnalyse;
+
+    // === VALEURS NORMALES ===
+
+    @Column(name = "valeurs_normales_labo", columnDefinition = "TEXT")
+    private String valeursNormalesLabo;
+
+    // === CONFIGURATION ===
+
+    @Column(name = "analyse_active", nullable = false)
+    @Builder.Default
+    private Boolean analyseActive = true;
+
+    // === SOUS-TRAITANCE ===
+
+    @Column(name = "sous_traite", nullable = false)
+    @Builder.Default
+    private Boolean sousTraite = false;
+
+    @Column(name = "laboratoire_sous_traitant_id")
+    private UUID laboratoireSousTraitantId;
+
+    // === COMMENTAIRES ===
+
+    @Column(name = "commentaires_technique", columnDefinition = "TEXT")
+    private String commentairesTechnique;
+
+    // === MÉTADONNÉES SYSTÈME ===
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    // === RELATIONS JPA ===
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "laboratoire_id", insertable = false, updatable = false)
+    private Laboratoire laboratoire;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "laboratoire_examen_id", insertable = false, updatable = false)
+    private Examen examen;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "laboratoire_sous_traitant_id", insertable = false, updatable = false)
+    private Laboratoire laboratoireSousTraitant;
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/entity/Majoration.java
+
+```java
+package com.lims.laboratory.entity;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+/**
+ * Entité représentant les majorations applicables par un laboratoire
+ * Correspond à la table laboratoire_majoration
+ */
+@Entity
+@Table(name = "laboratoire_majoration", schema = "lims_laboratoire")
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class Majoration {
+
+    @Id
+    @GeneratedValue(generator = "UUID")
+    @Column(name = "id", updatable = false, nullable = false)
+    private UUID id;
+
+    // === Relations ===
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "laboratoire_id", nullable = false)
+    private Laboratoire laboratoire;
+
+    // === Type de majoration ===
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type_majoration", nullable = false, length = 50)
+    private TypeMajoration typeMajoration;
+
+    // === Montant ===
+
+    @Column(name = "montant", precision = 10, scale = 2, nullable = false)
+    private BigDecimal montant;
+
+    // === Configuration ===
+
+    @Builder.Default
+    @Column(name = "active", nullable = false)
+    private Boolean active = true;
+
+    // === Période de validité ===
+
+    @Builder.Default
+    @Column(name = "date_debut_validite", nullable = false)
+    private LocalDate dateDebutValidite = LocalDate.now();
+
+    @Column(name = "date_fin_validite")
+    private LocalDate dateFinValidite;
+
+    // === Métadonnées système ===
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    // === Énumération des types de majorations ===
+
+    public enum TypeMajoration {
+        URGENCE("Majoration urgence"),
+        DOMICILE("Majoration domicile"),
+        NUIT("Majoration nuit"),
+        WEEKEND("Majoration weekend"),
+        FERIE("Majoration jour férié"),
+        DEPLACEMENT("Frais de déplacement");
+
+        private final String libelle;
+
+        TypeMajoration(String libelle) {
+            this.libelle = libelle;
+        }
+
+        public String getLibelle() {
+            return libelle;
+        }
+    }
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/entity/Prelevement.java
+
+```java
+package com.lims.laboratory.entity;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+/**
+ * Entité représentant un type de prélèvement pour un examen dans un laboratoire
+ * Correspond à la table laboratoire_prelevement (selon db_laboratoire_init)
+ */
+@Entity
+@Table(name = "laboratoire_prelevement", schema = "lims_laboratoire")
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class Prelevement {
+
+    @Id
+    @GeneratedValue(generator = "UUID")
+    @Column(name = "id", updatable = false, nullable = false)
+    private UUID id;
+
+    // === Relations ===
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "laboratoire_id", nullable = false)
+    private Laboratoire laboratoire;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "laboratoire_examen_id", nullable = false)
+    private Examen examen;
+
+    @Column(name = "nom_prelevement_labo", length = 200)
+    private String nomPrelevementLabo;
+
+    // === Informations prélèvement (noms exacts selon db_laboratoire_init) ===
+
+    @Column(name = "nature_prelevement_code", length = 20, nullable = false)
+    private String naturePrelevementCode; // Code du type de prélèvement
+
+    @Column(name = "volume_recommande", length = 50)
+    private String volumeRecommande; // "5ml", "1 tube EDTA", etc.
+
+    @Column(name = "type_tube_labo", length = 100)
+    private String typeTubeLabo; // "EDTA", "Héparine", "Sec", etc.
+
+    @Column(name = "couleur_tube", length = 50)
+    private String couleurTube;
+
+    // === Ordre et priorité ===
+
+    @Builder.Default
+    @Column(name = "ordre_prelevement", nullable = false)
+    private Integer ordrePrelevement = 1; // Ordre de prélèvement
+
+    // === Configuration (nouvelle colonne ajoutée) ===
+
+    @Builder.Default
+    @Column(name = "prelevement_actif", nullable = false)
+    private Boolean prelevementActif = true;
+
+    // === Métadonnées système ===
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/entity/Tarif.java
+
+```java
+package com.lims.laboratory.entity;
+
+import jakarta.persistence.*;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+/**
+ * Entité représentant les tarifs spécifiques d'un laboratoire pour ses examens
+ * Table: lims_laboratoire.laboratoire_tarif
+ */
+@Entity
+@Table(
+        name = "laboratoire_tarif",
+        schema = "lims_laboratoire",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_laboratoire_tarif_type",
+                        columnNames = {"laboratoire_examen_id", "type_tarif", "date_debut_validite"}
+                )
+        },
+        indexes = {
+                @Index(name = "idx_laboratoire_tarif_labo_id", columnList = "laboratoire_id"),
+                @Index(name = "idx_laboratoire_tarif_examen_id", columnList = "laboratoire_examen_id"),
+                @Index(name = "idx_laboratoire_tarif_type", columnList = "type_tarif"),
+                @Index(name = "idx_laboratoire_tarif_validite", columnList = "date_debut_validite, date_fin_validite")
+        }
+)
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class Tarif {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id", updatable = false, nullable = false)
+    private UUID id;
+
+    // === RÉFÉRENCES ===
+
+    /**
+     * Référence vers le laboratoire
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "laboratoire_id", nullable = false, foreignKey = @ForeignKey(name = "fk_laboratoire_tarif_laboratoire"))
+    private Laboratoire laboratoire;
+
+    /**
+     * Référence vers l'examen du laboratoire
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "laboratoire_examen_id", nullable = false, foreignKey = @ForeignKey(name = "fk_laboratoire_tarif_examen"))
+    private Examen examen;
+
+    // === TYPE DE TARIF ===
+
+    /**
+     * Type de tarif
+     * Valeurs possibles: 'public', 'conventionne', 'mutuelle', 'supplement', 'hors_nomenclature', 'urgence'
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type_tarif", length = 50, nullable = false)
+    @NotNull(message = "Le type de tarif est obligatoire")
+    private TypeTarif typeTarif;
+
+    // === MONTANT ET DEVISE ===
+
+    /**
+     * Montant du tarif
+     */
+    @Column(name = "montant", precision = 10, scale = 2, nullable = false)
+    @NotNull(message = "Le montant est obligatoire")
+    @DecimalMin(value = "0.0", inclusive = true, message = "Le montant doit être positif ou nul")
+    private BigDecimal montant;
+
+    /**
+     * Devise (par défaut EUR)
+     */
+    @Column(name = "devise", length = 3, nullable = false)
+    @Size(max = 3, message = "La devise ne peut pas dépasser 3 caractères")
+    @Builder.Default
+    private String devise = "EUR";
+
+    // === NOMENCLATURE ===
+
+    /**
+     * Code nomenclature (NABM, CCAM, etc.)
+     */
+    @Column(name = "code_nomenclature", length = 20)
+    @Size(max = 20, message = "Le code nomenclature ne peut pas dépasser 20 caractères")
+    private String codeNomenclature;
+
+    // === REMBOURSEMENT ===
+
+    /**
+     * Indique si le tarif est remboursable
+     */
+    @Column(name = "remboursable", nullable = false)
+    @Builder.Default
+    private Boolean remboursable = false;
+
+    /**
+     * Conditions de remboursement (texte libre)
+     */
+    @Column(name = "conditions_remboursement", columnDefinition = "TEXT")
+    private String conditionsRemboursement;
+
+    // === PÉRIODE DE VALIDITÉ ===
+
+    /**
+     * Date de début de validité du tarif
+     */
+    @Column(name = "date_debut_validite", nullable = false)
+    @NotNull(message = "La date de début de validité est obligatoire")
+    @Builder.Default
+    private LocalDate dateDebutValidite = LocalDate.now();
+
+    /**
+     * Date de fin de validité du tarif (optionnelle)
+     */
+    @Column(name = "date_fin_validite")
+    private LocalDate dateFinValidite;
+
+    // === MÉTADONNÉES SYSTÈME ===
+
+    /**
+     * Date de création de l'enregistrement
+     */
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    /**
+     * Date de dernière mise à jour
+     */
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    // === ÉNUMÉRATION TYPE TARIF ===
+
+    /**
+     * Types de tarifs possibles
+     */
+    public enum TypeTarif {
+        PUBLIC("public"),
+        CONVENTIONNE("conventionne"),
+        MUTUELLE("mutuelle"),
+        SUPPLEMENT("supplement"),
+        HORS_NOMENCLATURE("hors_nomenclature"),
+        URGENCE("urgence");
+
+        private final String value;
+
+        TypeTarif(String value) {
+            this.value = value;
+        }
+
+        public String getValue() {
+            return value;
+        }
+
+        /**
+         * Méthode pour obtenir l'enum à partir de la valeur string
+         */
+        public static TypeTarif fromValue(String value) {
+            for (TypeTarif type : TypeTarif.values()) {
+                if (type.value.equals(value)) {
+                    return type;
+                }
+            }
+            throw new IllegalArgumentException("Type de tarif inconnu: " + value);
+        }
+    }
+
+    // === MÉTHODES UTILITAIRES ===
+
+    /**
+     * Vérifie si le tarif est actuellement valide
+     */
+    public boolean isCurrentlyValid() {
+        LocalDate now = LocalDate.now();
+        return (dateDebutValidite == null || !now.isBefore(dateDebutValidite)) &&
+                (dateFinValidite == null || !now.isAfter(dateFinValidite));
+    }
+
+    /**
+     * Vérifie si le tarif sera valide à une date donnée
+     */
+    public boolean isValidAt(LocalDate date) {
+        return (dateDebutValidite == null || !date.isBefore(dateDebutValidite)) &&
+                (dateFinValidite == null || !date.isAfter(dateFinValidite));
+    }
+
+    /**
+     * Calcule le montant avec un coefficient multiplicateur
+     */
+    public BigDecimal calculateAmount(BigDecimal coefficient) {
+        if (coefficient == null || montant == null) {
+            return montant;
+        }
+        return montant.multiply(coefficient);
+    }
+
+    // === MÉTHODES POUR JPA ===
+
+    /**
+     * Méthode appelée avant la sauvegarde pour valider les données
+     */
+    @PrePersist
+    @PreUpdate
+    private void validateDatePeriod() {
+        if (dateFinValidite != null && dateDebutValidite != null &&
+                dateFinValidite.isBefore(dateDebutValidite)) {
+            throw new IllegalArgumentException(
+                    "La date de fin de validité ne peut pas être antérieure à la date de début"
+            );
+        }
+    }
+
+    @Override
+    public String toString() {
+        return "LaboratoireTarif{" +
+                "id=" + id +
+                ", typeTarif=" + typeTarif +
+                ", montant=" + montant +
+                ", devise='" + devise + '\'' +
+                ", dateDebutValidite=" + dateDebutValidite +
+                ", dateFinValidite=" + dateFinValidite +
+                ", remboursable=" + remboursable +
+                '}';
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        Tarif that = (Tarif) obj;
+        return id != null && id.equals(that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/exception/AnalyseDuplicateException.java
+
+```java
+package com.lims.laboratory.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
+
+@ResponseStatus(HttpStatus.CONFLICT)
+public class AnalyseDuplicateException extends RuntimeException {
+
+    public AnalyseDuplicateException(String message) {
+        super(message);
+    }
+
+    public AnalyseDuplicateException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/exception/AnalyseNotFoundException.java
+
+```java
+package com.lims.laboratory.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
+
+@ResponseStatus(HttpStatus.NOT_FOUND)
+public class AnalyseNotFoundException extends RuntimeException {
+
+    public AnalyseNotFoundException(String message) {
+        super(message);
+    }
+
+    public AnalyseNotFoundException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/exception/ExamenNotFoundException.java
+
+```java
+package com.lims.laboratory.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
+
+@ResponseStatus(HttpStatus.NOT_FOUND)
+public class ExamenNotFoundException extends RuntimeException {
+    public ExamenNotFoundException(String message) {
+        super(message);
+    }
+
+    public ExamenNotFoundException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/exception/ExamenValidationException.java
+
+```java
+package com.lims.laboratory.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
+
+@ResponseStatus(HttpStatus.BAD_REQUEST)
+public class ExamenValidationException extends RuntimeException {
+    public ExamenValidationException(String message) {
+        super(message);
+    }
+
+    public ExamenValidationException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+```
+
 # lims-laboratory-service/src/main/java/com/lims/laboratory/exception/LaboratoireDuplicateException.java
 
 ```java
@@ -8048,16 +10003,23 @@ public class LaboratoireDuplicateException extends RuntimeException {
 ```java
 package com.lims.laboratory.exception;
 
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.WebRequest;
 
-import jakarta.validation.ConstraintViolation;
-import jakarta.validation.ConstraintViolationException;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -8068,6 +10030,24 @@ import java.util.Map;
 @RestControllerAdvice
 @Slf4j
 public class LaboratoireExceptionHandler {
+
+    /**
+     * Gestion des erreurs de laboratoire non trouvé
+     */
+    @ExceptionHandler(ExamenNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleLaboratoireNotFound(ExamenNotFoundException ex) {
+        log.warn("Excamen non trouvé: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(Instant.now())
+                .status(HttpStatus.NOT_FOUND.value())
+                .error("Laboratoire non trouvé")
+                .message(ex.getMessage())
+                .path("/api/v1/laboratoires")
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
 
     /**
      * Gestion des erreurs de laboratoire non trouvé
@@ -8193,12 +10173,70 @@ public class LaboratoireExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
 
+    @ExceptionHandler(AuthorizationDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAuthorizationDenied(AuthorizationDeniedException ex, WebRequest request) {
+        log.warn("Accès refusé - Autorisation insuffisante: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(Instant.now())
+                .status(HttpStatus.FORBIDDEN.value())
+                .error("Accès refusé")
+                .message("Vous n'avez pas les autorisations nécessaires pour effectuer cette action")
+                .path(request.getDescription(false).replace("uri=", ""))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingRequestParameter(MissingServletRequestParameterException ex, WebRequest request) {
+        log.warn("Paramètre de requête manquant: {} de type {}", ex.getParameterName(), ex.getParameterType());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(Instant.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Paramètre manquant")
+                .message(String.format("Le paramètre '%s' de type '%s' est requis", ex.getParameterName(), ex.getParameterType()))
+                .path(request.getDescription(false).replace("uri=", ""))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    @ExceptionHandler(AnalyseNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleAnalyseNotFound(AnalyseNotFoundException ex) {
+        log.warn("Analyse non trouvée: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .status(HttpStatus.NOT_FOUND.value())
+                .error("ANALYSE_NOT_FOUND")
+                .message(ex.getMessage())
+                .timestamp(Instant.now())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
+
+    @ExceptionHandler(AnalyseDuplicateException.class)
+    public ResponseEntity<ErrorResponse> handleAnalyseDuplicate(AnalyseDuplicateException ex) {
+        log.warn("Conflit analyse: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .status(HttpStatus.CONFLICT.value())
+                .error("ANALYSE_DUPLICATE")
+                .message(ex.getMessage())
+                .timestamp(Instant.now())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
+
     // === Classes de réponse d'erreur ===
 
-    @lombok.Data
-    @lombok.Builder
-    @lombok.NoArgsConstructor
-    @lombok.AllArgsConstructor
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class ErrorResponse {
         private Instant timestamp;
         private int status;
@@ -8207,10 +10245,10 @@ public class LaboratoireExceptionHandler {
         private String path;
     }
 
-    @lombok.Data
-    @lombok.Builder
-    @lombok.NoArgsConstructor
-    @lombok.AllArgsConstructor
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class ValidationErrorResponse {
         private Instant timestamp;
         private int status;
@@ -8286,6 +10324,102 @@ public class LaboratoryServiceApplication {
 }
 ```
 
+# lims-laboratory-service/src/main/java/com/lims/laboratory/mapper/AnalyseMapper.java
+
+```java
+package com.lims.laboratory.mapper;
+
+import com.lims.laboratory.dto.request.AnalyseRequestDTO;
+import com.lims.laboratory.dto.response.AnalyseResponseDTO;
+import com.lims.laboratory.entity.LaboratoireAnalyse;
+import org.mapstruct.*;
+
+import java.util.List;
+
+@Mapper(componentModel = "spring")
+public interface AnalyseMapper {
+    @Mapping(target = "nomLaboratoire", source = "laboratoire.nomCommercial")
+    @Mapping(target = "nomExamen", source = "examen.nomExamenLabo")
+    AnalyseResponseDTO toResponseDTO(LaboratoireAnalyse entity);
+
+    List<AnalyseResponseDTO> toResponseDTOList(List<LaboratoireAnalyse> entities);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "laboratoire", ignore = true)
+    @Mapping(target = "examen", ignore = true)
+    LaboratoireAnalyse toEntity(AnalyseRequestDTO requestDTO);
+
+    // === MISE À JOUR ENTITY ===
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "laboratoireId", ignore = true)
+    @Mapping(target = "laboratoireExamenId", ignore = true)
+    @Mapping(target = "analyseReferentielId", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "laboratoire", ignore = true)
+    @Mapping(target = "examen", ignore = true)
+    void updateEntity(@MappingTarget LaboratoireAnalyse entity, AnalyseRequestDTO requestDTO);
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/mapper/ExamenMapper.java
+
+```java
+package com.lims.laboratory.mapper;
+
+import com.lims.laboratory.dto.request.ExamenRequestDTO;
+import com.lims.laboratory.dto.response.ExamenResponseDTO;
+import com.lims.laboratory.entity.Examen;
+import org.mapstruct.*;
+
+@Mapper(componentModel = "spring")
+public interface ExamenMapper {
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "laboratoire", ignore = true)
+    @Mapping(target = "analyses", ignore = true)
+    @Mapping(target = "prelevements", ignore = true)
+    @Mapping(target = "tarifs", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    Examen toEntity(ExamenRequestDTO requestDTO);
+
+    @Mapping(source = "laboratoire.id", target = "laboratoireId")
+    @Mapping(source = "laboratoire.nomCommercial", target = "laboratoireNom")
+    @Mapping(source = "analyses", target = "nombreAnalyses", qualifiedByName = "countAnalyses")
+    @Mapping(source = "prelevements", target = "nombrePrelevements", qualifiedByName = "countPrelevements")
+    @Mapping(source = "tarifs", target = "nombreTarifs", qualifiedByName = "countTarifs")
+    ExamenResponseDTO toResponseDTO(Examen examen);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "laboratoire", ignore = true)
+    @Mapping(target = "analyses", ignore = true)
+    @Mapping(target = "prelevements", ignore = true)
+    @Mapping(target = "tarifs", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    void updateEntity(ExamenRequestDTO requestDTO, @MappingTarget Examen examen);
+
+    @Named("countAnalyses")
+    default Integer countAnalyses(java.util.List<?> analyses) {
+        return analyses != null ? analyses.size() : 0;
+    }
+
+    @Named("countPrelevements")
+    default Integer countPrelevements(java.util.List<?> prelevements) {
+        return prelevements != null ? prelevements.size() : 0;
+    }
+
+    @Named("countTarifs")
+    default Integer countTarifs(java.util.List<?> tarifs) {
+        return tarifs != null ? tarifs.size() : 0;
+    }
+}
+```
+
 # lims-laboratory-service/src/main/java/com/lims/laboratory/mapper/LaboratoireMapper.java
 
 ```java
@@ -8343,6 +10477,235 @@ public interface LaboratoireMapper {
     @Mapping(target = "updatedAt", ignore = true)
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     void updateEntity(LaboratoireRequestDTO requestDTO, @MappingTarget Laboratoire laboratoire);
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/repository/AnalyseRepository.java
+
+```java
+package com.lims.laboratory.repository;
+
+import com.lims.laboratory.entity.LaboratoireAnalyse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+@Repository
+public interface AnalyseRepository extends JpaRepository<LaboratoireAnalyse, UUID> {
+
+    // === RECHERCHE PAR LABORATOIRE ===
+
+    List<LaboratoireAnalyse> findByLaboratoireIdAndAnalyseActiveTrue(UUID laboratoireId);
+
+    List<LaboratoireAnalyse> findByLaboratoireId(UUID laboratoireId);
+
+    // === RECHERCHE PAR EXAMEN ===
+
+    List<LaboratoireAnalyse> findByLaboratoireExamenIdAndAnalyseActiveTrue(UUID laboratoireExamenId);
+
+    List<LaboratoireAnalyse> findByLaboratoireExamenId(UUID laboratoireExamenId);
+
+    // === RECHERCHE PAR CODES ===
+
+    Optional<LaboratoireAnalyse> findByLaboratoireIdAndCodeAnalyseLabo(UUID laboratoireId, String codeAnalyseLabo);
+
+    boolean existsByLaboratoireIdAndCodeAnalyseLabo(UUID laboratoireId, String codeAnalyseLabo);
+
+    // === RECHERCHE PAR RÉFÉRENTIEL ===
+
+    Optional<LaboratoireAnalyse> findByLaboratoireIdAndAnalyseReferentielId(UUID laboratoireId, UUID analyseReferentielId);
+
+    // === RECHERCHE COMPLEXE ===
+
+    @Query("""
+        SELECT a FROM LaboratoireAnalyse a
+        WHERE (:laboratoireId IS NULL OR a.laboratoireId = :laboratoireId)
+        AND (:laboratoireExamenId IS NULL OR a.laboratoireExamenId = :laboratoireExamenId)
+        AND (:nomAnalyse IS NULL OR LOWER(a.nomAnalyseLabo) LIKE LOWER(CONCAT('%', :nomAnalyse, '%')))
+        AND (:codeAnalyse IS NULL OR LOWER(a.codeAnalyseLabo) LIKE LOWER(CONCAT('%', :codeAnalyse, '%')))
+        AND (:analyseActive IS NULL OR a.analyseActive = :analyseActive)
+        AND (:sousTraite IS NULL OR a.sousTraite = :sousTraite)
+        AND (:technique IS NULL OR LOWER(a.techniqueUtilisee) LIKE LOWER(CONCAT('%', :technique, '%')))
+        AND (:automate IS NULL OR LOWER(a.automateUtilise) LIKE LOWER(CONCAT('%', :automate, '%')))
+        ORDER BY a.nomAnalyseLabo
+        """)
+    Page<LaboratoireAnalyse> findAnalysesWithCriteria(
+            @Param("laboratoireId") UUID laboratoireId,
+            @Param("laboratoireExamenId") UUID laboratoireExamenId,
+            @Param("nomAnalyse") String nomAnalyse,
+            @Param("codeAnalyse") String codeAnalyse,
+            @Param("analyseActive") Boolean analyseActive,
+            @Param("sousTraite") Boolean sousTraite,
+            @Param("technique") String technique,
+            @Param("automate") String automate,
+            Pageable pageable
+    );
+
+    // === STATISTIQUES ===
+
+    @Query("SELECT COUNT(a) FROM LaboratoireAnalyse a WHERE a.laboratoireId = :laboratoireId AND a.analyseActive = true")
+    long countActiveAnalysesByLaboratoire(@Param("laboratoireId") UUID laboratoireId);
+
+    @Query("SELECT COUNT(a) FROM LaboratoireAnalyse a WHERE a.laboratoireId = :laboratoireId AND a.sousTraite = true")
+    long countSousTraiteesByLaboratoire(@Param("laboratoireId") UUID laboratoireId);
+
+    @Query("""
+        SELECT a.sousTraite, COUNT(a) 
+        FROM LaboratoireAnalyse a 
+        WHERE a.laboratoireId = :laboratoireId AND a.analyseActive = true
+        GROUP BY a.sousTraite
+        """)
+    List<Object[]> getStatistiquesSousTraitance(@Param("laboratoireId") UUID laboratoireId);
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/repository/ExamenRepository.java
+
+```java
+package com.lims.laboratory.repository;
+
+import com.lims.laboratory.entity.Examen;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * Repository pour la gestion des examens de laboratoire
+ */
+@Repository
+public interface ExamenRepository extends JpaRepository<Examen, UUID> {
+
+    // === Requêtes de base ===
+
+    /**
+     * Vérifie si un examen existe déjà pour un laboratoire et un référentiel donné
+     */
+    boolean existsByLaboratoireIdAndExamenReferentielId(UUID laboratoireId, UUID examenReferentielId);
+
+    /**
+     * Trouve les examens actifs d'un laboratoire triés par nom
+     */
+    List<Examen> findByLaboratoireIdAndExamenActifTrueOrderByNomExamenLabo(UUID laboratoireId);
+
+    /**
+     * Trouve les examens par référentiel triés par nom
+     */
+    List<Examen> findByExamenReferentielIdAndExamenActifTrueOrderByNomExamenLabo(UUID examenReferentielId);
+
+
+    Optional<Examen> findByIdAndExamenActifTrue(UUID examenId);
+
+    // === Requêtes de comptage ===
+
+    /**
+     * Compte les examens par laboratoire
+     */
+    long countByLaboratoireId(UUID laboratoireId);
+
+    /**
+     * Compte les examens actifs/inactifs par laboratoire
+     */
+    long countByLaboratoireIdAndExamenActif(UUID laboratoireId, Boolean examenActif);
+
+    /**
+     * Compte les examens réalisés en interne par laboratoire
+     */
+    long countByLaboratoireIdAndExamenRealiseInternement(UUID laboratoireId, Boolean realiseInternement);
+
+    /**
+     * Compte les examens actifs globalement
+     */
+    long countByExamenActif(Boolean examenActif);
+
+    // === Requêtes avec filtres ===
+
+    /**
+     * Recherche avec filtres multiples
+     */
+    @Query("""
+        SELECT e FROM Examen e
+        WHERE (:laboratoireId IS NULL OR e.laboratoire.id = :laboratoireId)
+        AND (:nomExamen IS NULL OR e.nomExamenLabo LIKE :nomExamen)
+        AND (:examenActif IS NULL OR e.examenActif = :examenActif)
+        AND (:realiseInternement IS NULL OR e.examenRealiseInternement = :realiseInternement)
+        ORDER BY e.nomExamenLabo
+    """)
+    Page<Examen> findWithFilters(
+            @Param("laboratoireId") UUID laboratoireId,
+            @Param("nomExamen") String nomExamen,
+            @Param("examenActif") Boolean examenActif,
+            @Param("realiseInternement") Boolean realiseInternement,
+            Pageable pageable
+    );
+
+    // === Statistiques ===
+
+    /**
+     * Statistiques par laboratoire
+     */
+    @Query("""
+        SELECT l.nomCommercial, COUNT(e), 
+               SUM(CASE WHEN e.examenActif = true THEN 1 ELSE 0 END),
+               SUM(CASE WHEN e.examenRealiseInternement = true THEN 1 ELSE 0 END)
+        FROM Examen e 
+        JOIN e.laboratoire l 
+        GROUP BY l.id, l.nomCommercial
+        ORDER BY COUNT(e) DESC
+        """)
+    List<Object[]> getStatistiquesByLaboratoire();
+
+    // === Requêtes spécialisées ===
+
+    /**
+     * Trouve les examens sans délai de rendu configuré
+     */
+    @Query("""
+        SELECT e FROM Examen e 
+        WHERE e.examenActif = true 
+        AND (e.delaiRenduHabituel IS NULL OR e.delaiRenduHabituel = '')
+        ORDER BY e.nomExamenLabo
+        """)
+    List<Examen> findExamensSansDelai();
+
+    /**
+     * Trouve les examens sous-traités
+     */
+    @Query("""
+        SELECT DISTINCT e FROM Examen e 
+        JOIN e.analyses a 
+        WHERE a.sousTraite = true 
+        AND e.examenActif = true
+        ORDER BY e.nomExamenLabo
+        """)
+    List<Examen> findExamensSousTraites();
+
+    /**
+     * Recherche textuelle avancée sur nom et conditions
+     */
+    @Query("""
+        SELECT e FROM Examen e 
+        WHERE e.examenActif = true
+        AND (
+            LOWER(e.nomExamenLabo) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
+            OR LOWER(e.conditionsParticulieres) LIKE LOWER(CONCAT('%', :searchTerm, '%'))
+        )
+        ORDER BY e.nomExamenLabo
+        """)
+    List<Examen> searchByText(@Param("searchTerm") String searchTerm);
 }
 ```
 
@@ -8491,6 +10854,613 @@ public interface LaboratoireRepository extends JpaRepository<Laboratoire, UUID>,
         GROUP BY l.typeLaboratoire
         """)
     List<Object[]> getStatistiquesByType();
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/service/AnalyseService.java
+
+```java
+package com.lims.laboratory.service;
+
+import com.lims.laboratory.dto.request.AnalyseRequestDTO;
+import com.lims.laboratory.dto.request.AnalyseSearchDTO;
+import com.lims.laboratory.dto.response.AnalyseResponseDTO;
+import com.lims.laboratory.dto.response.PagedResponseDTO;
+import com.lims.laboratory.entity.LaboratoireAnalyse;
+import com.lims.laboratory.exception.AnalyseDuplicateException;
+import com.lims.laboratory.exception.AnalyseNotFoundException;
+import com.lims.laboratory.mapper.AnalyseMapper;
+import com.lims.laboratory.repository.AnalyseRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+@Service
+@Transactional
+@RequiredArgsConstructor
+@Slf4j
+public class AnalyseService {
+
+    private final AnalyseRepository analyseRepository;
+    private final AnalyseMapper analyseMapper;
+
+    // === OPÉRATIONS CRUD ===
+
+    /**
+     * Crée une nouvelle analyse
+     */
+    public AnalyseResponseDTO createAnalyse(AnalyseRequestDTO requestDTO) {
+        log.info("Création d'une nouvelle analyse pour le laboratoire: {}", requestDTO.getLaboratoireId());
+
+        // Vérifier l'unicité du code si fourni
+        if (StringUtils.hasText(requestDTO.getCodeAnalyseLabo())) {
+            if (analyseRepository.existsByLaboratoireIdAndCodeAnalyseLabo(
+                    requestDTO.getLaboratoireId(),
+                    requestDTO.getCodeAnalyseLabo())) {
+                throw new AnalyseDuplicateException(
+                        "Une analyse avec le code '" + requestDTO.getCodeAnalyseLabo() +
+                                "' existe déjà pour ce laboratoire"
+                );
+            }
+        }
+
+        // Vérifier l'unicité de l'analyse référentiel
+        if (analyseRepository.findByLaboratoireIdAndAnalyseReferentielId(
+                requestDTO.getLaboratoireId(),
+                requestDTO.getAnalyseReferentielId()).isPresent()) {
+            throw new AnalyseDuplicateException(
+                    "Cette analyse du référentiel est déjà configurée pour ce laboratoire"
+            );
+        }
+
+        LaboratoireAnalyse entity = analyseMapper.toEntity(requestDTO);
+        LaboratoireAnalyse savedEntity = analyseRepository.save(entity);
+
+        log.info("Analyse créée avec succès - ID: {}", savedEntity.getId());
+        return analyseMapper.toResponseDTO(savedEntity);
+    }
+
+    /**
+     * Met à jour une analyse existante
+     */
+    public AnalyseResponseDTO updateAnalyse(UUID id, AnalyseRequestDTO requestDTO) {
+        log.info("Mise à jour de l'analyse: {}", id);
+
+        LaboratoireAnalyse existingEntity = analyseRepository.findById(id)
+                .orElseThrow(() -> new AnalyseNotFoundException("Analyse non trouvée avec l'ID: " + id));
+
+        // Vérifier l'unicité du code si modifié
+        if (StringUtils.hasText(requestDTO.getCodeAnalyseLabo()) &&
+                !requestDTO.getCodeAnalyseLabo().equals(existingEntity.getCodeAnalyseLabo())) {
+            if (analyseRepository.existsByLaboratoireIdAndCodeAnalyseLabo(
+                    existingEntity.getLaboratoireId(),
+                    requestDTO.getCodeAnalyseLabo())) {
+                throw new AnalyseDuplicateException(
+                        "Une analyse avec le code '" + requestDTO.getCodeAnalyseLabo() +
+                                "' existe déjà pour ce laboratoire"
+                );
+            }
+        }
+
+        analyseMapper.updateEntity(existingEntity, requestDTO);
+        LaboratoireAnalyse savedEntity = analyseRepository.save(existingEntity);
+
+        log.info("Analyse mise à jour avec succès - ID: {}", savedEntity.getId());
+        return analyseMapper.toResponseDTO(savedEntity);
+    }
+
+    /**
+     * Supprime une analyse
+     */
+    public void deleteAnalyse(UUID id) {
+        log.info("Suppression de l'analyse: {}", id);
+
+        if (!analyseRepository.existsById(id)) {
+            throw new AnalyseNotFoundException("Analyse non trouvée avec l'ID: " + id);
+        }
+
+        analyseRepository.deleteById(id);
+        log.info("Analyse supprimée avec succès - ID: {}", id);
+    }
+
+    // === CONSULTATIONS ===
+
+    /**
+     * Récupère une analyse par son ID
+     */
+    @Transactional(readOnly = true)
+    public AnalyseResponseDTO findById(UUID id) {
+        log.debug("Récupération de l'analyse: {}", id);
+
+        LaboratoireAnalyse entity = analyseRepository.findById(id)
+                .orElseThrow(() -> new AnalyseNotFoundException("Analyse non trouvée avec l'ID: " + id));
+
+        return analyseMapper.toResponseDTO(entity);
+    }
+
+    /**
+     * Recherche des analyses avec critères et pagination
+     */
+    @Transactional(readOnly = true)
+    public PagedResponseDTO<AnalyseResponseDTO> searchAnalyses(
+            AnalyseSearchDTO searchDTO,
+            int page,
+            int size,
+            String sortBy,
+            String sortDirection) {
+
+        log.debug("Recherche d'analyses avec critères: {}", searchDTO);
+
+        Sort sort = Sort.by(Sort.Direction.fromString(sortDirection), sortBy);
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        Page<LaboratoireAnalyse> analysesPage = analyseRepository.findAnalysesWithCriteria(
+                searchDTO.getLaboratoireId(),
+                searchDTO.getLaboratoireExamenId(),
+                searchDTO.getNomAnalyse(),
+                searchDTO.getCodeAnalyse(),
+                searchDTO.getAnalyseActive(),
+                searchDTO.getSousTraite(),
+                searchDTO.getTechnique(),
+                searchDTO.getAutomate(),
+                pageable
+        );
+
+        List<AnalyseResponseDTO> analysesDTO = analyseMapper.toResponseDTOList(analysesPage.getContent());
+
+        return PagedResponseDTO.<AnalyseResponseDTO>builder()
+                .content(analysesDTO)
+                .page(analysesPage.getNumber())
+                .size(analysesPage.getSize())
+                .totalElements(analysesPage.getTotalElements())
+                .totalPages(analysesPage.getTotalPages())
+                .first(analysesPage.isFirst())
+                .last(analysesPage.isLast())
+                .build();
+    }
+
+    /**
+     * Récupère toutes les analyses actives d'un laboratoire
+     */
+    @Transactional(readOnly = true)
+    public List<AnalyseResponseDTO> findActiveAnalysesByLaboratoire(UUID laboratoireId) {
+        log.debug("Récupération des analyses actives du laboratoire: {}", laboratoireId);
+
+        List<LaboratoireAnalyse> analyses = analyseRepository.findByLaboratoireIdAndAnalyseActiveTrue(laboratoireId);
+        return analyseMapper.toResponseDTOList(analyses);
+    }
+
+    /**
+     * Récupère toutes les analyses d'un examen
+     */
+    @Transactional(readOnly = true)
+    public List<AnalyseResponseDTO> findAnalysesByExamen(UUID laboratoireExamenId) {
+        log.debug("Récupération des analyses de l'examen: {}", laboratoireExamenId);
+
+        List<LaboratoireAnalyse> analyses = analyseRepository.findByLaboratoireExamenIdAndAnalyseActiveTrue(laboratoireExamenId);
+        return analyseMapper.toResponseDTOList(analyses);
+    }
+
+    /**
+     * Active/désactive une analyse
+     */
+    public AnalyseResponseDTO toggleActivation(UUID id, boolean active) {
+        log.info("Modification du statut de l'analyse {} - Actif: {}", id, active);
+
+        LaboratoireAnalyse entity = analyseRepository.findById(id)
+                .orElseThrow(() -> new AnalyseNotFoundException("Analyse non trouvée avec l'ID: " + id));
+
+        entity.setAnalyseActive(active);
+        LaboratoireAnalyse savedEntity = analyseRepository.save(entity);
+
+        log.info("Statut de l'analyse modifié avec succès - ID: {}, Actif: {}", savedEntity.getId(), active);
+        return analyseMapper.toResponseDTO(savedEntity);
+    }
+
+    // === STATISTIQUES ===
+
+    /**
+     * Statistiques des analyses d'un laboratoire
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getStatistiquesAnalyses(UUID laboratoireId) {
+        log.debug("Génération des statistiques d'analyses pour le laboratoire: {}", laboratoireId);
+
+        long totalAnalyses = analyseRepository.countActiveAnalysesByLaboratoire(laboratoireId);
+        long analysesSousTraitees = analyseRepository.countSousTraiteesByLaboratoire(laboratoireId);
+
+        List<Object[]> statsRepartition = analyseRepository.getStatistiquesSousTraitance(laboratoireId);
+
+        return Map.of(
+                "totalAnalyses", totalAnalyses,
+                "analysesSousTraitees", analysesSousTraitees,
+                "analysesInternes", totalAnalyses - analysesSousTraitees,
+                "pourcentageSousTraitance", totalAnalyses > 0 ? (analysesSousTraitees * 100.0 / totalAnalyses) : 0.0,
+                "repartitionSousTraitance", statsRepartition
+        );
+    }
+}
+```
+
+# lims-laboratory-service/src/main/java/com/lims/laboratory/service/ExamenService.java
+
+```java
+package com.lims.laboratory.service;
+
+import com.lims.laboratory.dto.request.ExamenRequestDTO;
+import com.lims.laboratory.dto.request.ExamenSearchDTO;
+import com.lims.laboratory.dto.response.ExamenResponseDTO;
+import com.lims.laboratory.dto.response.PagedResponseDTO;
+import com.lims.laboratory.entity.Examen;
+import com.lims.laboratory.entity.Laboratoire;
+import com.lims.laboratory.exception.ExamenNotFoundException;
+import com.lims.laboratory.exception.ExamenValidationException;
+import com.lims.laboratory.exception.LaboratoireNotFoundException;
+import com.lims.laboratory.mapper.ExamenMapper;
+import com.lims.laboratory.repository.ExamenRepository;
+import com.lims.laboratory.repository.LaboratoireRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+/**
+ * Service pour la gestion des examens de laboratoire
+ */
+@Service
+@Transactional
+@RequiredArgsConstructor
+@Slf4j
+public class ExamenService {
+
+    private final ExamenRepository examenRepository;
+    private final LaboratoireRepository laboratoireRepository;
+    private final ExamenMapper examenMapper;
+
+    // === Opérations CRUD ===
+
+    /**
+     * Crée un nouvel examen personnalisé pour un laboratoire
+     */
+    public ExamenResponseDTO createExamen(ExamenRequestDTO requestDTO) {
+        log.info("Création d'un nouvel examen pour laboratoire: {}", requestDTO.getLaboratoireId());
+
+        // Validation du laboratoire
+        Laboratoire laboratoire = laboratoireRepository.findById(requestDTO.getLaboratoireId())
+                .orElseThrow(() -> new LaboratoireNotFoundException(
+                        "Laboratoire non trouvé: " + requestDTO.getLaboratoireId()));
+
+        // Vérification unicité examen/laboratoire
+        if (examenRepository.existsByLaboratoireIdAndExamenReferentielId(
+                requestDTO.getLaboratoireId(), requestDTO.getExamenReferentielId())) {
+            throw new ExamenValidationException(
+                    "Cet examen existe déjà dans ce laboratoire");
+        }
+
+        // Création de l'entité
+        Examen examen = examenMapper.toEntity(requestDTO);
+        examen.setLaboratoire(laboratoire);
+        examen.setCreatedAt(LocalDateTime.now());
+        examen.setUpdatedAt(LocalDateTime.now());
+
+        // Sauvegarde
+        Examen savedExamen = examenRepository.save(examen);
+
+        log.info("Examen créé avec succès - ID: {}, Laboratoire: {}",
+                savedExamen.getId(), laboratoire.getNomCommercial());
+
+        return examenMapper.toResponseDTO(savedExamen);
+    }
+
+    /**
+     * Récupère les examens avec pagination et filtres
+     */
+    @Transactional(readOnly = true)
+    public PagedResponseDTO<ExamenResponseDTO> getExamens(
+            int page, int size, String sortBy, String sortDirection,
+            UUID laboratoireId, ExamenSearchDTO searchDTO) {
+
+        log.info("Recherche examens - page: {}, size: {}, laboratoireId: {}", page, size, laboratoireId);
+
+        // Validation des paramètres de tri
+        List<String> validSortFields = List.of("nomExamenLabo", "examenActif", "createdAt", "updatedAt");
+        if (!validSortFields.contains(sortBy)) {
+            sortBy = "nomExamenLabo";
+        }
+
+        Sort.Direction direction = "desc".equalsIgnoreCase(sortDirection) ?
+                Sort.Direction.DESC : Sort.Direction.ASC;
+        Sort sort = Sort.by(direction, sortBy);
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+        Page<Examen> examensPage;
+
+        // Application des filtres
+        if (laboratoireId != null || hasSearchCriteria(searchDTO)) {
+            examensPage = examenRepository.findWithFilters(
+                    laboratoireId,
+                    searchDTO.getNomExamen(),
+                    searchDTO.getExamenActif(),
+                    searchDTO.getExamenRealiseInternement(),
+                    pageable
+            );
+        } else {
+            examensPage = examenRepository.findAll(pageable);
+        }
+
+        // Conversion en DTO
+        List<ExamenResponseDTO> examens = examensPage.getContent().stream()
+                .map(examenMapper::toResponseDTO)
+                .collect(Collectors.toList());
+
+        return PagedResponseDTO.<ExamenResponseDTO>builder()
+                .content(examens)
+                .page(page)
+                .size(size)
+                .totalElements(examensPage.getTotalElements())
+                .totalPages(examensPage.getTotalPages())
+                .first(examensPage.isFirst())
+                .last(examensPage.isLast())
+                .build();
+    }
+
+    /**
+     * Récupère un examen par son ID
+     */
+    @Transactional(readOnly = true)
+    public ExamenResponseDTO getExamenById(UUID id) {
+        log.info("Recherche examen par ID: {}", id);
+
+        Examen examen = examenRepository.findById(id)
+                .orElseThrow(() -> new ExamenNotFoundException("Examen non trouvé: " + id));
+
+        return examenMapper.toResponseDTO(examen);
+    }
+
+    /**
+     * Récupère un examen par son ID
+     */
+    @Transactional(readOnly = true)
+    public ExamenResponseDTO getActifExamenById(UUID id) {
+        log.info("Recherche examen par ID: {}", id);
+
+        Examen examen = examenRepository.findByIdAndExamenActifTrue(id)
+                .orElseThrow(() -> new ExamenNotFoundException("Examen non trouvé: " + id));
+
+        return examenMapper.toResponseDTO(examen);
+    }
+
+    /**
+     * Met à jour un examen existant
+     */
+    public ExamenResponseDTO updateExamen(UUID id, ExamenRequestDTO requestDTO) {
+        log.info("Mise à jour examen ID: {}", id);
+
+        // Récupération de l'examen existant
+        Examen examen = examenRepository.findById(id)
+                .orElseThrow(() -> new ExamenNotFoundException("Examen non trouvé: " + id));
+
+        // Validation du laboratoire si changement
+        if (!examen.getLaboratoire().getId().equals(requestDTO.getLaboratoireId())) {
+            Laboratoire nouveauLaboratoire = laboratoireRepository.findById(requestDTO.getLaboratoireId())
+                    .orElseThrow(() -> new LaboratoireNotFoundException(
+                            "Laboratoire non trouvé: " + requestDTO.getLaboratoireId()));
+            examen.setLaboratoire(nouveauLaboratoire);
+        }
+
+        // Vérification unicité si changement de référentiel
+        if (!examen.getExamenReferentielId().equals(requestDTO.getExamenReferentielId())) {
+            if (examenRepository.existsByLaboratoireIdAndExamenReferentielId(
+                    requestDTO.getLaboratoireId(), requestDTO.getExamenReferentielId())) {
+                throw new ExamenValidationException(
+                        "Cet examen existe déjà dans ce laboratoire");
+            }
+        }
+
+        // Mise à jour des champs
+        examenMapper.updateEntity(requestDTO, examen);
+        examen.setUpdatedAt(LocalDateTime.now());
+
+        // Sauvegarde
+        Examen updatedExamen = examenRepository.save(examen);
+
+        log.info("Examen mis à jour avec succès - ID: {}", id);
+
+        return examenMapper.toResponseDTO(updatedExamen);
+    }
+
+    /**
+     * Supprime (désactive) un examen
+     */
+    public void deleteExamen(UUID id) {
+        log.info("Suppression examen ID: {}", id);
+
+        Examen examen = examenRepository.findById(id)
+                .orElseThrow(() -> new ExamenNotFoundException("Examen non trouvé: " + id));
+
+        // Soft delete - désactivation
+        examen.setExamenActif(false);
+        examen.setUpdatedAt(LocalDateTime.now());
+        examenRepository.save(examen);
+
+        log.info("Examen désactivé avec succès - ID: {}", id);
+    }
+
+    // === Recherches spécialisées ===
+
+    /**
+     * Récupère tous les examens actifs d'un laboratoire
+     */
+    @Transactional(readOnly = true)
+    public List<ExamenResponseDTO> getExamensByLaboratoire(UUID laboratoireId) {
+        log.info("Recherche examens actifs pour laboratoire: {}", laboratoireId);
+
+        // Validation du laboratoire
+        if (!laboratoireRepository.existsById(laboratoireId)) {
+            throw new LaboratoireNotFoundException("Laboratoire non trouvé: " + laboratoireId);
+        }
+
+        List<Examen> examens = examenRepository.findByLaboratoireIdAndExamenActifTrueOrderByNomExamenLabo(laboratoireId);
+
+        return examens.stream()
+                .map(examenMapper::toResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Trouve tous les laboratoires proposant un examen du référentiel
+     */
+    @Transactional(readOnly = true)
+    public List<ExamenResponseDTO> getExamensByReferentiel(UUID examenReferentielId) {
+        log.info("Recherche examens par référentiel: {}", examenReferentielId);
+
+        List<Examen> examens = examenRepository.findByExamenReferentielIdAndExamenActifTrueOrderByNomExamenLabo(examenReferentielId);
+
+        return examens.stream()
+                .map(examenMapper::toResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    // === Actions spécialisées ===
+
+    /**
+     * Active ou désactive un examen
+     */
+    public ExamenResponseDTO toggleActivation(UUID id, boolean actif) {
+        log.info("Changement statut examen ID: {} -> {}", id, actif);
+
+        Examen examen = examenRepository.findById(id)
+                .orElseThrow(() -> new ExamenNotFoundException("Examen non trouvé: " + id));
+
+        examen.setExamenActif(actif);
+        examen.setUpdatedAt(LocalDateTime.now());
+
+        Examen updatedExamen = examenRepository.save(examen);
+
+        log.info("Statut examen modifié - ID: {}, Nouveau statut: {}", id, actif);
+
+        return examenMapper.toResponseDTO(updatedExamen);
+    }
+
+    /**
+     * Duplique un examen vers plusieurs laboratoires
+     */
+    public List<ExamenResponseDTO> dupliquerExamen(UUID sourceId, List<UUID> laboratoireIds) {
+        log.info("Duplication examen ID: {} vers {} laboratoires", sourceId, laboratoireIds.size());
+
+        // Récupération de l'examen source
+        Examen examenSource = examenRepository.findById(sourceId)
+                .orElseThrow(() -> new ExamenNotFoundException("Examen source non trouvé: " + sourceId));
+
+        // Validation des laboratoires cibles
+        List<Laboratoire> laboratoires = laboratoireRepository.findAllById(laboratoireIds);
+        if (laboratoires.size() != laboratoireIds.size()) {
+            throw new ExamenValidationException("Un ou plusieurs laboratoires cibles sont invalides");
+        }
+
+        List<Examen> nouveauxExamens = laboratoires.stream()
+                .filter(lab -> !examenRepository.existsByLaboratoireIdAndExamenReferentielId(
+                        lab.getId(), examenSource.getExamenReferentielId()))
+                .map(laboratoire -> {
+                    Examen nouvelExamen = new Examen();
+                    // Copie des propriétés
+                    nouvelExamen.setLaboratoire(laboratoire);
+                    nouvelExamen.setExamenReferentielId(examenSource.getExamenReferentielId());
+                    nouvelExamen.setNomExamenLabo(examenSource.getNomExamenLabo());
+                    nouvelExamen.setExamenActif(examenSource.getExamenActif());
+                    nouvelExamen.setExamenRealiseInternement(examenSource.getExamenRealiseInternement());
+                    nouvelExamen.setDelaiRenduHabituel(examenSource.getDelaiRenduHabituel());
+                    nouvelExamen.setDelaiRenduUrgent(examenSource.getDelaiRenduUrgent());
+                    nouvelExamen.setConditionsParticulieres(examenSource.getConditionsParticulieres());
+                    nouvelExamen.setCreatedAt(LocalDateTime.now());
+                    nouvelExamen.setUpdatedAt(LocalDateTime.now());
+                    return nouvelExamen;
+                })
+                .collect(Collectors.toList());
+
+        // Sauvegarde des nouveaux examens
+        List<Examen> examensCreés = examenRepository.saveAll(nouveauxExamens);
+
+        log.info("Duplication terminée - {} nouveaux examens créés", examensCreés.size());
+
+        return examensCreés.stream()
+                .map(examenMapper::toResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    // === Statistiques ===
+
+    /**
+     * Génère des statistiques sur les examens
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getStatistiques(UUID laboratoireId) {
+        log.info("Génération statistiques examens - laboratoireId: {}", laboratoireId);
+
+        Map<String, Object> stats = new HashMap<>();
+
+        if (laboratoireId != null) {
+            // Statistiques pour un laboratoire spécifique
+            long totalExamens = examenRepository.countByLaboratoireId(laboratoireId);
+            long examensActifs = examenRepository.countByLaboratoireIdAndExamenActif(laboratoireId, true);
+            long examensInactifs = totalExamens - examensActifs;
+            long examensInternes = examenRepository.countByLaboratoireIdAndExamenRealiseInternement(laboratoireId, true);
+
+            stats.put("laboratoireId", laboratoireId);
+            stats.put("totalExamens", totalExamens);
+            stats.put("examensActifs", examensActifs);
+            stats.put("examensInactifs", examensInactifs);
+            stats.put("examensRéalisésInternement", examensInternes);
+            stats.put("pourcentageActifs", totalExamens > 0 ? (examensActifs * 100.0 / totalExamens) : 0);
+        } else {
+            // Statistiques globales
+            long totalExamens = examenRepository.count();
+            long examensActifs = examenRepository.countByExamenActif(true);
+            long examensInactifs = totalExamens - examensActifs;
+
+            List<Object[]> statsByLaboratoire = examenRepository.getStatistiquesByLaboratoire();
+
+            stats.put("totalExamens", totalExamens);
+            stats.put("examensActifs", examensActifs);
+            stats.put("examensInactifs", examensInactifs);
+            stats.put("nombreLaboratoires", statsByLaboratoire.size());
+            stats.put("statistiquesParLaboratoire", statsByLaboratoire);
+        }
+
+        return stats;
+    }
+
+    // === Méthodes utilitaires ===
+
+    private boolean hasSearchCriteria(ExamenSearchDTO searchDTO) {
+        return searchDTO != null && (
+                StringUtils.hasText(searchDTO.getNomExamen()) ||
+                        searchDTO.getExamenActif() != null ||
+                        searchDTO.getExamenRealiseInternement() != null
+        );
+    }
 }
 ```
 
@@ -27736,9 +30706,12 @@ This is a binary file of the type: Binary
 ```md
 TODO:
 
-- [ ] mettre à jour service patient pour créer/modifier une assurance/mutuelle + y rattacher un fichier déjà uploadé
+- [X] Rajouter un nouveau controller pour gérer les examens
+- [X] Rajouter un nouveau controller pour gérer les analyses
+- [ ] Rajouter un nouveau controller pour gérer les prélèvements
 - [ ] initier service parcours/dossier (pour y rajouter les ordonnances, analyses, réponses aux conditions pré-analytics)
 
+- [X] mettre à jour service patient pour créer/modifier une assurance/mutuelle + y rattacher un fichier déjà uploadé
 - [X] initier service document avec minio (pour upload des mutuelles et ordonnances)
 - [X] Mettre à jour un patient (json patch) (prendre en compte la situation du patient)
 - [X] Rajouter un ref de situation 
